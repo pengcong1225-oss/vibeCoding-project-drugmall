@@ -250,4 +250,44 @@ const handleCopyOrderNo = () => {
     <div v-if="logistics && logistics.list.length > 0" class="logistics-section" @click="handleViewLogistics">
       <div class="logistics-header">
         <el-icon><Van /></el-icon>
-        <span>{{ logistics.company }} {{ logistics.no }}</span
+        <span>{{ logistics.company }} {{ logistics.no }}</span>
+      </div>
+      <div class="logistics-content">
+        <div class="latest-info">
+          <p class="info-text">{{ logistics.list[0].content }}</p>
+          <p class="info-time">{{ formatDateTime(logistics.list[0].time) }}</p>
+        </div>
+        <el-icon><ArrowRight /></el-icon>
+      </div>
+    </div>
+
+    <!-- 商品列表 -->
+    <div class="goods-section">
+      <div class="section-title">商品信息</div>
+      <div class="goods-list">
+        <div
+          v-for="item in order.items"
+          :key="item.id"
+          class="goods-item"
+          @click="$router.push(`/drug/${item.drugId}`)"
+        >
+          <img :src="item.image" :alt="item.name" class="goods-image" />
+          <div class="goods-info">
+            <h4 class="goods-name">{{ item.name }}</h4>
+            <p class="goods-spec">{{ item.specification }}</p>
+            <div class="goods-bottom">
+              <span class="goods-price">¥{{ formatPrice(item.price) }}</span>
+              <span class="goods-quantity">x{{ item.quantity }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 金额明细 -->
+    <div class="amount-section">
+      <div class="section-title">金额明细</div>
+      <div class="amount-list">
+        <div class="amount-item">
+          <span>商品总额</span>
+          <span>¥{{ format
