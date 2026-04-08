@@ -290,4 +290,538 @@ const handleCopyOrderNo = () => {
       <div class="amount-list">
         <div class="amount-item">
           <span>商品总额</span>
-          <span>¥{{ format
+          <span>¥{{ formatPrice(order.drugAmount) }}</span>
+        </div>
+        <div class="amount-item">
+          <span>运费</span>
+          <span>+¥{{ formatPrice(order.deliveryFee) }}</span>
+        </div>
+        <div v-if="order.discountAmount > 0" class="amount-item discount">
+          <span>优惠金额</span>
+          <span>-¥{{ formatPrice(order.discountAmount) }}</span>
+        </div>
+        <div v-if="order.couponAmount > 0" class="amount-item discount">
+          <span>优惠券</span>
+          <span>-¥{{ formatPrice(order.couponAmount) }}</span>
+        </div>
+        <div class="amount-item total">
+          <span>实付金额</span>
+          <span class="total-price">¥{{ formatPrice(order.paidAmount || order.payableAmount) }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 订单信息 -->
+    <div class="info-section">
+      <div class="section-title">订单信息</div>
+      <div class="info-list">
+        <div class="info-item">
+          <span class="label">订单编号</span>
+          <div class="value">
+            <span>{{ order.orderNo }}</span>
+            <el-button type="primary" link size="small" @click="handleCopyOrderNo">复制</el-button>
+          </div>
+        </div>
+        <div class="info-item">
+          <span class="label">下单时间</span>
+          <span class="value">{{ formatDateTime(order.createTime) }}</span>
+        </div>
+        <div v-if="order.payTime" class="info-item">
+          <span class="label">支付时间</span>
+          <span class="value">{{ formatDateTime(order.payTime) }}</span>
+        </div>
+        <div v-if="order.deliveryTime" class="info-item">
+          <span class="label">发货时间</span>
+          <span class="value">{{ formatDateTime(order.deliveryTime) }}</span>
+        </div>
+        <div v-if="order.completeTime" class="info-item">
+          <span class="label">完成时间</span>
+          <span class="value">{{ formatDateTime(order.completeTime) }}</span>
+        </div>
+        <div v-if="order.remark" class="info-item">
+          <span class="label">订单备注</span>
+          <span class="value">{{ order.remark }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 配送信息 -->
+    <div class="address-section">
+      <div class="section-title">配送信息</div>
+      <div class="address-info">
+        <div class="receiver">
+          <el-icon><User /></el-icon>
+          <span>{{ order.receiverName }}</span>
+          <span>{{ order.receiverPhone }}</span>
+        </div>
+        <div class="address">
+          <el-icon><Location /></el-icon>
+          <span>{{ order.receiverAddress }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 底部操作栏 -->
+    <div class="action-bar">
+      <!-- 待支付 -->
+      <template v-if="order.status === 'pending'">
+        <el-button type="primary" size="large" @click="handlePay">立即支付</el-button>
+        <el-button size="large" @click="handleCancel">取消订单</el-button>
+      </template>
+
+      <!-- 待发货 -->
+      <template v-if="order.status === 'paid'">
+        <el-button size="large" @click="handleRefund">申请退款</el-button>
+        <el-button size="large" @click="handleContactService">联系客服</el-button>
+      </template>
+
+      <!-- 待收货 -->
+      <template v-if="order.status === 'shipped'">
+        <el-button type="primary" size="large" @click="handleViewLogistics">查看物流</el-button>
+        <el-button type="success" size="large" @click="handleConfirm">确认收货</el-button>
+      </template>
+
+      <!-- 已完成 -->
+      <template v-if="order.status === 'completed'">
+        <el-button type="primary" size="large" @click="handleReview">评价</el-button>
+        <el-button size="large" @click="handleRebuy">再次购买</el-button>
+        <el-button size="large" @click="handleDelete">删除订单</el-button>
+      </template>
+
+      <!-- 已取消 -->
+      <template v-if="order.status === 'cancelled'">
+        <el-button size="large" @click="handleRebuy">再次购买</el-button>
+        <el-button size="large" @click="handleDelete">删除订单</el-button>
+      </template>
+    </div>
+
+    <!-- 底部安全区域 -->
+    <div class="safe-area-bottom" />
+  </div>
+</template>
+
+<style scoped lang="scss">
+@use '@/styles/variables' as *;
+
+.order-detail-page {
+  min-height: 100vh;
+  background: $bg-primary;
+  padding-bottom: calc(80px + $safe-area-bottom);
+}
+
+// 头部
+.header {
+  display: flex;
+  align-items: center;
+  padding: $spacing-sm $spacing-md;
+  padding-top: calc($safe-area-top + $spacing-sm);
+  background: $bg-white;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+
+  .back-btn {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: $text-primary;
+    font-size: 20px;
+    cursor: pointer;
+    border-radius: 50%;
+    transition: background 0.2s;
+
+    &:hover {
+      background: $bg-gray;
+    }
+  }
+
+  .title {
+    flex: 1;
+    text-align: center;
+    font-size: $font-lg;
+    font-weight: 600;
+    color: $text-primary;
+    margin: 0;
+    padding-right: 36px;
+  }
+}
+
+// 状态区域
+.status-section {
+  display: flex;
+  align-items: center;
+  padding: $spacing-lg;
+  color: #fff;
+
+  .status-icon {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    margin-right: $spacing-md;
+  }
+
+  .status-info {
+    flex: 1;
+
+    .status-text {
+      font-size: $font-xl;
+      font-weight: 600;
+      margin: 0 0 $spacing-xs 0;
+    }
+
+    .status-desc {
+      font-size: $font-sm;
+      opacity: 0.9;
+      margin: 0;
+    }
+  }
+}
+
+// 进度条
+.progress-section {
+  padding: $spacing-lg;
+  background: $bg-white;
+  margin-bottom: $spacing-sm;
+
+  .progress-line {
+    height: 2px;
+    background: $bg-gray;
+    border-radius: 1px;
+    margin-bottom: $spacing-md;
+    position: relative;
+
+    .progress-fill {
+      height: 100%;
+      background: $primary-color;
+      border-radius: 1px;
+      transition: width 0.3s ease;
+    }
+  }
+
+  .progress-steps {
+    display: flex;
+    justify-content: space-between;
+
+    .step-item {
+      flex: 1;
+      text-align: center;
+      position: relative;
+
+      &.done {
+        .step-label {
+          color: $text-primary;
+        }
+      }
+
+      &.current {
+        .step-label {
+          color: $primary-color;
+          font-weight: 500;
+        }
+      }
+
+      .step-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        border: 2px solid #ddd;
+        background: #fff;
+        margin: 0 auto $spacing-xs;
+        position: relative;
+        z-index: 1;
+      }
+
+      .step-label {
+        font-size: $font-xs;
+        color: $text-secondary;
+        margin-bottom: $spacing-xs;
+      }
+
+      .step-time {
+        font-size: 10px;
+        color: $text-hint;
+      }
+    }
+  }
+}
+
+// 物流信息
+.logistics-section {
+  margin: $spacing-sm 0;
+  padding: $spacing-md;
+  background: $bg-white;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+
+  .logistics-icon {
+    width: 40px;
+    height: 40px;
+    background: $primary-light;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: $spacing-md;
+
+    .el-icon {
+      font-size: 20px;
+      color: $primary-color;
+    }
+  }
+
+  .logistics-info {
+    flex: 1;
+
+    .logistics-status {
+      font-size: $font-md;
+      color: $text-primary;
+      margin-bottom: $spacing-xs;
+    }
+
+    .logistics-desc {
+      font-size: $font-sm;
+      color: $text-secondary;
+    }
+  }
+
+  .el-icon {
+    font-size: 16px;
+    color: $text-hint;
+  }
+}
+
+// 商品列表
+.goods-section {
+  margin: $spacing-sm 0;
+  padding: $spacing-md;
+  background: $bg-white;
+
+  .section-title {
+    font-size: $font-md;
+    font-weight: 500;
+    color: $text-primary;
+    margin-bottom: $spacing-md;
+  }
+
+  .goods-list {
+    .goods-item {
+      display: flex;
+      padding: $spacing-md 0;
+      border-bottom: 1px solid $border-light;
+      cursor: pointer;
+
+      &:last-child {
+        border-bottom: none;
+      }
+
+      .goods-image {
+        width: 80px;
+        height: 80px;
+        border-radius: $radius-sm;
+        object-fit: cover;
+        margin-right: $spacing-md;
+      }
+
+      .goods-info {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+
+        .goods-name {
+          font-size: $font-md;
+          color: $text-primary;
+          font-weight: 500;
+          margin: 0;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+
+        .goods-spec {
+          font-size: $font-sm;
+          color: $text-secondary;
+          margin: 0;
+        }
+
+        .goods-bottom {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+
+          .goods-price {
+            font-size: $font-md;
+            color: $price-color;
+            font-weight: 500;
+          }
+
+          .goods-quantity {
+            font-size: $font-sm;
+            color: $text-secondary;
+          }
+        }
+      }
+    }
+  }
+}
+
+// 金额明细
+.amount-section {
+  margin: $spacing-sm 0;
+  padding: $spacing-md;
+  background: $bg-white;
+
+  .section-title {
+    font-size: $font-md;
+    font-weight: 500;
+    color: $text-primary;
+    margin-bottom: $spacing-md;
+  }
+
+  .amount-list {
+    .amount-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: $spacing-xs 0;
+      font-size: $font-sm;
+      color: $text-secondary;
+
+      &.discount {
+        color: $price-color;
+      }
+
+      &.total {
+        padding-top: $spacing-md;
+        margin-top: $spacing-sm;
+        border-top: 1px solid $border-light;
+        font-size: $font-md;
+        font-weight: 500;
+        color: $text-primary;
+
+        .total-price {
+          color: $price-color;
+          font-size: $font-xl;
+        }
+      }
+    }
+  }
+}
+
+// 订单信息
+.info-section {
+  margin: $spacing-sm 0;
+  padding: $spacing-md;
+  background: $bg-white;
+
+  .section-title {
+    font-size: $font-md;
+    font-weight: 500;
+    color: $text-primary;
+    margin-bottom: $spacing-md;
+  }
+
+  .info-list {
+    .info-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding: $spacing-xs 0;
+      font-size: $font-sm;
+
+      .label {
+        color: $text-secondary;
+        white-space: nowrap;
+        margin-right: $spacing-md;
+      }
+
+      .value {
+        color: $text-primary;
+        text-align: right;
+        word-break: break-all;
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
+      }
+    }
+  }
+}
+
+// 配送信息
+.address-section {
+  margin: $spacing-sm 0;
+  padding: $spacing-md;
+  background: $bg-white;
+
+  .section-title {
+    font-size: $font-md;
+    font-weight: 500;
+    color: $text-primary;
+    margin-bottom: $spacing-md;
+  }
+
+  .address-info {
+    .receiver {
+      display: flex;
+      align-items: center;
+      gap: $spacing-sm;
+      font-size: $font-md;
+      color: $text-primary;
+      font-weight: 500;
+      margin-bottom: $spacing-sm;
+
+      .el-icon {
+        color: $primary-color;
+      }
+    }
+
+    .address {
+      display: flex;
+      align-items: flex-start;
+      gap: $spacing-sm;
+      font-size: $font-sm;
+      color: $text-secondary;
+      line-height: 1.5;
+
+      .el-icon {
+        color: $primary-color;
+        margin-top: 2px;
+      }
+    }
+  }
+}
+
+// 底部操作栏
+.action-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: $spacing-sm;
+  padding: $spacing-md;
+  padding-bottom: calc($spacing-md + $safe-area-bottom);
+  background: $bg-white;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
+  z-index: 100;
+
+  .el-button {
+    min-width: 100px;
+  }
+}
+
+// 底部安全区域
+.safe-area-bottom {
+  height: $safe-area-bottom;
+}
+</style>

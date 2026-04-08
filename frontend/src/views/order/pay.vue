@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useOrderStore } from '@/stores/order'
-import { getOrderDetail, payOrder, getPayStatus } from '@/api/modules/order'
-import { useCountdown } from '@/composables/useCountdown'
-import Loading from '@/components/Loading/index.vue'
-import type { Order, PayType } from '@/types'
+import { useCountdown } from '@/composables'
+import { getOrderDetail, payOrder } from '@/api/modules/order'
+import { formatPrice } from '@/utils'
+import type { PayType } from '@/types'
 
 const router = useRouter()
 const route = useRoute()
@@ -16,15 +16,18 @@ const orderStore = useOrderStore()
 const orderId = computed(() => route.query.id as string)
 
 // 订单数据
-const order = ref<Order | null>(null)
+const order = ref<any>(null)
 const loading = ref(false)
+const isPaying = ref(false)
 
-// 支付方式选择
+// 选中的支付方式
 const selectedPayType = ref<PayType>('wechat')
+
+// 支付方式列表
 const payTypes = [
-  { value: 'wechat' as PayType, label: '微信支付', icon: 'Wallet', color: '#07c160' },
-  { value: 'alipay' as PayType, label: '支付宝', icon: 'Money', color: '#1677ff' },
-  { value: 'balance' as PayType, label: '余额支付', icon: 'Coin', color: '#ff9500' }
+  { value: 'wechat' as PayType, label: '微信支付', icon: 'https://img.icons8.com/color/48/weixing.png' },
+  { value: 'alipay' as PayType, label: '支付宝', icon: 'https://img.icons8.com/color/48/alipay.png' },
+  { value: 'balance' as PayType, label: '余额支付', icon: 'https://img.icons8.com/color/48/money.png' }
 ]
 
 // 倒计时 - 30分钟
@@ -45,16 +48,6 @@ onUnmounted(() => {
   stop()
 })
 
-// 监听倒计时结束
-const handleExpired = () => {
-  if (isExpired.value && order.value?.status === 'pending') {
-    ElMessage.warning('支付超时，订单已关闭')
-    setTimeout(() => {
-      router.push('/order/list')
-    }, 1500)
-  }
-}
-
 // 加载订单详情
 const loadOrderDetail = async () => {
   loading.value = true
@@ -62,20 +55,28 @@ const loadOrderDetail = async () => {
     const res = await getOrderDetail(orderId.value)
     if (res) {
       order.value = res
+      orderStore.setCurrentOrder(res)
 
       // 检查订单状态
       if (res.status !== 'pending') {
-        ElMessage.info('该订单无需支付')
+        ElMessage.warning('该订单已支付或已取消')
         router.replace(`/order/${res.id}`)
         return
       }
 
-      // 设置倒计时
+      // 检查是否已过期
       if (res.expireTime) {
         const expireTime = new Date(res.expireTime).getTime()
         const now = Date.now()
-        const remaining = Math.max(0, Math.floor((expireTime - now) / 1000))
-        // 如果倒计时模块支持设置时间，这里可以设置
+        if (expireTime <= now) {
+          // 已过期
+          stop()
+        } else {
+          // 重新开始倒计时
+          const remainingSeconds = Math.floor((expireTime - now) / 1000)
+          stop()
+          start(remainingSeconds)
+        }
       }
     }
   } catch (error) {
@@ -85,34 +86,49 @@ const loadOrderDetail = async () => {
   }
 }
 
-// 支付中状态
-const isPaying = ref(false)
+// 返回上一页
+const goBack = () => {
+  router.back()
+}
 
 // 确认支付
 const handleConfirmPay = async () => {
-  if (!order.value) return
   if (isExpired.value) {
-    ElMessage.warning('支付已超时，请重新下单')
+    ElMessage.error('支付已超时，请重新下单')
     return
+  }
+
+  if (!order.value) return
+
+  // 检查余额
+  if (selectedPayType.value === 'balance') {
+    // 模拟检查余额
+    const balance = 0
+    if (balance < order.value.payableAmount) {
+      ElMessage.warning('余额不足，请选择其他支付方式')
+      return
+    }
   }
 
   isPaying.value = true
   try {
-    // 模拟支付过程
-    await new Promise(resolve => setTimeout(resolve, 1500))
-
-    // 实际支付接口
-    // const res = await payOrder({
-    //   orderId: order.value.id,
-    //   payType: selectedPayType.value,
-    //   returnUrl: window.location.origin + '/order/pay-success'
-    // })
-
-    ElMessage.success('支付成功')
-    router.replace({
-      path: '/order/pay-result',
-      query: { id: order.value.id, status: 'success' }
+    const res = await payOrder({
+      orderId: order.value.id,
+      payType: selectedPayType.value
     })
+
+    if (res) {
+      stop()
+      ElMessage.success('支付成功')
+      // 跳转到支付结果页
+      router.replace({
+        path: '/order/pay-result',
+        query: {
+          orderId: order.value.id,
+          status: 'success'
+        }
+      })
+    }
   } catch (error) {
     ElMessage.error('支付失败，请重试')
   } finally {
@@ -122,47 +138,47 @@ const handleConfirmPay = async () => {
 
 // 取消支付
 const handleCancel = () => {
-  router.back()
+  ElMessageBox.confirm('确定要取消支付吗？', '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(() => {
+    router.back()
+  }).catch(() => {})
 }
 
-// 格式化倒计时显示
-const formatCountdown = computed(() => {
-  const m = minutes.value.toString().padStart(2, '0')
-  const s = seconds.value.toString().padStart(2, '0')
-  return `${m}分${s}秒`
-})
-
-// 格式化金额
-const formatAmount = (amount: number | undefined) => {
-  if (amount === undefined) return '0.00'
-  return amount.toFixed(2)
+// 选择支付方式
+const selectPayType = (type: PayType) => {
+  selectedPayType.value = type
 }
 </script>
 
 <template>
   <div class="pay-page">
+    <!-- 加载状态 -->
     <div v-if="loading" class="loading-wrapper">
-      <Loading />
+      <el-skeleton :rows="10" animated />
     </div>
 
+    <!-- 支付内容 -->
     <div v-else-if="order" class="pay-content">
       <!-- 头部 -->
       <div class="header">
-        <div class="back-btn" @click="handleCancel">
+        <div class="back-btn" @click="goBack">
           <el-icon><ArrowLeft /></el-icon>
         </div>
-        <h1 class="title">确认支付</h1>
+        <h1 class="title">支付订单</h1>
         <div class="placeholder" />
       </div>
 
-      <!-- 倒计时提醒 -->
-      <div v-if="!isExpired" class="countdown-tips">
+      <!-- 倒计时提示 -->
+      <div class="countdown-tips" :class="{ expired: isExpired }">
         <el-icon><Clock /></el-icon>
-        <span>请在 {{ formatCountdown }} 内完成支付</span>
-      </div>
-      <div v-else class="countdown-tips expired">
-        <el-icon><Warning /></el-icon>
-        <span>支付已超时</span>
+        <span v-if="isExpired">支付已超时，请重新下单</span>
+        <span v-else>
+          支付剩余时间
+          <strong>{{ String(minutes).padStart(2, '0') }}:{{ String(seconds).padStart(2, '0') }}</strong>
+        </span>
       </div>
 
       <!-- 支付金额 -->
@@ -170,12 +186,11 @@ const formatAmount = (amount: number | undefined) => {
         <div class="amount-label">支付金额</div>
         <div class="amount-value">
           <span class="currency">¥</span>
-          <span class="number">{{ formatAmount(order.payableAmount) }}</span>
+          <span class="number">{{ formatPrice(order.payableAmount) }}</span>
         </div>
         <div class="amount-detail">
-          <span>商品总额 ¥{{ formatAmount(order.drugAmount) }}</span>
-          <span v-if="order.deliveryFee > 0"> + 运费 ¥{{ formatAmount(order.deliveryFee) }}</span>
-          <span v-if="order.discountAmount > 0"> - 优惠 ¥{{ formatAmount(order.discountAmount) }}</span>
+          商品总额 ¥{{ formatPrice(order.drugAmount) }} + 运费 ¥{{ formatPrice(order.deliveryFee) }}
+          <span v-if="order.discountAmount > 0"> - 优惠 ¥{{ formatPrice(order.discountAmount) }}</span>
         </div>
       </div>
 
@@ -187,21 +202,19 @@ const formatAmount = (amount: number | undefined) => {
             v-for="type in payTypes"
             :key="type.value"
             class="paytype-item"
-            :class="{ active: selectedPayType === type.value, disabled: isExpired || isPaying }"
-            @click="!isExpired && !isPaying && (selectedPayType = type.value)"
+            :class="{ active: selectedPayType === type.value, disabled: isExpired }"
+            @click="!isExpired && selectPayType(type.value)"
           >
-            <div class="paytype-icon" :style="{ background: type.color }">
-              <el-icon :size="20">
-                <component :is="type.icon" />
-              </el-icon>
-            </div>
+            <img :src="type.icon" :alt="type.label" class="paytype-icon" />
             <div class="paytype-info">
-              <span class="paytype-name">{{ type.label }}</span>
-              <span v-if="type.value === 'balance'" class="paytype-desc">余额 ¥0.00</span>
-              <span v-else-if="type.value === 'wechat'" class="paytype-desc">推荐使用</span>
+              <div class="paytype-name">{{ type.label }}</div>
+              <div class="paytype-desc">
+                <span v-if="type.value === 'balance'" class="balance-text">余额 ¥0.00</span>
+                <span v-else-if="type.value === 'wechat'" class="recommend-text">推荐使用</span>
+              </div>
             </div>
             <div class="check-icon">
-              <el-icon v-if="selectedPayType === type.value" :color="'#00b578'">
+              <el-icon v-if="selectedPayType === type.value" :size="20" color="#00b578">
                 <CircleCheckFilled />
               </el-icon>
               <div v-else class="check-circle" />
@@ -210,27 +223,11 @@ const formatAmount = (amount: number | undefined) => {
         </div>
       </div>
 
-      <!-- 订单信息 -->
-      <div class="order-info">
-        <div class="info-row">
-          <span class="label">订单号</span>
-          <span class="value">{{ order.orderNo }}</span>
-        </div>
-        <div class="info-row">
-          <span class="label">收货人</span>
-          <span class="value">{{ order.receiverName }} {{ order.receiverPhone }}</span>
-        </div>
-        <div class="info-row">
-          <span class="label">收货地址</span>
-          <span class="value address">{{ order.receiverAddress }}</span>
-        </div>
-      </div>
-
       <!-- 底部支付按钮 -->
       <div class="pay-footer">
         <div class="total-info">
           <span class="total-label">实付金额</span>
-          <span class="total-value">¥{{ formatAmount(order.payableAmount) }}</span>
+          <span class="total-value">¥{{ formatPrice(order.payableAmount) }}</span>
         </div>
         <div class="pay-actions">
           <el-button size="large" @click="handleCancel" :disabled="isPaying">取消</el-button>
@@ -297,7 +294,6 @@ const formatAmount = (amount: number | undefined) => {
     font-size: $font-lg;
     font-weight: 600;
     color: $text-primary;
-    margin: 0;
   }
 
   .placeholder {
@@ -323,6 +319,11 @@ const formatAmount = (amount: number | undefined) => {
 
   .el-icon {
     font-size: 16px;
+  }
+
+  strong {
+    font-size: $font-lg;
+    font-weight: 600;
   }
 }
 
@@ -407,11 +408,8 @@ const formatAmount = (amount: number | undefined) => {
       .paytype-icon {
         width: 40px;
         height: 40px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
         border-radius: $radius-md;
-        color: $text-white;
+        object-fit: contain;
       }
 
       .paytype-info {
@@ -429,6 +427,14 @@ const formatAmount = (amount: number | undefined) => {
         .paytype-desc {
           font-size: $font-sm;
           color: $text-tertiary;
+
+          .balance-text {
+            color: $text-secondary;
+          }
+
+          .recommend-text {
+            color: $primary;
+          }
         }
       }
 
@@ -452,6 +458,71 @@ const formatAmount = (amount: number | undefined) => {
 
   .info-row {
     display: flex;
+    justify-content: space-between;
     padding: $spacing-sm 0;
     font-size: $font-sm;
     border-bottom: 1px dashed $border-light;
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    .label {
+      color: $text-secondary;
+    }
+
+    .value {
+      color: $text-primary;
+      font-weight: 500;
+    }
+  }
+}
+
+// 底部支付按钮
+.pay-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: $spacing-md;
+  padding: $spacing-md;
+  padding-bottom: calc($spacing-md + $safe-area-bottom);
+  background: $bg-white;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
+  z-index: 100;
+
+  .total-info {
+    display: flex;
+    flex-direction: column;
+
+    .total-label {
+      font-size: $font-sm;
+      color: $text-secondary;
+      margin-bottom: 2px;
+    }
+
+    .total-value {
+      font-size: $font-xl;
+      font-weight: bold;
+      color: $error;
+    }
+  }
+
+  .pay-actions {
+    display: flex;
+    gap: $spacing-sm;
+
+    .el-button {
+      min-width: 120px;
+    }
+  }
+}
+
+// 底部安全区域
+.safe-area-bottom {
+  height: calc(80px + $safe-area-bottom);
+}
+</style>
