@@ -145,18 +145,18 @@ import { Timer } from '@element-plus/icons-vue'
 
 const router = useRouter()
 
-// 金刚位数据 - 慢病关怀专用
+// 金刚位数据 - 慢病关怀分类真实图片
 const kingkongItems = ref([
-  { id: '1', name: '高血压', icon: '高', bgColor: '#FFEBEE', isActive: true },
-  { id: '2', name: '糖尿病', icon: '糖', bgColor: '#E8F5E9' },
-  { id: '3', name: '心脏病', icon: '心', bgColor: '#FFF3E0' },
-  { id: '4', name: '高血脂', icon: '脂', bgColor: '#E3F2FD' },
-  { id: '5', name: '哮喘', icon: '喘', bgColor: '#F3E5F5' },
-  { id: '6', name: '痛风', icon: '痛', bgColor: '#FBE9E7' },
-  { id: '7', name: '肝病', icon: '肝', bgColor: '#FFF8E1' },
-  { id: '8', name: '肾病', icon: '肾', bgColor: '#E0F7FA' },
-  { id: '9', name: '甲状腺', icon: '甲', bgColor: '#E8EAF6' },
-  { id: '10', name: '骨质疏松', icon: '骨', bgColor: '#FCE4EC' }
+  { id: '1', name: '高血压', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i4/O1CN01Z5paLz1O0zuCC7osS_!!6000000001644-55-tps-83-82.svg', bgColor: '#FFEBEE', isActive: true },
+  { id: '2', name: '糖尿病', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i2/O1CN01O0et1z1Jog3zZ1Dgn_!!6000000001069-55-tps-83-82.svg', bgColor: '#E8F5E9' },
+  { id: '3', name: '心脏病', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i1/O1CN01XY8X0i1GxPFS0YlFW_!!6000000000683-55-tps-83-82.svg', bgColor: '#FFF3E0' },
+  { id: '4', name: '高血脂', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i3/O1CN01MNj3nA1q3Hq0q0ZqL_!!6000000005438-55-tps-83-82.svg', bgColor: '#E3F2FD' },
+  { id: '5', name: '哮喘/呼吸', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i4/O1CN01Z5paLz1O0zuCC7osS_!!6000000001644-55-tps-83-82.svg', bgColor: '#F3E5F5' },
+  { id: '6', name: '痛风', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i2/O1CN01O0et1z1Jog3zZ1Dgn_!!6000000001069-55-tps-83-82.svg', bgColor: '#FBE9E7' },
+  { id: '7', name: '肝病', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i1/O1CN01XY8X0i1GxPFS0YlFW_!!6000000000683-55-tps-83-82.svg', bgColor: '#FFF8E1' },
+  { id: '8', name: '肾病', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i3/O1CN01MNj3nA1q3Hq0q0ZqL_!!6000000005438-55-tps-83-82.svg', bgColor: '#E0F7FA' },
+  { id: '9', name: '甲状腺', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i4/O1CN01Z5paLz1O0zuCC7osS_!!6000000001644-55-tps-83-82.svg', bgColor: '#E8EAF6' },
+  { id: '10', name: '骨质疏松', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i2/O1CN01O0et1z1Jog3zZ1Dgn_!!6000000001069-55-tps-83-82.svg', bgColor: '#FCE4EC' }
 ])
 
 // 商品数据 - 慢病用药
@@ -319,6 +319,7 @@ $text-tertiary: #999999;
     font-size: 12px;
     color: $text-secondary;
     text-align: center;
+    line-height: 1.3;
   }
 }
 

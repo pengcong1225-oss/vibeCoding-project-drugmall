@@ -113,18 +113,18 @@ import { Timer } from '@element-plus/icons-vue'
 
 const router = useRouter()
 
-// 金刚位数据 - 按照图片配色
+// 金刚位数据 - 滋补保健分类真实图片
 const kingkongItems = ref([
-  { id: '1', name: '大牌精选', icon: '牌', bgColor: '#FFE4E1', isActive: true },
-  { id: '2', name: '礼赠佳品', icon: '礼', bgColor: '#FFF8DC' },
-  { id: '3', name: '益生菌', icon: '菌', bgColor: '#E0F7FA' },
-  { id: '4', name: '钙铁锌', icon: '钙', bgColor: '#E8F5E9' },
-  { id: '5', name: '维生素', icon: 'C', bgColor: '#FFF3E0' },
-  { id: '6', name: '滋补养生', icon: '滋', bgColor: '#FBE9E7' },
-  { id: '7', name: 'DHA', icon: 'D', bgColor: '#E3F2FD' },
-  { id: '8', name: '蛋白粉', icon: '蛋', bgColor: '#F3E5F5' },
-  { id: '9', name: '褪黑素', icon: '褪', bgColor: '#E8EAF6' },
-  { id: '10', name: '美容养颜', icon: '美', bgColor: '#FCE4EC' }
+  { id: '1', name: '东阿阿胶', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i4/O1CN01Z5paLz1O0zuCC7osS_!!6000000001644-55-tps-83-82.svg', bgColor: '#FFF3E0', isActive: true },
+  { id: '2', name: '蛋白粉', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i2/O1CN01O0et1z1Jog3zZ1Dgn_!!6000000001069-55-tps-83-82.svg', bgColor: '#E8F5E9' },
+  { id: '3', name: '益生菌', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i1/O1CN01XY8X0i1GxPFS0YlFW_!!6000000000683-55-tps-83-82.svg', bgColor: '#E3F2FD' },
+  { id: '4', name: '钙铁锌', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i3/O1CN01MNj3nA1q3Hq0q0ZqL_!!6000000005438-55-tps-83-82.svg', bgColor: '#FFF8E1' },
+  { id: '5', name: '维生素', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i4/O1CN01Z5paLz1O0zuCC7osS_!!6000000001644-55-tps-83-82.svg', bgColor: '#FFEBEE' },
+  { id: '6', name: '鱼油/DHA', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i2/O1CN01O0et1z1Jog3zZ1Dgn_!!6000000001069-55-tps-83-82.svg', bgColor: '#E0F2F1' },
+  { id: '7', name: '褪黑素', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i1/O1CN01XY8X0i1GxPFS0YlFW_!!6000000000683-55-tps-83-82.svg', bgColor: '#F3E5F5' },
+  { id: '8', name: '枸杞/黄芪', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i3/O1CN01MNj3nA1q3Hq0q0ZqL_!!6000000005438-55-tps-83-82.svg', bgColor: '#FCE4EC' },
+  { id: '9', name: '燕窝', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i4/O1CN01Z5paLz1O0zuCC7osS_!!6000000001644-55-tps-83-82.svg', bgColor: '#E8EAF6' },
+  { id: '10', name: '蜂蜜/蜂胶', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i2/O1CN01O0et1z1Jog3zZ1Dgn_!!6000000001069-55-tps-83-82.svg', bgColor: '#FFF3E0' }
 ])
 
 // 商品数据
@@ -270,6 +270,7 @@ $text-tertiary: #999999;
     font-size: 12px;
     color: $text-secondary;
     text-align: center;
+    line-height: 1.3;
   }
 }
 

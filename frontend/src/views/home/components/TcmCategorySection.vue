@@ -14,8 +14,11 @@
         class="tcm-item"
         @click="handleCategoryClick(cat)"
       >
-        <div class="tcm-icon" :style="{ background: cat.bgColor }">{{ cat.icon }}</div>
-        <span>{{ cat.name }}</span>
+        <div class="tcm-icon" :style="{ background: cat.bgColor }">
+          <img v-if="cat.iconUrl" :src="cat.iconUrl" class="tcm-icon-img" />
+          <span v-else>{{ cat.icon }}</span>
+        </div>
+        <span class="tcm-name">{{ cat.name }}</span>
       </div>
     </div>
   </div>
@@ -88,8 +91,13 @@ $text-primary: #333333;
       align-items: center;
       background: #fff;
       border-radius: 12px;
-      padding: 16px;
+      padding: 16px 12px;
       cursor: pointer;
+      transition: transform 0.2s;
+
+      &:active {
+        transform: scale(0.96);
+      }
 
       .chronic-icon, .tcm-icon {
         width: 48px;
@@ -102,11 +110,20 @@ $text-primary: #333333;
         font-size: 18px;
         font-weight: bold;
         color: $text-primary;
+        overflow: hidden;
+
+        .tcm-icon-img {
+          width: 36px;
+          height: 36px;
+          object-fit: contain;
+        }
       }
 
-      span {
+      .tcm-name {
         font-size: 12px;
         color: $text-secondary;
+        text-align: center;
+        line-height: 1.3;
       }
     }
   }
