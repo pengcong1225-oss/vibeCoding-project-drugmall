@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Download, Search, RefreshRight, View, Document } from '@element-plus/icons-vue'
+import { getTransactionList, getTransactionDetail } from '@/api/finance'
 
 // 筛选表单
 const filterForm = ref({
@@ -17,7 +18,8 @@ const filterForm = ref({
 // 分页参数
 const currentPage = ref(1)
 const pageSize = ref(10)
-const total = ref(156)
+const total = ref(0)
+const loading = ref(false)
 
 // 交易类型枚举
 const transactionTypes = [
@@ -44,49 +46,36 @@ const userTypes = [
   { label: '平台账户', value: 'platform' }
 ]
 
-// 交易记录数据（模拟）
-const generateTransactionData = () => {
-  const data = []
-  const types = ['order', 'refund', 'withdrawal', 'recharge', 'commission', 'reward']
-  const statuses = ['success', 'processing', 'failed', 'cancelled']
-  const users = ['张三', '李四', '王五', '赵六', '钱七', '孙八', '周九', '平台商户A', '平台商户B']
+// 交易记录数据
+const transactionList = ref<any[]>([])
 
-  for (let i = 1; i <= 156; i++) {
-    const type = types[Math.floor(Math.random() * types.length)]
-    const status = Math.random() > 0.8 ? statuses[Math.floor(Math.random() * statuses.length)] : 'success'
-    const amount = Math.floor(Math.random() * 10000 + 10) + Math.random()
-    const createTime = new Date(Date.now() - Math.floor(Math.random() * 30 * 24 * 60 * 60 * 1000))
-
-    data.push({
-      id: `TRX${createTime.getFullYear()}${String(createTime.getMonth() + 1).padStart(2, '0')}${String(createTime.getDate()).padStart(2, '0')}${String(i).padStart(4, '0')}`,
-      type,
-      amount,
-      status,
-      orderNo: type === 'order' || type === 'refund' ? `ORD${String(Math.floor(Math.random() * 1000000)).padStart(6, '0')}` : '',
-      remark: getRemarkByType(type),
-      createTime: createTime.toISOString().slice(0, 19).replace('T', ' '),
-      userName: users[Math.floor(Math.random() * users.length)],
-      userType: Math.random() > 0.7 ? 'merchant' : 'user',
-      payChannel: ['微信支付', '支付宝', '余额支付'][Math.floor(Math.random() * 3)],
-      completeTime: status === 'success' ? new Date(createTime.getTime() + Math.floor(Math.random() * 60000)).toISOString().slice(0, 19).replace('T', ' ') : ''
-    })
+// 加载交易列表
+const loadTransactionList = async () => {
+  loading.value = true
+  try {
+    const params: any = {
+      pageNum: currentPage.value,
+      pageSize: pageSize.value
+    }
+    if (filterForm.value.type) params.type = filterForm.value.type
+    if (filterForm.value.status) params.status = filterForm.value.status
+    if (filterForm.value.keyword) params.keyword = filterForm.value.keyword
+    if (filterForm.value.userType) params.userType = filterForm.value.userType
+    if (filterForm.value.minAmount) params.minAmount = filterForm.value.minAmount
+    if (filterForm.value.maxAmount) params.maxAmount = filterForm.value.maxAmount
+    if (filterForm.value.timeRange && filterForm.value.timeRange.length === 2) {
+      params.startTime = filterForm.value.timeRange[0]
+      params.endTime = filterForm.value.timeRange[1]
+    }
+    const data = await getTransactionList(params)
+    transactionList.value = data.list || []
+    total.value = data.total || 0
+  } catch (error) {
+    console.error('获取交易列表失败:', error)
+  } finally {
+    loading.value = false
   }
-  return data.sort((a, b) => new Date(b.createTime).getTime() - new Date(a.createTime).getTime())
 }
-
-const getRemarkByType = (type: string) => {
-  const remarks: Record<string, string> = {
-    order: '订单支付',
-    refund: '订单退款',
-    withdrawal: '商户提现',
-    recharge: '账户充值',
-    commission: '分销佣金',
-    reward: '活动奖励'
-  }
-  return remarks[type] || '交易'
-}
-
-const transactionList = ref(generateTransactionData())
 
 // 明细弹窗
 const detailDialogVisible = ref(false)
@@ -128,8 +117,7 @@ const getStatusTagType = (status: string) => {
 // 搜索
 const handleSearch = () => {
   currentPage.value = 1
-  // 模拟筛选
-  ElMessage.success('查询成功')
+  loadTransactionList()
 }
 
 // 重置
@@ -252,7 +240,7 @@ const formatAmount = (amount: number) => {
 
     <!-- 数据表格 -->
     <el-card shadow="never">
-      <el-table :data="transactionList.slice((currentPage - 1) * pageSize, currentPage * pageSize)" v-loading="false"
+      <el-table :data="transactionList" v-loading="loading"
         stripe border>
         <el-table-column type="selection" width="50" align="center" />
         <el-table-column prop="id" label="交易编号" min-width="170" show-overflow-tooltip />
@@ -397,6 +385,16 @@ const formatAmount = (amount: number) => {
 
   .expense {
     color: #f56c6c;
+    font-weight: 500;
+  }
+}
+
+.pagination-wrapper {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+}
+</style>
     font-weight: 500;
   }
 }

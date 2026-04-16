@@ -83,21 +83,75 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '问诊' }
   },
   {
+    path: '/inquiry/list',
+    name: 'InquiryList',
+    component: () => import('@/views/inquiry/list.vue'),
+    meta: { title: '咨询记录' }
+  },
+  {
+    path: '/inquiry/pre/:doctorId?',
+    name: 'InquiryPre',
+    component: () => import('@/views/inquiry/pre.vue'),
+    meta: { title: '专家问诊' }
+  },
+  {
+    path: '/inquiry/pay/:consultationId',
+    name: 'InquiryPay',
+    component: () => import('@/views/inquiry/pay.vue'),
+    meta: { title: '订单支付' }
+  },
+  {
+    path: '/inquiry/checkout/:consultationId',
+    name: 'InquiryCheckout',
+    component: () => import('@/views/inquiry/checkout.vue'),
+    meta: { title: '收银台' }
+  },
+  {
+    path: '/inquiry/waiting/:consultationId',
+    name: 'InquiryWaiting',
+    component: () => import('@/views/inquiry/waiting.vue'),
+    meta: { title: '等待接诊' }
+  },
+  {
     path: '/inquiry/chat',
     name: 'InquiryChat',
     component: () => import('@/views/inquiry/chat.vue'),
     meta: { title: '问诊会话' }
   },
   {
+    path: '/doctor/:id',
+    name: 'DoctorDetail',
+    component: () => import('@/views/doctor/detail.vue'),
+    meta: { title: '医生详情' }
+  },
+  {
     path: '/ai-assistant',
     name: 'AiAssistant',
     component: () => import('@/views/ai-assistant/index.vue'),
-    meta: { title: 'AI助手' }
+    meta: { title: '百姓健康管家' }
+  },
+  {
+    path: '/inquiry/ai-triage',
+    name: 'InquiryAiTriage',
+    component: () => import('@/views/inquiry/ai-assistant.vue'),
+    meta: { title: 'AI导诊助手' }
+  },
+  {
+    path: '/symptom-test',
+    name: 'SymptomTest',
+    component: () => import('@/views/symptom-test/index.vue'),
+    meta: { title: '症状自测' }
+  },
+  {
+    path: '/test-service',
+    name: 'TestService',
+    component: () => import('@/views/test-service/index.vue'),
+    meta: { title: '做检测', keepAlive: true }
   },
   {
     path: '/patient',
     name: 'PatientList',
-    component: () => import('@/views/patient/list.vue'),
+    component: () => import('@/views/patient/index.vue'),
     meta: { title: '就诊人管理' }
   },
   {
@@ -105,6 +159,30 @@ const routes: RouteRecordRaw[] = [
     name: 'AddressList',
     component: () => import('@/views/address/list.vue'),
     meta: { title: '收货地址' }
+  },
+  {
+    path: '/store/:id',
+    name: 'StoreDetail',
+    component: () => import('@/views/store/detail.vue'),
+    meta: { title: '药店详情' }
+  },
+  {
+    path: '/help',
+    name: 'Help',
+    component: () => import('@/views/help/index.vue'),
+    meta: { title: '帮助中心' }
+  },
+  {
+    path: '/feedback',
+    name: 'Feedback',
+    component: () => import('@/views/feedback/index.vue'),
+    meta: { title: '意见反馈' }
+  },
+  {
+    path: '/settings',
+    name: 'Settings',
+    component: () => import('@/views/settings/index.vue'),
+    meta: { title: '设置' }
   },
   {
     path: '/login',
@@ -134,7 +212,7 @@ router.beforeEach((to, from, next) => {
   
   // 简单的登录验证
   const token = localStorage.getItem('token')
-  const needAuth = !['Login', 'Home', 'Category', 'Search', 'DrugDetail'].includes(to.name as string)
+  const needAuth = !['Login', 'Home', 'Category', 'Search', 'DrugDetail', 'AiAssistant'].includes(to.name as string)
   
   if (needAuth && !token) {
     next('/login')

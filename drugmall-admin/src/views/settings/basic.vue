@@ -1,41 +1,60 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Upload, Plus } from '@element-plus/icons-vue'
+import { getBasicSettings, saveBasicSettings } from '@/api/settings'
+
+const loading = ref(false)
 
 // 表单数据
 const formRef = ref()
 const formData = ref({
-  // 网站信息
-  siteName: '药品电商平台',
+  siteName: '',
   siteLogo: '',
   siteIcon: '',
-  siteDescription: '专业的药品电商平台，为您提供优质的药品和健康服务',
-  siteKeywords: '药品,药店,健康,医药,买药',
-  
-  // 联系方式
-  servicePhone: '400-123-4567',
-  serviceEmail: 'service@drugmall.com',
-  companyAddress: '北京市朝阳区医药大厦18层',
-  workTime: '周一至周日 9:00-21:00',
-  
-  // 备案信息
-  icp: '京ICP备12345678号',
-  police: '京公网安备11010502030405号',
-  business: '药品经营许可证：京BA1234567号',
-  
-  // 版权信息
-  copyright: '© 2024 药品电商平台 版权所有'
+  siteDescription: '',
+  siteKeywords: '',
+  servicePhone: '',
+  serviceEmail: '',
+  companyAddress: '',
+  workTime: '',
+  icp: '',
+  police: '',
+  business: '',
+  copyright: ''
 })
 
+// 加载配置
+const loadSettings = async () => {
+  loading.value = true
+  try {
+    const data = await getBasicSettings()
+    formData.value = { ...formData.value, ...data }
+  } catch (error) {
+    console.error('获取基础配置失败:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
 // 保存配置
-const handleSave = () => {
-  formRef.value?.validate((valid: boolean) => {
+const handleSave = async () => {
+  formRef.value?.validate(async (valid: boolean) => {
     if (valid) {
-      ElMessage.success('配置保存成功')
+      try {
+        await saveBasicSettings(formData.value)
+        ElMessage.success('配置保存成功')
+      } catch (error) {
+        console.error('保存配置失败:', error)
+        ElMessage.error('配置保存失败')
+      }
     }
   })
 }
+
+onMounted(() => {
+  loadSettings()
+})
 
 // 重置表单
 const handleReset = () => {

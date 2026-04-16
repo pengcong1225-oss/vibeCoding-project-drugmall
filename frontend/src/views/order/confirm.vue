@@ -5,6 +5,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useCartStore } from '@/stores/cart'
 import { useUserStore } from '@/stores/user'
 import { createOrder } from '@/api/modules/order'
+import { getAddressList, addAddress as apiAddAddress, deleteAddress as apiDeleteAddress } from '@/api/modules/address'
 import type { CartItem } from '@/stores/cart'
 import type { UserAddress } from '@/types'
 
@@ -106,33 +107,15 @@ const openAddressDialog = () => {
 
 // 加载地址列表
 const loadAddressList = async () => {
-  // 模拟加载地址列表
-  addressList.value = [
-    {
-      id: '1',
-      name: '张三',
-      phone: '13800138000',
-      province: '北京市',
-      city: '北京市',
-      district: '朝阳区',
-      detail: '建国路88号SOHO现代城A座1201',
-      isDefault: true,
-      tag: '家'
-    },
-    {
-      id: '2',
-      name: '李四',
-      phone: '13900139000',
-      province: '北京市',
-      city: '北京市',
-      district: '海淀区',
-      detail: '中关村大街1号中关村广场购物中心B1层',
-      isDefault: false,
-      tag: '公司'
-    }
-  ]
+  try {
+    const res = await getAddressList()
+    addressList.value = Array.isArray(res) ? res : []
+  } catch (error) {
+    console.error('获取地址列表失败:', error)
+    addressList.value = []
+  }
   if (!selectedAddress.value) {
-    selectedAddress.value = addressList.value.find(a => a.isDefault) || addressList.value[0]
+    selectedAddress.value = addressList.value.find(a => a.isDefault) || addressList.value[0] || null
   }
 }
 
@@ -151,6 +134,7 @@ const deleteAddress = async (address: UserAddress, event: Event) => {
       cancelButtonText: '取消',
       type: 'warning'
     })
+    await apiDeleteAddress(address.id)
     addressList.value = addressList.value.filter(a => a.id !== address.id)
     if (selectedAddress.value?.id === address.id) {
       selectedAddress.value = addressList.value[0] || null
@@ -177,20 +161,25 @@ const openAddAddress = () => {
 }
 
 // 保存新地址
-const saveNewAddress = () => {
+const saveNewAddress = async () => {
   if (!newAddressForm.value.name || !newAddressForm.value.phone || !newAddressForm.value.detail) {
     ElMessage.warning('请填写完整的地址信息')
     return
   }
-  const newAddress: UserAddress = {
-    id: Date.now().toString(),
-    ...newAddressForm.value
+  try {
+    const res = await apiAddAddress(newAddressForm.value as any)
+    const newAddress: UserAddress = res || {
+      id: Date.now().toString(),
+      ...newAddressForm.value
+    }
+    addressList.value.push(newAddress)
+    selectedAddress.value = newAddress
+    isAddingAddress.value = false
+    addressDialogVisible.value = false
+    ElMessage.success('地址添加成功')
+  } catch (error) {
+    ElMessage.error('添加地址失败')
   }
-  addressList.value.push(newAddress)
-  selectedAddress.value = newAddress
-  isAddingAddress.value = false
-  addressDialogVisible.value = false
-  ElMessage.success('地址添加成功')
 }
 
 // 取消添加地址
@@ -513,7 +502,7 @@ onMounted(() => {
         </el-form>
       </div>
 
-      <template #footer>
+      <template v-slot:footer>
         <div v-if="!isAddingAddress" class="dialog-footer">
           <el-button type="primary" @click="openAddAddress">
             <el-icon><Plus /></el-icon>新增地址
@@ -1055,4 +1044,10 @@ onMounted(() => {
         .address-detail {
           color: $text-secondary;
           font-size: $font-sm;
-          line-height: 1
+          line-height: 1.5;
+        }
+      }
+    }
+  }
+}
+</style>

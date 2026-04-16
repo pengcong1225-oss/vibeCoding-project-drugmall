@@ -5,6 +5,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, User, Phone, Location, Wallet, ShoppingCart, Document } from '@element-plus/icons-vue'
 import type { UserInfo } from '@/types/user'
 import type { Order } from '@/types/order'
+import { getUserDetail as fetchUserDetail, getUserOrders as fetchUserOrders, updateUserStatus } from '@/api/user'
 
 const route = useRoute()
 const router = useRouter()
@@ -30,21 +31,8 @@ const activeTab = ref('basic')
 const getUserDetail = async () => {
   loading.value = true
   try {
-    // 模拟API调用
-    await new Promise(resolve => setTimeout(resolve, 500))
-    userInfo.value = {
-      id: userId,
-      username: 'zhangsan',
-      nickname: '张三',
-      avatar: '',
-      email: 'zhangsan@example.com',
-      phone: '13800138000',
-      status: 1,
-      roles: ['user'],
-      permissions: [],
-      createTime: '2024-01-15 10:30:00',
-      lastLoginTime: '2024-03-20 15:45:00'
-    }
+    const data = await fetchUserDetail(userId)
+    userInfo.value = data
   } catch (error) {
     ElMessage.error('获取用户信息失败')
   } finally {
@@ -56,41 +44,12 @@ const getUserDetail = async () => {
 const getUserOrders = async () => {
   orderLoading.value = true
   try {
-    // 模拟API调用
-    await new Promise(resolve => setTimeout(resolve, 500))
-    orderList.value = [
-      {
-        id: '1',
-        orderNo: 'DD202403200001',
-        userId: userId,
-        username: 'zhangsan',
-        totalAmount: 258.00,
-        discountAmount: 0,
-        freightAmount: 0,
-        payAmount: 258.00,
-        status: 4,
-        payType: 1,
-        payTime: '2024-03-20 10:30:00',
-        createTime: '2024-03-20 10:25:00',
-        items: []
-      },
-      {
-        id: '2',
-        orderNo: 'DD202403150002',
-        userId: userId,
-        username: 'zhangsan',
-        totalAmount: 568.00,
-        discountAmount: 50,
-        freightAmount: 10,
-        payAmount: 528.00,
-        status: 2,
-        payType: 2,
-        payTime: '2024-03-15 14:20:00',
-        createTime: '2024-03-15 14:15:00',
-        items: []
-      }
-    ]
-    orderTotal.value = 15
+    const res = await fetchUserOrders(userId, {
+      pageNum: orderPageNum.value,
+      pageSize: orderPageSize.value
+    })
+    orderList.value = res.list
+    orderTotal.value = res.total
   } catch (error) {
     ElMessage.error('获取订单列表失败')
   } finally {
@@ -126,9 +85,9 @@ const toggleUserStatus = async () => {
       { type: 'warning' }
     )
     
-    // 模拟API调用
-    await new Promise(resolve => setTimeout(resolve, 300))
-    userInfo.value.status = userInfo.value.status === 1 ? 0 : 1
+    const newStatus = userInfo.value.status === 1 ? 0 : 1
+    await updateUserStatus(userId, newStatus)
+    userInfo.value.status = newStatus
     ElMessage.success(`${action}成功`)
   } catch {
     // 取消操作

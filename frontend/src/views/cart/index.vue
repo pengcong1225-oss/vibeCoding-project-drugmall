@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useCartStore } from '@/stores/cart'
@@ -9,6 +9,11 @@ import type { CartItem } from '@/stores/cart'
 const router = useRouter()
 const cartStore = useCartStore()
 const userStore = useUserStore()
+
+// 页面加载时获取购物车数据
+onMounted(() => {
+  cartStore.fetchCartList()
+})
 
 // 选中的商品ID
 const selectedIds = ref<string[]>([])

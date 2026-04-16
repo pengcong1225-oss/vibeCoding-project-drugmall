@@ -1,0 +1,28 @@
+{
+  "test_time": "2026-04-09T04:21:34.662199",
+  "base_url": "http://localhost:3003",
+  "total_errors": 3,
+  "errors": [
+    {
+      "route": "/category",
+      "error_type": "功能缺失",
+      "description": "未找到分类列表",
+      "suggestion": "检查分类列表组件",
+      "timestamp": "2026-04-09T04:21:22.469082"
+    },
+    {
+      "route": "/search",
+      "error_type": "功能缺失",
+      "description": "未找到搜索输入框",
+      "suggestion": "检查搜索组件",
+      "timestamp": "2026-04-09T04:21:26.201902"
+    },
+    {
+      "route": "/user",
+      "error_type": "功能缺失",
+      "description": "未找到用户菜单",
+      "suggestion": "检查用户中心菜单组件",
+      "timestamp": "2026-04-09T04:21:30.829237"
+    }
+  ]
+}

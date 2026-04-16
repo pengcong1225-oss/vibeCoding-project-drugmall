@@ -2,26 +2,30 @@
 import { ref, onMounted, shallowRef } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, Top, View } from '@element-plus/icons-vue'
+import { getArticleList, createArticle, updateArticle, deleteArticle, getArticleCategories, getArticleStats } from '@/api/content'
 import { Editor, Toolbar } from '@wangeditor/editor-for-vue'
 import '@wangeditor/editor/dist/css/style.css'
 
+const loading = ref(false)
+
+// 统计数据
+const stats = ref({
+  total: 0,
+  published: 0,
+  top: 0,
+  draft: 0
+})
+
 // 分类数据
-const categoryList = ref([
-  { id: '1', name: '健康常识', icon: 'FirstAidKit', sort: 1, status: 1 },
-  { id: '2', name: '疾病预防', icon: 'Warning', sort: 2, status: 1 },
-  { id: '3', name: '用药指导', icon: 'Medicine', sort: 3, status: 1 },
-  { id: '4', name: '养生保健', icon: 'Apple', sort: 4, status: 1 },
-  { id: '5', name: '慢病管理', icon: 'Timer', sort: 5, status: 1 }
-])
+const categoryList = ref<any[]>([])
 
 // 资讯列表
-const articleList = ref([
-  { id: '1', title: '冬季感冒高发，如何预防？', categoryId: '1', categoryName: '健康常识', cover: 'https://placeholder.com/300x200/409eff/fff?text=健康', summary: '冬季是感冒的高发季节，做好预防措施很重要...', tags: ['感冒', '预防', '冬季'], isRecommend: 1, status: 1, views: 12567, publishTime: '2024-12-01 10:00:00' },
-  { id: '2', title: '高血压患者的日常饮食建议', categoryId: '5', categoryName: '慢病管理', cover: 'https://placeholder.com/300x200/67c23a/fff?text=高血压', summary: '高血压患者需要注意饮食控制，少吃盐多吃蔬菜...', tags: ['高血压', '饮食', '健康'], isRecommend: 1, status: 1, views: 8923, publishTime: '2024-11-28 15:30:00' },
-  { id: '3', title: '儿童用药安全指南', categoryId: '3', categoryName: '用药指导', cover: 'https://placeholder.com/300x200/fa8c16/fff?text=用药', summary: '儿童用药需要特别注意剂量和禁忌...', tags: ['儿童', '用药', '安全'], isRecommend: 0, status: 1, views: 6789, publishTime: '2024-11-25 09:00:00' },
-  { id: '4', title: '春季养生小贴士', categoryId: '4', categoryName: '养生保健', cover: 'https://placeholder.com/300x200/722ed1/fff?text=养生', summary: '春季养生要注意养肝护肝...', tags: ['养生', '春季', '健康'], isRecommend: 0, status: 0, views: 0, publishTime: '' },
-  { id: '5', title: '糖尿病并发症的预防', categoryId: '5', categoryName: '慢病管理', cover: 'https://placeholder.com/300x200/13c2c2/fff?text=糖尿病', summary: '糖尿病患者需要定期检查预防并发症...', tags: ['糖尿病', '预防', '健康'], isRecommend: 1, status: 1, views: 3456, publishTime: '2024-11-20 14:00:00' }
-])
+const articleList = ref<any[]>([])
+
+// 分页参数
+const currentPage = ref(1)
+const pageSize = ref(10)
+const total = ref(0)
 
 // 弹窗控制
 const dialogVisible = ref(false)
@@ -82,13 +86,16 @@ const getCategoryName = (categoryId: string) => {
 
 // 搜索
 const handleSearch = () => {
-  ElMessage.success('查询成功')
+  currentPage.value = 1
+  loadArticleList()
 }
 
 // 重置
 const handleReset = () => {
   searchKeyword.value = ''
   searchCategory.value = ''
+  currentPage.value = 1
+  loadArticleList()
 }
 
 // 管理分类
@@ -314,7 +321,7 @@ const handleRemoveTag = (tag: string) => {
 
     <!-- 资讯列表 -->
     <el-card shadow="never">
-      <el-table :data="articleList" v-loading="false" stripe border>
+      <el-table :data="articleList" v-loading="loading" stripe border>
         <el-table-column type="index" label="序号" width="60" align="center" />
         <el-table-column label="封面" width="120" align="center">
           <template #default="{ row }">
@@ -597,4 +604,5 @@ const handleRemoveTag = (tag: string) => {
   display: flex;
   justify-content: flex-end;
 }
+</style>
 </style>

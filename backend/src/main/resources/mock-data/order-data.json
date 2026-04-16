@@ -1,0 +1,170 @@
+{
+  "orders": [
+    {
+      "id": "ORD20241201001",
+      "orderNo": "ORD20241201001",
+      "userId": "1",
+      "status": "completed",
+      "statusText": "已完成",
+      "items": [
+        {
+          "id": "1",
+          "drugId": "2",
+          "drugName": "布洛芬缓释胶囊",
+          "specification": "0.3g*20粒",
+          "price": 15.80,
+          "quantity": 1,
+          "image": "",
+          "imageColor": "#ff9500",
+          "imageText": "布洛芬"
+        }
+      ],
+      "totalQuantity": 1,
+      "totalAmount": 15.80,
+      "drugAmount": 15.80,
+      "deliveryFee": 0,
+      "discountAmount": 0,
+      "couponAmount": 0,
+      "payableAmount": 15.80,
+      "paidAmount": 15.80,
+      "deliveryType": "delivery",
+      "addressId": "1",
+      "addressName": "张三",
+      "addressPhone": "13800138000",
+      "addressFull": "北京市北京市朝阳区某某小区1号楼1单元101室",
+      "createTime": "2024-12-01 10:30:00",
+      "payTime": "2024-12-01 10:31:00",
+      "deliveryTime": "2024-12-01 15:00:00",
+      "completeTime": "2024-12-02 10:00:00"
+    },
+    {
+      "id": "ORD20241202002",
+      "orderNo": "ORD20241202002",
+      "userId": "1",
+      "status": "pending",
+      "statusText": "待支付",
+      "items": [
+        {
+          "id": "2",
+          "drugId": "3",
+          "drugName": "感冒灵颗粒",
+          "specification": "10g*9袋",
+          "price": 18.50,
+          "quantity": 2,
+          "image": "",
+          "imageColor": "#ff4d4f",
+          "imageText": "感冒灵"
+        },
+        {
+          "id": "3",
+          "drugId": "6",
+          "drugName": "维生素C片",
+          "specification": "100mg*100片",
+          "price": 19.90,
+          "quantity": 1,
+          "image": "",
+          "imageColor": "#fa8c16",
+          "imageText": "维C"
+        }
+      ],
+      "totalQuantity": 3,
+      "totalAmount": 57.90,
+      "drugAmount": 56.90,
+      "deliveryFee": 5.00,
+      "discountAmount": 4.00,
+      "couponAmount": 0,
+      "payableAmount": 57.90,
+      "paidAmount": 0,
+      "deliveryType": "delivery",
+      "addressId": "1",
+      "addressName": "张三",
+      "addressPhone": "13800138000",
+      "addressFull": "北京市北京市朝阳区某某小区1号楼1单元101室",
+      "createTime": "2024-12-02 14:20:00",
+      "expireTime": "2024-12-02 14:50:00"
+    },
+    {
+      "id": "ORD20241203003",
+      "orderNo": "ORD20241203003",
+      "userId": "1",
+      "status": "shipping",
+      "statusText": "配送中",
+      "items": [
+        {
+          "id": "4",
+          "drugId": "1",
+          "drugName": "阿莫西林胶囊",
+          "specification": "0.25g*24粒",
+          "price": 12.50,
+          "quantity": 1,
+          "image": "",
+          "imageColor": "#00b578",
+          "imageText": "阿莫"
+        }
+      ],
+      "totalQuantity": 1,
+      "totalAmount": 17.50,
+      "drugAmount": 12.50,
+      "deliveryFee": 5.00,
+      "discountAmount": 0,
+      "couponAmount": 0,
+      "payableAmount": 17.50,
+      "paidAmount": 17.50,
+      "deliveryType": "self-pickup",
+      "addressId": "2",
+      "addressName": "张三",
+      "addressPhone": "13800138000",
+      "addressFull": "北京市北京市海淀区某某大厦A座1001室",
+      "createTime": "2024-12-03 09:15:00",
+      "payTime": "2024-12-03 09:16:00",
+      "deliveryTime": "2024-12-03 14:00:00"
+    }
+  ],
+  "carts": [
+    {
+      "id": "1",
+      "userId": "1",
+      "drugId": "2",
+      "drugName": "布洛芬缓释胶囊",
+      "specification": "0.3g*20粒",
+      "price": 15.80,
+      "quantity": 2,
+      "selected": true,
+      "image": "",
+      "imageColor": "#ff9500",
+      "imageText": "布洛芬",
+      "stock": 200,
+      "createTime": "2024-12-01 10:00:00"
+    },
+    {
+      "id": "2",
+      "userId": "1",
+      "drugId": "3",
+      "drugName": "感冒灵颗粒",
+      "specification": "10g*9袋",
+      "price": 18.50,
+      "quantity": 1,
+      "selected": true,
+      "image": "",
+      "imageColor": "#ff4d4f",
+      "imageText": "感冒灵",
+      "stock": 150,
+      "createTime": "2024-12-01 11:00:00"
+    },
+    {
+      "id": "3",
+      "userId": "1",
+      "drugId": "6",
+      "drugName": "维生素C片",
+      "specification": "100mg*100片",
+      "price": 19.90,
+      "quantity": 1,
+      "selected": false,
+      "image": "",
+      "imageColor": "#fa8c16",
+      "imageText": "维C",
+      "stock": 200,
+      "createTime": "2024-12-02 10:00:00"
+    }
+  ]
+}

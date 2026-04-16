@@ -2,8 +2,9 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh, View, Edit, Delete } from '@element-plus/icons-vue'
+import { Search, Refresh, View, Edit, Delete, User } from '@element-plus/icons-vue'
 import type { UserInfo } from '@/types/user'
+import { getUserList, deleteUser, updateUserStatus } from '@/api/user'
 
 const router = useRouter()
 
@@ -26,40 +27,16 @@ const pageSize = ref(10)
 const getList = async () => {
   loading.value = true
   try {
-    // 模拟API调用
-    await new Promise(resolve => setTimeout(resolve, 500))
-    
-    // 模拟数据
-    const mockData: UserInfo[] = Array.from({ length: 25 }, (_, i) => ({
-      id: String(10001 + i),
-      username: `user${10001 + i}`,
-      nickname: `用户${10001 + i}`,
-      avatar: '',
-      email: `user${10001 + i}@example.com`,
-      phone: `138${String(Math.random()).slice(2, 10)}`,
-      status: Math.random() > 0.2 ? 1 : 0,
-      roles: ['user'],
-      permissions: [],
-      createTime: '2024-01-15 10:30:00',
-      lastLoginTime: '2024-03-20 15:45:00'
-    }))
-    
-    // 筛选
-    let filteredData = [...mockData]
-    if (searchForm.status !== undefined) {
-      filteredData = filteredData.filter(item => item.status === searchForm.status)
-    }
-    if (searchForm.keyword) {
-      const keyword = searchForm.keyword.toLowerCase()
-      filteredData = filteredData.filter(item => 
-        item.username.toLowerCase().includes(keyword) ||
-        item.nickname.includes(keyword) ||
-        item.phone.includes(keyword)
-      )
-    }
-    
-    total.value = filteredData.length
-    tableData.value = filteredData.slice((pageNum.value - 1) * pageSize.value, pageNum.value * pageSize.value)
+    const res = await getUserList({
+      pageNum: pageNum.value,
+      pageSize: pageSize.value,
+      keyword: searchForm.keyword,
+      status: searchForm.status
+    })
+    tableData.value = res.list
+    total.value = res.total
+  } catch (error) {
+    console.error('获取用户列表失败:', error)
   } finally {
     loading.value = false
   }
@@ -101,7 +78,7 @@ const handleView = (row: UserInfo) => {
 
 // 编辑用户
 const handleEdit = (row: UserInfo) => {
-  ElMessage.info('编辑用户功能开发中...')
+  router.push(`/user/detail/${row.id}`)
 }
 
 // 删除用户
@@ -113,12 +90,11 @@ const handleDelete = async (row: UserInfo) => {
       {
         confirmButtonText: '确认删除',
         cancelButtonText: '取消',
-        type: 'danger'
+        type: 'warning' as const
       }
     )
     
-    // 模拟API调用
-    await new Promise(resolve => setTimeout(resolve, 300))
+    await deleteUser(row.id)
     ElMessage.success('删除成功')
     getList()
   } catch {
@@ -136,9 +112,9 @@ const handleStatusChange = async (row: UserInfo) => {
       { type: 'warning' }
     )
     
-    // 模拟API调用
-    await new Promise(resolve => setTimeout(resolve, 300))
-    row.status = row.status === 1 ? 0 : 1
+    const newStatus = row.status === 1 ? 0 : 1
+    await updateUserStatus(row.id, newStatus)
+    row.status = newStatus
     ElMessage.success(`${action}成功`)
   } catch {
     // 取消操作

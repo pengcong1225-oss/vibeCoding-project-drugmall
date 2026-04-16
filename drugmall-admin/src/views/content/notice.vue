@@ -2,17 +2,19 @@
 import { ref, onMounted, shallowRef } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, Top, View } from '@element-plus/icons-vue'
+import { getNoticeList, createNotice, updateNotice, deleteNotice, toggleNoticeTop, getNoticeStats } from '@/api/content'
 import { Editor, Toolbar } from '@wangeditor/editor-for-vue'
 import '@wangeditor/editor/dist/css/style.css'
 
+const loading = ref(false)
+
 // 公告列表
-const noticeList = ref([
-  { id: '1', title: '关于双十二促销活动的公告', type: 'activity', content: '双十二狂欢节即将到来...', isTop: 1, status: 1, views: 12567, publishTime: '2024-12-01 10:00:00' },
-  { id: '2', title: '系统维护通知', type: 'maintenance', content: '为了提供更好的服务...', isTop: 0, status: 1, views: 8923, publishTime: '2024-11-28 15:30:00' },
-  { id: '3', title: '药品价格调整公告', type: 'system', content: '根据国家相关政策...', isTop: 0, status: 1, views: 6789, publishTime: '2024-11-25 09:00:00' },
-  { id: '4', title: '春节期间配送安排', type: 'activity', content: '春节即将到来...', isTop: 1, status: 0, views: 0, publishTime: '' },
-  { id: '5', title: '隐私政策更新说明', type: 'system', content: '为了更好地保护用户隐私...', isTop: 0, status: 1, views: 3456, publishTime: '2024-11-20 14:00:00' }
-])
+const noticeList = ref<any[]>([])
+
+// 分页参数
+const currentPage = ref(1)
+const pageSize = ref(10)
+const total = ref(0)
 
 // 类型选项
 const typeOptions = [
@@ -55,19 +57,56 @@ const searchType = ref('')
 
 // 统计
 const stats = ref({
-  total: 5,
-  published: 4,
-  top: 2,
-  draft: 1
+  total: 0,
+  published: 0,
+  top: 0,
+  draft: 0
 })
+
+// 加载公告列表
+const loadNoticeList = async () => {
+  loading.value = true
+  try {
+    const params: any = {
+      pageNum: currentPage.value,
+      pageSize: pageSize.value
+    }
+    if (searchType.value) params.type = searchType.value
+    if (searchKeyword.value) params.keyword = searchKeyword.value
+    const data = await getNoticeList(params)
+    noticeList.value = data.list || []
+    total.value = data.total || 0
+  } catch (error) {
+    console.error('获取公告列表失败:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+// 加载统计数据
+const loadStats = async () => {
+  try {
+    const data = await getNoticeStats()
+    stats.value = {
+      total: data.total || 0,
+      published: data.published || 0,
+      top: data.top || 0,
+      draft: data.draft || 0
+    }
+  } catch (error) {
+    console.error('获取统计数据失败:', error)
+  }
+}
 
 // 编辑器创建
 const handleCreated = (editor: any) => {
   editorRef.value = editor
 }
 
-// 销毁编辑器
+// 初始化
 onMounted(() => {
+  loadNoticeList()
+  loadStats()
   return () => {
     const editor = editorRef.value
     if (editor) {
@@ -90,13 +129,16 @@ const getTypeTagType = (type: string) => {
 
 // 搜索
 const handleSearch = () => {
-  ElMessage.success('查询成功')
+  currentPage.value = 1
+  loadNoticeList()
 }
 
 // 重置
 const handleReset = () => {
   searchKeyword.value = ''
   searchType.value = ''
+  currentPage.value = 1
+  loadNoticeList()
 }
 
 // 新增
@@ -119,19 +161,31 @@ const handleDelete = (row: any) => {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning'
-  }).then(() => {
-    const index = noticeList.value.findIndex(item => item.id === row.id)
-    if (index > -1) {
-      noticeList.value.splice(index, 1)
+  }).then(async () => {
+    try {
+      await deleteNotice(row.id)
       ElMessage.success('删除成功')
+      loadNoticeList()
+      loadStats()
+    } catch (error) {
+      console.error('删除公告失败:', error)
+      ElMessage.error('删除失败')
     }
   })
 }
 
 // 置顶/取消置顶
-const handleToggleTop = (row: any) => {
-  row.isTop = row.isTop === 1 ? 0 : 1
-  ElMessage.success(row.isTop === 1 ? '置顶成功' : '取消置顶成功')
+const handleToggleTop = async (row: any) => {
+  const newIsTop = row.isTop === 1 ? 0 : 1
+  try {
+    await toggleNoticeTop(row.id, newIsTop)
+    row.isTop = newIsTop
+    ElMessage.success(newIsTop === 1 ? '置顶成功' : '取消置顶成功')
+    loadStats()
+  } catch (error) {
+    console.error('置顶操作失败:', error)
+    ElMessage.error('操作失败')
+  }
 }
 
 // 发布/下架
@@ -162,27 +216,23 @@ const handlePreview = (row: any) => {
 
 // 提交表单
 const submitForm = () => {
-  formRef.value?.validate((valid: boolean) => {
+  formRef.value?.validate(async (valid: boolean) => {
     if (valid) {
-      if (formData.value.id) {
-        // 编辑
-        const index = noticeList.value.findIndex(item => item.id === formData.value.id)
-        if (index > -1) {
-          noticeList.value[index] = { ...formData.value }
+      try {
+        if (formData.value.id) {
+          await updateNotice(formData.value.id, formData.value)
+          ElMessage.success('编辑成功')
+        } else {
+          await createNotice(formData.value)
+          ElMessage.success('新增成功')
         }
-        ElMessage.success('编辑成功')
-      } else {
-        // 新增
-        const newNotice = {
-          ...formData.value,
-          id: String(Date.now()),
-          views: 0,
-          publishTime: ''
-        }
-        noticeList.value.push(newNotice)
-        ElMessage.success('新增成功')
+        dialogVisible.value = false
+        loadNoticeList()
+        loadStats()
+      } catch (error) {
+        console.error('保存公告失败:', error)
+        ElMessage.error('保存失败')
       }
-      dialogVisible.value = false
     }
   })
 }

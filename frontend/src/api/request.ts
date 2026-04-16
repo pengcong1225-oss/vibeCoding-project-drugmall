@@ -1,6 +1,25 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig, AxiosResponse } from 'axios'
 import { ElMessage } from 'element-plus'
 import router from '@/router'
+import { mockHomePageConfig, mockInquiryList, mockPatients, mockUserCenterData } from './mock'
+
+// 是否启用mock数据
+const ENABLE_MOCK = import.meta.env.VITE_ENABLE_MOCK === 'true' || true
+
+// Mock响应构造器
+const createMockResponse = (data: any) => ({
+  __isMock: true,
+  response: {
+    data: {
+      code: 200,
+      message: 'success',
+      data
+    },
+    headers: {},
+    status: 200,
+    statusText: 'OK'
+  }
+})
 
 // 创建axios实例
 const request: AxiosInstance = axios.create({
@@ -40,9 +59,39 @@ const removePending = (config: InternalAxiosRequestConfig): void => {
   }
 }
 
-// 请求拦截器
+// Mock拦截器 - 在请求发送前拦截并返回mock数据（优先级最高）
 request.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    // 如果启用mock，拦截特定请求
+    if (ENABLE_MOCK) {
+      const url = config.url || ''
+      
+      // 拦截首页渲染配置请求
+      if (url.includes('/home/render/page')) {
+        return Promise.reject(createMockResponse(mockHomePageConfig))
+      }
+      
+      // 拦截问诊列表请求
+      if (url.includes('/consultation/list')) {
+        return Promise.reject(createMockResponse(mockInquiryList))
+      }
+      
+      // 拦截就诊人列表请求
+      if (url.includes('/patient/list')) {
+        return Promise.reject(createMockResponse(mockPatients))
+      }
+      
+      // 拦截用户中心数据请求
+      if (url.includes('/user/center')) {
+        return Promise.reject(createMockResponse(mockUserCenterData))
+      }
+      
+      // 拦截订单统计请求
+      if (url.includes('/order/stats')) {
+        return Promise.reject(createMockResponse(mockUserCenterData.orderStats))
+      }
+    }
+    
     // 移除重复请求
     removePending(config)
     // 添加新请求到队列
@@ -106,7 +155,15 @@ request.interceptors.response.use(
     
     return Promise.reject(new Error(message || '请求失败'))
   },
-  (error: AxiosError) => {
+  (error: any) => {
+    // 处理mock响应
+    if (error.__isMock && error.response) {
+      const { code, data } = error.response.data
+      if (code === 200 || code === 0) {
+        return Promise.resolve(data)
+      }
+    }
+    
     // 移除请求从队列
     if (error.config) {
       removePending(error.config)
@@ -117,9 +174,13 @@ request.interceptors.response.use(
       return Promise.reject(new Error('请求已取消'))
     }
     
-    // 网络错误
+    // 网络错误（后端未启动等情况）
     if (!error.response) {
-      ElMessage.error('网络错误，请检查网络连接')
+      // 如果启用mock，尝试返回mock数据
+      if (ENABLE_MOCK && error.config?.url?.includes('/home/render/page')) {
+        return Promise.resolve(mockHomePageConfig)
+      }
+      // 不显示错误消息，让调用方处理
       return Promise.reject(new Error('网络错误'))
     }
     

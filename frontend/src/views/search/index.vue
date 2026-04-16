@@ -6,8 +6,7 @@ import { useDebounceFn } from '@vueuse/core'
 import DrugCard from '@/components/DrugCard/index.vue'
 import Empty from '@/components/Empty/index.vue'
 import Loading from '@/components/Loading/index.vue'
-import { searchDrugs, getHotSearches } from '@/api/modules/search'
-import { getSearchHistory, addSearchHistory, clearSearchHistory } from '@/utils/storage'
+import { searchDrugs, getHotSearches, getSearchHistory, addSearchHistory, clearSearchHistory } from '@/api/modules/search'
 import type { Drug, DrugSearchParams } from '@/types'
 
 const router = useRouter()

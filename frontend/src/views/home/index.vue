@@ -1,601 +1,417 @@
 <template>
-  <div class="home-page">
-    <!-- 搜索栏 -->
-    <div class="search-header">
-      <div class="location" @click="showLocationPicker = true">
-        <el-icon><Location /></el-icon>
-        <span class="location-text">{{ currentLocation }}</span>
-        <el-icon><ArrowDown /></el-icon>
+  <div :class="['home-page', `theme-${activeTab}`]" ref="homePageRef">
+    <!-- 头部渐变区域 - 包含搜索栏、Tab导航和各Tab的第一个区域 -->
+    <div class="header-wrapper">
+      <div class="header-gradient">
+        <!-- 搜索栏和Tab导航 -->
+        <component
+          v-for="section in headerSections"
+          :key="section.sectionId"
+          :is="getSectionComponent(section.sectionType)"
+          :section="section"
+          :active-tab="activeTab"
+          @tab-change="handleTabChange"
+          @location-click="showLocationPicker = true"
+          @cart-click="goToCart"
+          @search-click="goToSearch"
+          @scan-code="handleScanCode"
+        />
+        <!-- 各Tab的第一个区域 - 统一包含在渐变区域内 -->
+        <!-- 推荐页促销横幅 -->
+        <PromoBannerSection
+          v-if="activeTab === 'recommend'"
+          @left-click="handlePromoLeftClick"
+          @center-click="handlePromoCenterClick"
+          @right-click="handlePromoRightClick"
+        />
+        <!-- 问医生Tab - 秒问医生卡片 -->
+        <QuickConsultCard
+          v-if="activeTab === 'doctor'"
+          @consult="handleQuickConsult"
+        />
+        <!-- 做检测Tab - 轮播图 -->
+        <TestBannerSection
+          v-if="activeTab === 'test'"
+        />
+        <!-- 滋补保健Tab - 轮播图 -->
+        <TcmBannerSection
+          v-if="activeTab === 'tcm'"
+        />
+        <!-- 慢病关怀Tab - 轮播图 -->
+        <ChronicBannerSection
+          v-if="activeTab === 'chronic'"
+        />
       </div>
-      <div class="search-box" @click="goToSearch">
-        <el-icon><Search /></el-icon>
-        <span class="placeholder">搜索药品、症状</span>
-        <div class="scan-btn" @click.stop="scanCode">
-          <el-icon><FullScreen /></el-icon>
-        </div>
-      </div>
+      <!-- 渐变过渡区域 -->
+      <div class="header-fade"></div>
     </div>
 
-    <!-- 轮播图 -->
-    <div class="banner-section">
-      <el-carousel :interval="4000" type="card" height="120px">
-        <el-carousel-item v-for="(banner, index) in banners" :key="index">
-          <div class="banner-item" :style="{ background: banner.bg }">
-            <div class="banner-content">
-              <h3>{{ banner.title }}</h3>
-              <p>{{ banner.subtitle }}</p>
-            </div>
-          </div>
-        </el-carousel-item>
-      </el-carousel>
+    <!-- 内容区域 -->
+    <div class="content-area">
+      <!-- 其他内容区域 -->
+      <template v-if="activeTab === 'tcm'">
+        <TonicTabSection />
+      </template>
+      <template v-else-if="activeTab === 'chronic'">
+        <ChronicTabSection />
+      </template>
+      <template v-else>
+        <component
+          v-for="section in contentSections"
+          :key="section.sectionId"
+          :is="getSectionComponent(section.sectionType)"
+          :section="section"
+          :active-tab="activeTab"
+          @tab-change="handleTabChange"
+          @location-click="showLocationPicker = true"
+          @cart-click="goToCart"
+          @search-click="goToSearch"
+          @scan-code="handleScanCode"
+          @click="handleSectionClick(section.sectionType)"
+        />
+      </template>
     </div>
 
-    <!-- 快捷入口 -->
-    <div class="quick-actions">
-      <div class="action-item" @click="goToAIAssistant">
-        <div class="icon ai-icon">
-          <el-icon><ChatDotRound /></el-icon>
-        </div>
-        <span>AI助手</span>
-      </div>
-      <div class="action-item" @click="goToInquiry">
-        <div class="icon inquiry-icon">
-          <el-icon><FirstAidKit /></el-icon>
-        </div>
-        <span>在线问诊</span>
-      </div>
-      <div class="action-item" @click="goToPrescription">
-        <div class="icon prescription-icon">
-          <el-icon><Document /></el-icon>
-        </div>
-        <span>我的处方</span>
-      </div>
-      <div class="action-item" @click="goToOrder">
-        <div class="icon order-icon">
-          <el-icon><ShoppingBag /></el-icon>
-        </div>
-        <span>我的订单</span>
-      </div>
+    <!-- 加载状态 -->
+    <div v-if="homeStore.loading" class="loading-container">
+      <Loading />
     </div>
 
-    <!-- 分类导航 -->
-    <div class="category-section">
-      <div class="section-header">
-        <h3>药品分类</h3>
-        <span class="more" @click="goToCategory">查看更多 <el-icon><ArrowRight /></el-icon></span>
-      </div>
-      <div class="category-grid">
-        <div 
-          v-for="category in categories.slice(0, 8)" 
-          :key="category.id" 
-          class="category-item"
-          @click="goToCategoryList(category.id)"
+    <!-- 错误状态 -->
+    <div v-if="homeStore.error && !homeStore.loading" class="error-container">
+      <Empty description="加载失败，点击重试" @click="homeStore.fetchHomePageConfig()" />
+    </div>
+
+    <!-- 位置选择弹窗 -->
+    <el-dialog
+      v-model="showLocationPicker"
+      title="选择位置"
+      width="90%"
+      class="location-dialog"
+    >
+      <div class="location-list">
+        <div
+          v-for="loc in locations"
+          :key="loc"
+          class="location-item"
+          :class="{ active: currentLocation === loc }"
+          @click="selectLocation(loc)"
         >
-          <img :src="category.icon" :alt="category.name" />
-          <span>{{ category.name }}</span>
+          <span>{{ loc }}</span>
+          <el-icon v-if="currentLocation === loc"><Check /></el-icon>
         </div>
       </div>
-    </div>
-
-    <!-- 热门推荐 -->
-    <div class="hot-section">
-      <div class="section-header">
-        <h3>热门推荐</h3>
-        <span class="more" @click="goToMore">查看更多 <el-icon><ArrowRight /></el-icon></span>
-      </div>
-      <div class="drug-list">
-        <div 
-          v-for="drug in hotDrugs" 
-          :key="drug.id" 
-          class="drug-card"
-          @click="goToDrugDetail(drug.id)"
-        >
-          <div class="drug-image">
-            <img :src="drug.image" :alt="drug.name" />
-            <div v-if="drug.isRx" class="rx-tag">处方药</div>
-          </div>
-          <div class="drug-info">
-            <h4 class="drug-name">{{ drug.name }}</h4>
-            <p class="specification">{{ drug.specification }}</p>
-            <div class="price-section">
-              <span class="price">¥{{ drug.price }}</span>
-              <span v-if="drug.originalPrice" class="original-price">¥{{ drug.originalPrice }}</span>
-            </div>
-            <div class="sales">已售 {{ drug.sales }}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 附近药店 -->
-    <div class="nearby-section">
-      <div class="section-header">
-        <h3>附近药店</h3>
-        <span class="more" @click="goToMoreStores">查看全部 <el-icon><ArrowRight /></el-icon></span>
-      </div>
-      <div class="store-list">
-        <div 
-          v-for="store in nearbyStores" 
-          :key="store.id" 
-          class="store-card"
-          @click="goToStore(store.id)"
-        >
-          <div class="store-header">
-            <h4>{{ store.name }}</h4>
-            <div class="rating">
-              <el-icon><StarFilled /></el-icon>
-              <span>{{ store.rating }}</span>
-            </div>
-          </div>
-          <div class="store-info">
-            <span class="distance">{{ store.distance }}</span>
-            <span class="time">{{ store.deliveryTime }}分钟</span>
-          </div>
-          <div class="store-tags">
-            <span v-for="tag in store.tags" :key="tag" class="tag">{{ tag }}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 底部安全区域 -->
-    <div class="safe-area-bottom"></div>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { mockDrugs, mockCategories } from '@/api/mock'
+import { Check } from '@element-plus/icons-vue'
+import { useHomeStore } from '@/stores/home'
+
+// 导入所有 Section 组件
+import SearchBarSection from './components/SearchBarSection.vue'
+import TabNavigationSection from './components/TabNavigationSection.vue'
+import PromoBannerSection from './components/PromoBannerSection.vue'
+import ServiceGridSection from './components/ServiceGridSection.vue'
+import BannerSubsidySection from './components/BannerSubsidySection.vue'
+import DoctorBannerSection from './components/DoctorBannerSection.vue'
+import NearbyPharmacySection from './components/NearbyPharmacySection.vue'
+import WaterfallLayoutSection from './components/WaterfallLayoutSection.vue'
+import TestBannerSection from './components/TestBannerSection.vue'
+import DoctorDepartmentSection from './components/DoctorDepartmentSection.vue'
+import TestItemsSection from './components/TestItemsSection.vue'
+import ChronicCategorySection from './components/ChronicCategorySection.vue'
+import TcmCategorySection from './components/TcmCategorySection.vue'
+// 导入新的Tab内容组件
+import TonicTabSection from './components/TonicTabSection.vue'
+import ChronicTabSection from './components/ChronicTabSection.vue'
+// 导入Banner组件
+import TcmBannerSection from './components/TcmBannerSection.vue'
+import ChronicBannerSection from './components/ChronicBannerSection.vue'
+// 导入问诊组件
+import QuickConsultCard from '@/components/consultation/QuickConsultCard.vue'
+
+// 导入公共组件
+import Loading from '@/components/Loading/index.vue'
+import Empty from '@/components/Empty/index.vue'
+
+// 类型导入
+import type { SectionType } from '@/types/home'
 
 const router = useRouter()
+const homeStore = useHomeStore()
 
-// 当前位置
-const currentLocation = ref('北京市朝阳区')
+// Refs
+const homePageRef = ref<HTMLElement>()
 const showLocationPicker = ref(false)
+const currentLocation = ref('葛洲坝·世纪花园')
+const locations = ['葛洲坝·世纪花园', '北京市朝阳区', '北京市海淀区', '北京市东城区']
 
-// 轮播图数据
-const banners = ref([
-  { title: '新人大礼包', subtitle: '新人专享满39减20', bg: 'linear-gradient(135deg, #00b578 0%, #00c78a 100%)' },
-  { title: '24小时送药', subtitle: '夜间急用药最快30分钟达', bg: 'linear-gradient(135deg, #1890ff 0%, #40a9ff 100%)' },
-  { title: '正品保障', subtitle: '国家药监局认证正规药店', bg: 'linear-gradient(135deg, #722ed1 0%, #b37feb 100%)' }
-])
+// Tab状态管理
+const activeTab = ref('recommend')
 
-// 分类数据
-const categories = ref(mockCategories)
+// 头部区域组件（搜索栏、Tab导航）
+const headerSections = computed(() => {
+  const sections = homeStore.sections
+  const headerTypes = ['search_bar', 'tab_navigation']
+  return sections.filter(s => headerTypes.includes(s.sectionType))
+})
 
-// 热门药品
-const hotDrugs = computed(() => mockDrugs.slice(0, 4))
+// 内容区域组件（根据Tab过滤）
+const contentSections = computed(() => {
+  const sections = homeStore.sections
 
-// 附近药店
-const nearbyStores = ref([
-  {
-    id: '1',
-    name: '同仁堂大药房(朝阳店)',
-    rating: 4.9,
-    distance: '1.2km',
-    deliveryTime: 25,
-    tags: ['24小时营业', '医保定点', '急速达']
-  },
-  {
-    id: '2',
-    name: '老百姓大药房',
-    rating: 4.8,
-    distance: '0.8km',
-    deliveryTime: 20,
-    tags: ['正品保障', '满减优惠']
-  },
-  {
-    id: '3',
-    name: '海王星辰健康药房',
-    rating: 4.7,
-    distance: '1.5km',
-    deliveryTime: 30,
-    tags: ['夜间送药', '专业服务']
+  switch (activeTab.value) {
+    case 'recommend':
+      const recommendTypes = ['service_grid', 'banner_subsidy', 'doctor_banner', 'nearby_pharmacy', 'waterfall_layout']
+      return sections.filter(s => recommendTypes.includes(s.sectionType))
+    case 'doctor':
+      return sections.filter(s => s.sectionType === 'doctor_department')
+    case 'test':
+      return sections.filter(s => s.sectionType === 'test_items')
+    case 'chronic':
+      return sections.filter(s => s.sectionType === 'chronic_category')
+    case 'tcm':
+      return sections.filter(s => s.sectionType === 'tcm_category')
+    default:
+      return []
   }
-])
+})
 
-// 页面跳转方法
-const goToSearch = () => router.push('/search')
-const goToCategory = () => router.push('/category')
-const goToDrugDetail = (id: string) => router.push(`/drug/${id}`)
-const goToAIAssistant = () => router.push('/ai-assistant')
-const goToInquiry = () => router.push('/inquiry')
-const goToPrescription = () => router.push('/prescription')
-const goToOrder = () => router.push('/order/list')
-const goToMore = () => router.push('/category')
-const goToMoreStores = () => ElMessage.info('附近药店列表功能开发中')
-const goToStore = (id: string) => ElMessage.info(`药店详情功能开发中，ID: ${id}`)
-const goToCategoryList = (id: string) => router.push(`/category?id=${id}`)
-
-const scanCode = () => {
-  ElMessage.success('扫码功能：扫描药品条形码快速加购')
+// 组件映射表
+const componentMap: Record<SectionType, any> = {
+  search_bar: SearchBarSection,
+  tab_navigation: TabNavigationSection,
+  promo_banner: PromoBannerSection,
+  service_grid: ServiceGridSection,
+  banner_subsidy: BannerSubsidySection,
+  doctor_banner: DoctorBannerSection,
+  nearby_pharmacy: NearbyPharmacySection,
+  waterfall_layout: WaterfallLayoutSection,
+  doctor_department: DoctorDepartmentSection,
+  test_items: TestItemsSection,
+  chronic_category: ChronicCategorySection,
+  tcm_category: TcmCategorySection
 }
 
-onMounted(() => {
-  // 页面加载完成后的初始化
+function getSectionComponent(type: SectionType): any {
+  return componentMap[type] || null
+}
+
+function handleTabChange(tabId: string) {
+  activeTab.value = tabId
+  console.log('Tab switched to:', tabId)
+}
+
+const goToSearch = () => router.push('/search')
+const goToCart = () => router.push('/cart')
+const handleScanCode = () => ElMessage.info('扫码功能开发中')
+
+function selectLocation(loc: string) {
+  currentLocation.value = loc
+  showLocationPicker.value = false
+  ElMessage.success(`已切换到${loc}`)
+}
+
+const handleScroll = () => {
+  if (homePageRef.value) {
+    const scrollTop = homePageRef.value.scrollTop
+  }
+}
+
+function handleQuickConsult() {
+  router.push('/inquiry/ai-triage')
+}
+
+// 处理区块点击
+const handleSectionClick = (sectionType: string) => {
+  if (sectionType === 'doctor_banner') {
+    router.push('/inquiry/pre')
+  }
+}
+
+// 促销横幅点击处理
+const handlePromoLeftClick = () => {
+  ElMessage.info('过敏报告功能开发中')
+}
+const handlePromoCenterClick = () => {
+  router.push('/promotion/slimming')
+}
+const handlePromoRightClick = () => {
+  router.push('/category/allergy')
+}
+
+onMounted(async () => {
+  await homeStore.fetchHomePageConfig()
+  homePageRef.value?.addEventListener('scroll', handleScroll)
+})
+
+onUnmounted(() => {
+  homePageRef.value?.removeEventListener('scroll', handleScroll)
 })
 </script>
 
-<style scoped lang="scss">
+<style lang="scss">
 @use '@/styles/variables' as *;
+
+$primary-yellow: #FFD100;
+$primary-teal: #00C9A7;
+$bg-gray: #F5F5F5;
+$bg-teal: #F0F9F6;
+$bg-warm: #FFF9E6;
 
 .home-page {
   min-height: 100vh;
-  background-color: $bg-primary;
-  padding-bottom: 20px;
-}
+  background: $bg-gray;
+  padding-bottom: 80px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 
-// 搜索栏
-.search-header {
-  background: linear-gradient(135deg, $primary 0%, $primary-light 100%);
-  padding: $spacing-md;
-  padding-top: calc($safe-area-top + $spacing-md);
-  
-  .location {
-    display: flex;
-    align-items: center;
-    color: $text-white;
-    margin-bottom: $spacing-md;
-    font-size: $font-md;
-    
-    .location-text {
-      margin: 0 $spacing-xs;
-      font-weight: 500;
+  // 头部渐变包装器 - 固定高度结构
+  .header-wrapper {
+    position: relative;
+    overflow: hidden;
+
+    // 头部渐变区域 - 搜索栏和Tab导航
+    .header-gradient {
+      padding: 8px 0 12px;
+      transition: background 0.3s ease;
+      --tab-active-color: #FFD100;
+      // 默认推荐Tab - 黄色渐变
+      background: linear-gradient(180deg, #FFD100 0%, #FFE066 100%);
+    }
+
+    // 渐变过渡区域 - 平滑过渡到内容区
+    .header-fade {
+      height: 24px;
+      background: linear-gradient(180deg, 
+        #FFE066 0%, 
+        rgba(255, 224, 102, 0.5) 30%, 
+        rgba(255, 224, 102, 0.1) 70%, 
+        transparent 100%
+      );
+      pointer-events: none;
     }
   }
-  
-  .search-box {
-    display: flex;
-    align-items: center;
-    background: $bg-white;
-    border-radius: $radius-xl;
-    padding: $spacing-sm $spacing-md;
-    color: $text-tertiary;
-    
-    .placeholder {
-      flex: 1;
-      margin-left: $spacing-sm;
-      font-size: $font-md;
+
+  // 问医生Tab - 青绿色系
+  &.theme-doctor {
+    background: $bg-teal;
+
+    .header-wrapper .header-gradient {
+      background: linear-gradient(180deg, #00C9A7 0%, #00E5BF 100%);
+      --tab-active-color: #00C9A7;
     }
-    
-    .scan-btn {
-      padding: $spacing-xs $spacing-sm;
-      border-left: 1px solid $border-light;
-      margin-left: $spacing-sm;
-      color: $text-secondary;
+
+    .header-wrapper .header-fade {
+      background: linear-gradient(180deg, 
+        #00E5BF 0%, 
+        rgba(0, 229, 191, 0.5) 30%, 
+        rgba(0, 229, 191, 0.1) 70%, 
+        transparent 100%
+      );
     }
+  }
+
+  // 滋补保健Tab - 天蓝色系
+  &.theme-tcm {
+    background: #E8F4FC;
+
+    .header-wrapper .header-gradient {
+      background: linear-gradient(180deg, #4A90E2 0%, #5BA3F5 100%);
+      --tab-active-color: #4A90E2;
+    }
+
+    .header-wrapper .header-fade {
+      background: linear-gradient(180deg, 
+        #5BA3F5 0%, 
+        rgba(91, 163, 245, 0.5) 30%, 
+        rgba(91, 163, 245, 0.1) 70%, 
+        transparent 100%
+      );
+    }
+  }
+
+  // 慢病关怀Tab - 医疗青绿色系
+  &.theme-chronic {
+    background: #E0F7F5;
+
+    .header-wrapper .header-gradient {
+      background: linear-gradient(180deg, #00A896 0%, #00C9B7 100%);
+      --tab-active-color: #00A896;
+    }
+
+    .header-wrapper .header-fade {
+      background: linear-gradient(180deg, 
+        #00C9B7 0%, 
+        rgba(0, 201, 183, 0.5) 30%, 
+        rgba(0, 201, 183, 0.1) 70%, 
+        transparent 100%
+      );
+    }
+  }
+
+  // 做检测Tab - 暖黄色渐变背景
+  &.theme-test {
+    background: $bg-warm;
+
+    .header-wrapper .header-gradient {
+      background: linear-gradient(180deg, #FFD93D 0%, #FFE066 100%);
+      --tab-active-color: #FFD93D;
+    }
+
+    .header-wrapper .header-fade {
+      background: linear-gradient(180deg, 
+        #FFE066 0%, 
+        rgba(255, 224, 102, 0.5) 30%, 
+        rgba(255, 224, 102, 0.1) 70%, 
+        transparent 100%
+      );
+    }
+  }
+
+  .content-area {
+    position: relative;
+    z-index: 1;
+    padding: 0;
+    min-height: calc(100vh - 200px);
   }
 }
 
-// 轮播图
-.banner-section {
-  margin: $spacing-md;
-  
-  .banner-item {
-    height: 100%;
-    border-radius: $radius-lg;
-    display: flex;
-    align-items: center;
-    padding: $spacing-lg;
-    color: $text-white;
-    
-    .banner-content {
-      h3 {
-        font-size: $font-xl;
-        font-weight: 600;
-        margin-bottom: $spacing-xs;
-      }
-      
-      p {
-        font-size: $font-sm;
-        opacity: 0.9;
-      }
-    }
-  }
+.loading-container,
+.error-container {
+  padding: 40px 16px;
+  text-align: center;
 }
 
-// 快捷入口
-.quick-actions {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: $spacing-md;
-  margin: $spacing-md;
-  padding: $spacing-lg;
-  background: $bg-white;
-  border-radius: $radius-lg;
-  box-shadow: $shadow-sm;
-  
-  .action-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    cursor: pointer;
-    
-    .icon {
-      width: 48px;
-      height: 48px;
-      border-radius: 50%;
+.location-dialog {
+  :deep(.el-dialog__header) {
+    text-align: center;
+    font-weight: bold;
+  }
+
+  .location-list {
+    .location-item {
       display: flex;
+      justify-content: space-between;
       align-items: center;
-      justify-content: center;
-      margin-bottom: $spacing-sm;
-      font-size: 24px;
-      color: $text-white;
-      
-      &.ai-icon {
-        background: linear-gradient(135deg, #722ed1 0%, #b37feb 100%);
-      }
-      
-      &.inquiry-icon {
-        background: linear-gradient(135deg, $primary 0%, $primary-light 100%);
-      }
-      
-      &.prescription-icon {
-        background: linear-gradient(135deg, $info 0%, #69c0ff 100%);
-      }
-      
-      &.order-icon {
-        background: linear-gradient(135deg, $warning 0%, #ffc53d 100%);
-      }
-    }
-    
-    span {
-      font-size: $font-sm;
-      color: $text-secondary;
-    }
-  }
-}
-
-// 分类导航
-.category-section {
-  margin: $spacing-md;
-  padding: $spacing-lg;
-  background: $bg-white;
-  border-radius: $radius-lg;
-  box-shadow: $shadow-sm;
-  
-  .section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: $spacing-md;
-    
-    h3 {
-      font-size: $font-lg;
-      font-weight: 600;
-      color: $text-primary;
-    }
-    
-    .more {
-      display: flex;
-      align-items: center;
-      font-size: $font-sm;
-      color: $text-tertiary;
-    }
-  }
-  
-  .category-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: $spacing-md;
-    
-    .category-item {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
+      padding: 16px;
+      border-bottom: 1px solid #f5f5f5;
       cursor: pointer;
-      
-      img {
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        margin-bottom: $spacing-xs;
-      }
-      
-      span {
-        font-size: $font-xs;
-        color: $text-secondary;
-      }
-    }
-  }
-}
 
-// 热门推荐
-.hot-section {
-  margin: $spacing-md;
-  
-  .section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: $spacing-md;
-    
-    h3 {
-      font-size: $font-lg;
-      font-weight: 600;
-      color: $text-primary;
-    }
-    
-    .more {
-      display: flex;
-      align-items: center;
-      font-size: $font-sm;
-      color: $text-tertiary;
-    }
-  }
-  
-  .drug-list {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: $spacing-md;
-    
-    .drug-card {
-      background: $bg-white;
-      border-radius: $radius-lg;
-      overflow: hidden;
-      box-shadow: $shadow-sm;
-      cursor: pointer;
-      
-      .drug-image {
-        position: relative;
-        width: 100%;
-        padding-top: 100%;
-        
-        img {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-        }
-        
-        .rx-tag {
-          position: absolute;
-          top: $spacing-xs;
-          left: $spacing-xs;
-          background: rgba(255, 77, 79, 0.9);
-          color: $text-white;
-          font-size: $font-xs;
-          padding: 2px 6px;
-          border-radius: $radius-sm;
-        }
+      &.active {
+        color: #FFD100;
+        font-weight: 500;
       }
-      
-      .drug-info {
-        padding: $spacing-sm;
-        
-        .drug-name {
-          font-size: $font-sm;
-          font-weight: 500;
-          color: $text-primary;
-          margin-bottom: 4px;
-          @extend .text-ellipsis;
-        }
-        
-        .specification {
-          font-size: $font-xs;
-          color: $text-tertiary;
-          margin-bottom: $spacing-xs;
-          @extend .text-ellipsis;
-        }
-        
-        .price-section {
-          display: flex;
-          align-items: baseline;
-          gap: $spacing-xs;
-          margin-bottom: 4px;
-          
-          .price {
-            font-size: $font-md;
-            font-weight: 600;
-            color: $error;
-          }
-          
-          .original-price {
-            font-size: $font-xs;
-            color: $text-tertiary;
-            text-decoration: line-through;
-          }
-        }
-        
-        .sales {
-          font-size: $font-xs;
-          color: $text-tertiary;
-        }
-      }
-    }
-  }
-}
 
-// 附近药店
-.nearby-section {
-  margin: $spacing-md;
-  margin-bottom: $spacing-xxl;
-  
-  .section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: $spacing-md;
-    
-    h3 {
-      font-size: $font-lg;
-      font-weight: 600;
-      color: $text-primary;
-    }
-    
-    .more {
-      display: flex;
-      align-items: center;
-      font-size: $font-sm;
-      color: $text-tertiary;
-    }
-  }
-  
-  .store-list {
-    display: flex;
-    flex-direction: column;
-    gap: $spacing-md;
-    
-    .store-card {
-      background: $bg-white;
-      border-radius: $radius-lg;
-      padding: $spacing-md;
-      box-shadow: $shadow-sm;
-      cursor: pointer;
-      
-      .store-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: $spacing-xs;
-        
-        h4 {
-          font-size: $font-md;
-          font-weight: 500;
-          color: $text-primary;
-        }
-        
-        .rating {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          color: $warning;
-          font-size: $font-sm;
-          font-weight: 500;
-        }
-      }
-      
-      .store-info {
-        display: flex;
-        gap: $spacing-md;
-        margin-bottom: $spacing-sm;
-        font-size: $font-sm;
-        color: $text-secondary;
-      }
-      
-      .store-tags {
-        display: flex;
-        flex-wrap: wrap;
-        gap: $spacing-xs;
-        
-        .tag {
-          padding: 2px 8px;
-          background: rgba($primary, 0.1);
-          color: $primary;
-          font-size: $font-xs;
-          border-radius: $radius-sm;
-        }
+      &:last-child {
+        border-bottom: none;
       }
     }
   }
-}
-
-// 安全区域
-.safe-area-bottom {
-  height: calc($tabbar-height + $safe-area-bottom + 20px);
 }
 </style>

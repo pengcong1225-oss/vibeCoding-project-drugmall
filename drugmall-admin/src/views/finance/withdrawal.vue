@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, RefreshRight, Check, Close, Money, Document, TrendCharts, Download } from '@element-plus/icons-vue'
+import { getWithdrawalList, getWithdrawalStats, auditWithdrawal } from '@/api/finance'
+
+const loading = ref(false)
 
 // 筛选表单
 const filterForm = ref({
@@ -43,15 +46,20 @@ const withdrawalStatus = [
   { label: '转账失败', value: 'failed', tagType: 'danger' }
 ]
 
-// 提现记录数据（模拟）
-const withdrawalList = ref([
-  { id: 'WD202412010001', merchantName: '大药房旗舰店', amount: 5000.00, fee: 50.00, actualAmount: 4950.00, status: 'pending', bankName: '中国工商银行', bankCard: '622202********1234', bankBranch: '北京市朝阳支行', applyTime: '2024-12-01 09:30:00', accountName: '张三' },
-  { id: 'WD202412010002', merchantName: '健康堂药店', amount: 3000.00, fee: 30.00, actualAmount: 2970.00, status: 'approved', bankName: '中国建设银行', bankCard: '621700********5678', bankBranch: '北京市海淀支行', applyTime: '2024-12-01 10:15:00', accountName: '李四' },
-  { id: 'WD202412010003', merchantName: '仁和堂大药房', amount: 10000.00, fee: 100.00, actualAmount: 9900.00, status: 'rejected', bankName: '招商银行', bankCard: '622588********9012', bankBranch: '北京市西城支行', applyTime: '2024-12-01 11:20:00', rejectReason: '账户信息异常，请联系客服', accountName: '王五' },
-  { id: 'WD202412010004', merchantName: '百姓药房', amount: 2500.00, fee: 25.00, actualAmount: 2475.00, status: 'transferring', bankName: '中国农业银行', bankCard: '622848********3456', bankBranch: '北京市东城支行', applyTime: '2024-12-01 14:00:00', transferTime: '2024-12-01 14:05:00', accountName: '赵六' },
-  { id: 'WD202412010005', merchantName: '康之源药店', amount: 8000.00, fee: 80.00, actualAmount: 7920.00, status: 'completed', bankName: '中国银行', bankCard: '621661********7890', bankBranch: '北京市丰台支行', applyTime: '2024-12-01 16:30:00', transferTime: '2024-12-01 16:35:00', completeTime: '2024-12-01 16:40:00', accountName: '钱七' },
-  { id: 'WD202412010006', merchantName: '济世堂大药房', amount: 6000.00, fee: 60.00, actualAmount: 5940.00, status: 'failed', bankName: '交通银行', bankCard: '622262********2345', bankBranch: '北京市石景山支行', applyTime: '2024-12-01 17:45:00', transferTime: '2024-12-01 17:50:00', failReason: '银行账户不存在', accountName: '孙八' }
-])
+// 提现记录数据
+const withdrawalList = ref<any[]>([])
+
+// 提现统计数据
+const withdrawalStats = ref({
+  todayAmount: 0,
+  todayCount: 0,
+  weekAmount: 0,
+  weekCount: 0,
+  monthAmount: 0,
+  monthCount: 0,
+  totalAmount: 0,
+  totalCount: 0
+})
 
 // 统计卡片
 const statCards = computed(() => {
@@ -129,7 +137,8 @@ const handleViewTransfer = (row: any) => {
 }
 
 // 查看提现统计
-const handleViewStats = () => {
+const handleViewStats = async () => {
+  await loadWithdrawalStatsData()
   statsDialogVisible.value = true
 }
 
@@ -332,29 +341,29 @@ const handleCurrentChange = (val: number) => {
         <el-col :span="12">
           <div class="stats-card">
             <div class="stats-title">今日提现</div>
-            <div class="stats-value">¥45,680.00</div>
-            <div class="stats-count">23 笔</div>
+            <div class="stats-value">¥{{ withdrawalStats.todayAmount.toFixed(2) }}</div>
+            <div class="stats-count">{{ withdrawalStats.todayCount }} 笔</div>
           </div>
         </el-col>
         <el-col :span="12">
           <div class="stats-card">
             <div class="stats-title">本周提现</div>
-            <div class="stats-value">¥256,780.00</div>
-            <div class="stats-count">128 笔</div>
+            <div class="stats-value">¥{{ withdrawalStats.weekAmount.toFixed(2) }}</div>
+            <div class="stats-count">{{ withdrawalStats.weekCount }} 笔</div>
           </div>
         </el-col>
         <el-col :span="12">
           <div class="stats-card">
             <div class="stats-title">本月提现</div>
-            <div class="stats-value">¥1,056,320.00</div>
-            <div class="stats-count">512 笔</div>
+            <div class="stats-value">¥{{ withdrawalStats.monthAmount.toFixed(2) }}</div>
+            <div class="stats-count">{{ withdrawalStats.monthCount }} 笔</div>
           </div>
         </el-col>
         <el-col :span="12">
           <div class="stats-card">
             <div class="stats-title">累计提现</div>
-            <div class="stats-value">¥12,568,900.00</div>
-            <div class="stats-count">6,280 笔</div>
+            <div class="stats-value">¥{{ withdrawalStats.totalAmount.toFixed(2) }}</div>
+            <div class="stats-count">{{ withdrawalStats.totalCount }} 笔</div>
           </div>
         </el-col>
       </el-row>
@@ -508,4 +517,106 @@ const handleCurrentChange = (val: number) => {
     opacity: 0.8;
   }
 }
+</style>
+  .stats-count {
+    font-size: 12px;
+    opacity: 0.8;
+  }
+}
+</style>
+</style>
+
+  .title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #303133;
+    margin-bottom: 4px;
+  }
+
+  .detail {
+    font-size: 12px;
+    color: #606266;
+    line-height: 1.5;
+  }
+}
+
+// 统计卡片
+.stats-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 8px;
+  padding: 20px;
+  color: #fff;
+  margin-bottom: 16px;
+
+  .stats-title {
+    font-size: 14px;
+    opacity: 0.9;
+    margin-bottom: 8px;
+  }
+
+  .stats-value {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .stats-count {
+    font-size: 12px;
+    opacity: 0.8;
+  }
+}
+</style>
+
+  .stats-count {
+    font-size: 12px;
+    opacity: 0.8;
+  }
+}
+</style>
+</style>
+  .detail {
+    font-size: 12px;
+    color: #606266;
+    line-height: 1.5;
+  }
+}
+
+// 统计卡片
+.stats-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 8px;
+  padding: 20px;
+  color: #fff;
+  margin-bottom: 16px;
+
+  .stats-title {
+    font-size: 14px;
+    opacity: 0.9;
+    margin-bottom: 8px;
+  }
+
+  .stats-value {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .stats-count {
+    font-size: 12px;
+    opacity: 0.8;
+  }
+}
+</style>
+
+  .stats-count {
+    font-size: 12px;
+    opacity: 0.8;
+  }
+}
+</style>
+</style>
+    opacity: 0.8;
+  }
+}
+</style>
 </style>

@@ -77,7 +77,7 @@ const menuList = [
   <div class="sidebar" :class="{ 'is-collapse': isCollapse }">
     <!-- Logo -->
     <div class="sidebar-logo">
-      <img src="/vite.svg" alt="logo" />
+      <div class="logo-icon">💊</div>
       <span v-show="!isCollapse" class="title">DrugMall</span>
     </div>
     
@@ -126,9 +126,13 @@ const menuList = [
   padding: 0 16px;
   background-color: #2b3649;
   
-  img {
+  .logo-icon {
     width: 32px;
     height: 32px;
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   
   .title {

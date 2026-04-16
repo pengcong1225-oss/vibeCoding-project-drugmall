@@ -1,7 +1,17 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { ElMessage } from 'element-plus'
+import {
+  getCartList as apiGetCartList,
+  addToCart as apiAddToCart,
+  updateCartItem as apiUpdateCartItem,
+  removeCartItem as apiRemoveCartItem,
+  clearCart as apiClearCart,
+  updateCartItemQuantity as apiUpdateCartItemQuantity
+} from '@/api/modules/cart'
+import type { CartItem, AddToCartParams } from '@/types'
 
-export interface CartItem {
+export interface CartItemLocal {
   id: string
   drugId: string
   name: string
@@ -18,91 +28,147 @@ export interface CartItem {
 export const useCartStore = defineStore('cart', () => {
   // State
   const items = ref<CartItem[]>([])
-  
+  const loading = ref(false)
+
   // Getters
   const totalCount = computed(() => {
     return items.value.reduce((sum, item) => sum + item.quantity, 0)
   })
-  
+
   const totalPrice = computed(() => {
     return items.value.reduce((sum, item) => sum + (item.price * item.quantity), 0)
   })
-  
+
   const hasRxItems = computed(() => {
     return items.value.some(item => item.isRx)
   })
-  
+
   // Actions
-  const addItem = (item: Omit<CartItem, 'id'>) => {
-    const existingItem = items.value.find(i => i.drugId === item.drugId)
-    if (existingItem) {
-      existingItem.quantity += item.quantity
-    } else {
-      items.value.push({
-        ...item,
-        id: Date.now().toString()
-      })
+  // 获取购物车列表
+  const fetchCartList = async () => {
+    loading.value = true
+    try {
+      const res = await apiGetCartList()
+      items.value = res || []
+      return items.value
+    } catch (error) {
+      ElMessage.error('获取购物车失败')
+      throw error
+    } finally {
+      loading.value = false
     }
-    saveToLocal()
   }
-  
-  const updateQuantity = (id: string, quantity: number) => {
-    const item = items.value.find(i => i.id === id)
-    if (item) {
-      if (quantity <= 0) {
-        removeItem(id)
-      } else {
+
+  // 添加商品到购物车
+  const addItem = async (item: Omit<CartItemLocal, 'id'>) => {
+    loading.value = true
+    try {
+      const params: AddToCartParams = {
+        drugId: item.drugId,
+        quantity: item.quantity,
+        disease: item.disease,
+        usage: item.usage
+      }
+      const res = await apiAddToCart(params)
+      // 重新获取购物车列表以同步数据
+      await fetchCartList()
+      ElMessage.success('已添加到购物车')
+      return res
+    } catch (error) {
+      ElMessage.error('添加失败')
+      throw error
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // 更新商品数量
+  const updateQuantity = async (id: string, quantity: number) => {
+    if (quantity <= 0) {
+      await removeItem(id)
+      return
+    }
+    try {
+      await apiUpdateCartItemQuantity(id, quantity)
+      // 更新本地状态
+      const item = items.value.find(i => i.id === id)
+      if (item) {
         item.quantity = quantity
       }
+    } catch (error) {
+      ElMessage.error('更新数量失败')
+      throw error
     }
-    saveToLocal()
   }
-  
-  const updateDisease = (id: string, disease: string) => {
-    const item = items.value.find(i => i.id === id)
-    if (item) {
-      item.disease = disease
+
+  // 更新病症信息
+  const updateDisease = async (id: string, disease: string) => {
+    try {
+      await apiUpdateCartItem(id, { disease })
+      const item = items.value.find(i => i.id === id)
+      if (item) {
+        item.disease = disease
+      }
+    } catch (error) {
+      ElMessage.error('更新失败')
+      throw error
     }
-    saveToLocal()
   }
-  
-  const updateUsage = (id: string, usage: string) => {
-    const item = items.value.find(i => i.id === id)
-    if (item) {
-      item.usage = usage
+
+  // 更新用法用量
+  const updateUsage = async (id: string, usage: string) => {
+    try {
+      await apiUpdateCartItem(id, { usage })
+      const item = items.value.find(i => i.id === id)
+      if (item) {
+        item.usage = usage
+      }
+    } catch (error) {
+      ElMessage.error('更新失败')
+      throw error
     }
-    saveToLocal()
   }
-  
-  const removeItem = (id: string) => {
-    const index = items.value.findIndex(i => i.id === id)
-    if (index > -1) {
-      items.value.splice(index, 1)
+
+  // 删除商品
+  const removeItem = async (id: string) => {
+    try {
+      await apiRemoveCartItem(id)
+      const index = items.value.findIndex(i => i.id === id)
+      if (index > -1) {
+        items.value.splice(index, 1)
+      }
+      ElMessage.success('已删除')
+    } catch (error) {
+      ElMessage.error('删除失败')
+      throw error
     }
-    saveToLocal()
   }
-  
-  const clearCart = () => {
-    items.value = []
-    saveToLocal()
+
+  // 清空购物车
+  const clearCart = async () => {
+    try {
+      await apiClearCart()
+      items.value = []
+      ElMessage.success('购物车已清空')
+    } catch (error) {
+      ElMessage.error('清空失败')
+      throw error
+    }
   }
-  
+
+  // 保留旧方法名以兼容现有代码
   const saveToLocal = () => {
-    localStorage.setItem('cart', JSON.stringify(items.value))
+    // API模式下不需要本地存储，保留空方法以兼容
   }
-  
+
   const loadFromLocal = () => {
-    const data = localStorage.getItem('cart')
-    if (data) {
-      items.value = JSON.parse(data)
-    }
+    // API模式下从服务器加载
+    fetchCartList()
   }
-  
-  // 初始化加载
-  loadFromLocal()
-  
+
   return {
     items,
+    loading,
     totalCount,
     totalPrice,
     hasRxItems,
@@ -112,6 +178,7 @@ export const useCartStore = defineStore('cart', () => {
     updateUsage,
     removeItem,
     clearCart,
+    fetchCartList,
     saveToLocal,
     loadFromLocal
   }

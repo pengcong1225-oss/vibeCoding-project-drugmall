@@ -89,6 +89,7 @@ export interface LogisticsTrace {
 export interface OrderQueryParams {
   pageNum: number
   pageSize: number
+  keyword?: string
   orderNo?: string
   username?: string
   phone?: string

@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import * as echarts from 'echarts'
 import { ElMessage } from 'element-plus'
+import { getFinanceStatistics } from '@/api/finance'
 import { ArrowUp, ArrowDown, Money, TrendCharts, PieChart, Histogram, Download, Search, RefreshRight } from '@element-plus/icons-vue'
 
 // 数据筛选表单
@@ -13,26 +14,40 @@ const filterForm = ref({
   dimension: 'day' // day, week, month
 })
 
-// 统计卡片数据
-const statCards = computed(() => [
-  { title: '总收入', value: '¥2,156,789.00', change: '+32.1%', trend: 'up', icon: Money, color: '#67c23a', compareText: '较上月' },
-  { title: '今日收入', value: '¥12,456.00', change: '+15.2%', trend: 'up', icon: TrendCharts, color: '#409eff', compareText: '较昨日' },
-  { title: '本周收入', value: '¥89,234.00', change: '+8.5%', trend: 'up', icon: PieChart, color: '#e6a23c', compareText: '较上周' },
-  { title: '本月收入', value: '¥356,789.00', change: '-2.3%', trend: 'down', icon: Histogram, color: '#f56c6c', compareText: '较上月' }
-])
+const loading = ref(false)
+
+// 图标和颜色映射
+const cardIconMap: Record<string, { icon: any; color: string }> = {
+  '总收入': { icon: Money, color: '#67c23a' },
+  '今日收入': { icon: TrendCharts, color: '#409eff' },
+  '本周收入': { icon: PieChart, color: '#e6a23c' },
+  '本月收入': { icon: Histogram, color: '#f56c6c' }
+}
+
+// API原始卡片数据
+const rawStatCards = ref<any[]>([])
+
+// 统计卡片数据（合并图标）
+const statCards = computed(() =>
+  rawStatCards.value.map(card => ({
+    ...card,
+    icon: cardIconMap[card.title]?.icon || Money,
+    color: cardIconMap[card.title]?.color || '#409eff'
+  }))
+)
 
 // 收入排行TOP10
-const topProducts = ref([
-  { name: '阿莫西林胶囊', amount: 45680, percent: 12.8, change: '+5.2%' },
-  { name: '布洛芬缓释胶囊', amount: 38920, percent: 10.9, change: '+3.8%' },
-  { name: '感冒灵颗粒', amount: 32560, percent: 9.1, change: '-2.1%' },
-  { name: '维生素C泡腾片', amount: 28900, percent: 8.1, change: '+8.5%' },
-  { name: '健胃消食片', amount: 25680, percent: 7.2, change: '+1.2%' },
-  { name: '复方甘草片', amount: 23450, percent: 6.6, change: '-1.8%' },
-  { name: '头孢克肟胶囊', amount: 21340, percent: 6.0, change: '+4.5%' },
-  { name: '板蓝根颗粒', amount: 19800, percent: 5.5, change: '+2.3%' },
-  { name: '999皮炎平', amount: 17650, percent: 4.9, change: '-0.5%' }
-])
+const topProducts = ref<any[]>([])
+
+// 收入构成数据
+const compositionData = ref<any[]>([])
+
+// 对比数据
+const compareChartData = ref({
+  categories: [] as string[],
+  thisYear: [] as number[],
+  lastYear: [] as number[]
+})
 
 // 图表实例
 let trendChart: echarts.ECharts | null = null
@@ -41,11 +56,11 @@ let compareChart: echarts.ECharts | null = null
 
 // 趋势图数据
 const trendData = ref({
-  dates: Array.from({ length: 30 }, (_, i) => `${i + 1}日`),
-  income: [8200, 9320, 9010, 9340, 12900, 13300, 13200, 12500, 11800, 12800, 13500, 12845, 14200, 15600, 14800, 15200, 13800, 14500, 15600, 14800, 16200, 15800, 14500, 15200, 16800, 16200, 17500, 18200, 17800, 18500],
-  orders: [82, 93, 90, 93, 129, 133, 132, 125, 118, 128, 135, 128, 142, 156, 148, 152, 138, 145, 156, 148, 162, 158, 145, 152, 168, 162, 175, 182, 178, 185],
-  compareIncome: [], // 对比数据
-  compareOrders: []
+  dates: [] as string[],
+  income: [] as number[],
+  orders: [] as number[],
+  compareIncome: [] as number[],
+  compareOrders: [] as number[]
 })
 
 // 初始化收入趋势图
@@ -176,13 +191,7 @@ const initCompositionChart = () => {
       label: { show: false, position: 'center' },
       emphasis: { label: { show: true, fontSize: 20, fontWeight: 'bold' } },
       labelLine: { show: false },
-      data: [
-        { value: 235678, name: '处方药', itemStyle: { color: '#409eff' } },
-        { value: 189234, name: '非处方药', itemStyle: { color: '#67c23a' } },
-        { value: 125678, name: '保健品', itemStyle: { color: '#e6a23c' } },
-        { value: 85678, name: '医疗器械', itemStyle: { color: '#f56c6c' } },
-        { value: 48500, name: '其他', itemStyle: { color: '#909399' } }
-      ]
+      data: compositionData.value
     }]
   }
   compositionChart?.setOption(option)
@@ -200,10 +209,8 @@ const initCompareChart = () => {
 const updateCompareChart = () => {
   if (!compareChart) return
 
-  const currentData = [235678, 189234, 125678, 85678, 45678, 48500]
-  const compareData = filterForm.value.compareType === 'yoy'
-    ? [210567, 175432, 112345, 78901, 42345, 45678] // 去年同期
-    : [220345, 182567, 119876, 82345, 44567, 47890] // 上月
+  const currentData = compareChartData.value.thisYear
+  const compareDataArr = compareChartData.value.lastYear
 
   const option: echarts.EChartsOption = {
     tooltip: {
@@ -234,7 +241,7 @@ const updateCompareChart = () => {
     },
     xAxis: {
       type: 'category',
-      data: ['处方药', '非处方药', '保健品', '医疗器械', '中药饮片', '其他'],
+      data: compareChartData.value.categories,
       axisLine: { lineStyle: { color: '#ccc' } }
     },
     yAxis: {
@@ -253,7 +260,7 @@ const updateCompareChart = () => {
       {
         name: filterForm.value.compareType === 'yoy' ? '去年同期' : '上期',
         type: 'bar',
-        data: compareData,
+        data: compareDataArr,
         itemStyle: { color: '#909399' },
         label: { show: true, position: 'top', formatter: '¥{c}' }
       }
@@ -269,25 +276,40 @@ const handleResize = () => {
   compareChart?.resize()
 }
 
-// 搜索/筛选
-const handleSearch = () => {
-  // 模拟数据更新
-  if (filterForm.value.compareType !== 'none') {
-    // 生成对比数据
-    trendData.value.compareIncome = trendData.value.income.map(v => Math.floor(v * (0.8 + Math.random() * 0.4)))
-    trendData.value.compareOrders = trendData.value.orders.map(v => Math.floor(v * (0.8 + Math.random() * 0.4)))
-  } else {
-    trendData.value.compareIncome = []
-    trendData.value.compareOrders = []
+// 加载数据
+const loadData = async () => {
+  loading.value = true
+  try {
+    const data = await getFinanceStatistics()
+    rawStatCards.value = data.cards || []
+    topProducts.value = data.topProducts || []
+    trendData.value = {
+      dates: data.trendData?.dates || [],
+      income: data.trendData?.income || [],
+      orders: data.trendData?.orders || [],
+      compareIncome: [],
+      compareOrders: []
+    }
+    compositionData.value = data.compositionData || []
+    compareChartData.value = data.compareData || { categories: [], thisYear: [], lastYear: [] }
+  } catch (error) {
+    console.error('获取财务统计数据失败:', error)
+  } finally {
+    loading.value = false
   }
+}
 
+// 搜索/筛选
+const handleSearch = async () => {
+  await loadData()
   updateTrendChart()
+  initCompositionChart()
   updateCompareChart()
   ElMessage.success('数据已更新')
 }
 
 // 重置筛选
-const handleReset = () => {
+const handleReset = async () => {
   filterForm.value = {
     timeRange: '30',
     startDate: '',
@@ -295,9 +317,9 @@ const handleReset = () => {
     compareType: 'none',
     dimension: 'day'
   }
-  trendData.value.compareIncome = []
-  trendData.value.compareOrders = []
+  await loadData()
   updateTrendChart()
+  initCompositionChart()
   updateCompareChart()
   ElMessage.success('已重置')
 }
@@ -307,7 +329,8 @@ const handleExport = () => {
   ElMessage.success('财务报表导出成功')
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await loadData()
   initTrendChart()
   initCompositionChart()
   initCompareChart()

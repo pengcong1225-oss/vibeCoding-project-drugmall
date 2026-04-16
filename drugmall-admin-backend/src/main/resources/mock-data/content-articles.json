@@ -1,0 +1,16 @@
+{
+  "categories": [
+    {"id":"1","name":"健康常识","icon":"Reading","sort":1,"status":1},
+    {"id":"2","name":"疾病预防","icon":"Shield","sort":2,"status":1},
+    {"id":"3","name":"用药指导","icon":"Medicine","sort":3,"status":1},
+    {"id":"4","name":"养生保健","icon":"Apple","sort":4,"status":1},
+    {"id":"5","name":"医学科普","icon":"Document","sort":5,"status":1}
+  ],
+  "articles": [
+    {"id":"1","title":"冬季感冒高发，如何预防？","categoryId":"1","categoryName":"健康常识","cover":"https://via.placeholder.com/300x200/409eff/fff?text=健康","summary":"冬季是感冒的高发季节，了解预防措施很重要","content":"<p>冬季气温骤降，人体免疫力下降，感冒病毒更容易侵入人体。以下是一些有效的预防措施：</p><p>1. 注意保暖，特别是颈部和脚部</p><p>2. 多喝温水，保持体内水分</p><p>3. 适当运动，增强免疫力</p><p>4. 保持室内通风</p><p>5. 饮食均衡，多吃蔬菜水果</p>","tags":["感冒","预防","冬季"],"isRecommend":1,"status":1,"views":12567,"publishTime":"2024-12-01 10:00:00","createTime":"2024-11-28 10:00:00"},
+    {"id":"2","title":"高血压患者的日常管理","categoryId":"2","categoryName":"疾病预防","cover":"https://via.placeholder.com/300x200/67c23a/fff?text=血压","summary":"高血压需要长期管理，这些方法帮助您控制血压","content":"<p>高血压是常见的慢性病，需要长期的自我管理...</p>","tags":["高血压","慢病管理","饮食"],"isRecommend":1,"status":1,"views":8934,"publishTime":"2024-12-05 14:00:00","createTime":"2024-12-03 10:00:00"},
+    {"id":"3","title":"正确服用抗生素的注意事项","categoryId":"3","categoryName":"用药指导","cover":"https://via.placeholder.com/300x200/e6a23c/fff?text=用药","summary":"抗生素不能随意使用，了解正确的服用方法","content":"<p>抗生素是治疗细菌感染的重要药物，但不当使用会导致耐药性...</p>","tags":["抗生素","用药安全","耐药性"],"isRecommend":0,"status":1,"views":6721,"publishTime":"2024-12-08 09:00:00","createTime":"2024-12-06 10:00:00"},
+    {"id":"4","title":"中医养生：冬季进补指南","categoryId":"4","categoryName":"养生保健","cover":"https://via.placeholder.com/300x200/f56c6c/fff?text=养生","summary":"冬季是进补的好时节，中医教你如何科学进补","content":"<p>中医认为冬季是收藏的季节，适合进补养生...</p>","tags":["中医","养生","进补"],"isRecommend":1,"status":0,"views":4532,"publishTime":null,"createTime":"2024-12-10 10:00:00"},
+    {"id":"5","title":"儿童用药安全须知","categoryId":"3","categoryName":"用药指导","cover":"https://via.placeholder.com/300x200/909399/fff?text=儿童","summary":"儿童用药有特殊要求，家长需要注意这些事项","content":"<p>儿童不是缩小版的成人，用药需要特别注意...</p>","tags":["儿童","用药安全","家长"],"isRecommend":0,"status":1,"views":9856,"publishTime":"2024-12-12 11:00:00","createTime":"2024-12-11 10:00:00"}
+  ]
+}

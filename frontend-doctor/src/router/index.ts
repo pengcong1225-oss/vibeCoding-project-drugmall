@@ -119,6 +119,12 @@ const routes: RouteRecordRaw[] = [
     name: 'License',
     component: () => import('@/views/profile/license.vue'),
     meta: { title: '执业信息' }
+  },
+  {
+    path: '/profile/messages',
+    name: 'Messages',
+    component: () => import('@/views/profile/messages.vue'),
+    meta: { title: '消息中心' }
   }
 ]
 

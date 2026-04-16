@@ -1,153 +1,153 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-
-export interface UserInfo {
-  id: string
-  phone: string
-  nickname: string
-  avatar: string
-  isAuthenticated: boolean
-}
-
-export interface Patient {
-  id: string
-  name: string
-  gender: 'male' | 'female'
-  age: number
-  idCard: string
-  phone: string
-  relationship: string
-  isDefault: boolean
-}
+import * as userApi from '@/api/modules/user'
+import type { UserInfo, Patient } from '@/types'
 
 export const useUserStore = defineStore('user', () => {
   // State
   const token = ref<string>('')
   const userInfo = ref<UserInfo | null>(null)
   const patients = ref<Patient[]>([])
-  
+
   // Getters
   const isLoggedIn = computed(() => !!token.value)
-  
+
   const defaultPatient = computed(() => {
     return patients.value.find(p => p.isDefault) || patients.value[0] || null
   })
-  
+
   // Actions
   const setToken = (newToken: string) => {
     token.value = newToken
     localStorage.setItem('token', newToken)
   }
-  
+
   const setUserInfo = (info: UserInfo) => {
     userInfo.value = info
     localStorage.setItem('userInfo', JSON.stringify(info))
   }
-  
+
   const login = async (phone: string, code: string) => {
-    // 模拟登录
-    const mockToken = 'mock_token_' + Date.now()
-    const mockUserInfo: UserInfo = {
-      id: '1',
-      phone,
-      nickname: '用户' + phone.slice(-4),
-      avatar: 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png',
-      isAuthenticated: true
-    }
-    
-    setToken(mockToken)
-    setUserInfo(mockUserInfo)
-    
-    // 加载患者列表
-    loadPatients()
-    
-    return { success: true }
-  }
-  
-  const logout = () => {
-    token.value = ''
-    userInfo.value = null
-    patients.value = []
-    localStorage.removeItem('token')
-    localStorage.removeItem('userInfo')
-    localStorage.removeItem('patients')
-  }
-  
-  const loadPatients = () => {
-    const data = localStorage.getItem('patients')
-    if (data) {
-      patients.value = JSON.parse(data)
-    } else {
-      // 模拟默认患者
-      patients.value = [
-        {
-          id: '1',
-          name: '张三',
-          gender: 'male',
-          age: 30,
-          idCard: '110101199001011234',
-          phone: '13800138000',
-          relationship: '本人',
-          isDefault: true
-        }
-      ]
-      savePatients()
+    try {
+      const result = await userApi.login({ phone, code })
+      setToken(result.token)
+      setUserInfo(result.userInfo)
+      // 加载患者列表
+      await loadPatients()
+      return { success: true }
+    } catch (error) {
+      console.error('登录失败:', error)
+      return { success: false, error }
     }
   }
-  
-  const savePatients = () => {
-    localStorage.setItem('patients', JSON.stringify(patients.value))
-  }
-  
-  const addPatient = (patient: Omit<Patient, 'id'>) => {
-    const newPatient: Patient = {
-      ...patient,
-      id: Date.now().toString()
-    }
-    patients.value.push(newPatient)
-    savePatients()
-  }
-  
-  const updatePatient = (id: string, data: Partial<Patient>) => {
-    const index = patients.value.findIndex(p => p.id === id)
-    if (index > -1) {
-      patients.value[index] = { ...patients.value[index], ...data }
-      savePatients()
+
+  const logout = async () => {
+    try {
+      await userApi.logout()
+    } catch (error) {
+      console.error('登出失败:', error)
+    } finally {
+      token.value = ''
+      userInfo.value = null
+      patients.value = []
+      localStorage.removeItem('token')
+      localStorage.removeItem('userInfo')
     }
   }
-  
-  const deletePatient = (id: string) => {
-    const index = patients.value.findIndex(p => p.id === id)
-    if (index > -1) {
-      patients.value.splice(index, 1)
-      savePatients()
+
+  const fetchUserInfo = async () => {
+    try {
+      const info = await userApi.getUserInfo()
+      setUserInfo(info)
+      return info
+    } catch (error) {
+      console.error('获取用户信息失败:', error)
+      throw error
     }
   }
-  
-  const setDefaultPatient = (id: string) => {
-    patients.value.forEach(p => {
-      p.isDefault = p.id === id
-    })
-    savePatients()
+
+  const loadPatients = async () => {
+    try {
+      const list = await userApi.getPatients()
+      patients.value = list
+      return list
+    } catch (error) {
+      console.error('获取就诊人列表失败:', error)
+      patients.value = []
+      return []
+    }
   }
-  
+
+  const addPatient = async (patient: Omit<Patient, 'id'>) => {
+    try {
+      const newPatient = await userApi.addPatient(patient)
+      patients.value.push(newPatient)
+      return newPatient
+    } catch (error) {
+      console.error('添加就诊人失败:', error)
+      throw error
+    }
+  }
+
+  const updatePatient = async (id: string, data: Partial<Patient>) => {
+    try {
+      const updated = await userApi.updatePatient(id, data)
+      const index = patients.value.findIndex(p => p.id === id)
+      if (index > -1) {
+        patients.value[index] = updated
+      }
+      return updated
+    } catch (error) {
+      console.error('更新就诊人失败:', error)
+      throw error
+    }
+  }
+
+  const deletePatient = async (id: string) => {
+    try {
+      await userApi.deletePatient(id)
+      const index = patients.value.findIndex(p => p.id === id)
+      if (index > -1) {
+        patients.value.splice(index, 1)
+      }
+    } catch (error) {
+      console.error('删除就诊人失败:', error)
+      throw error
+    }
+  }
+
+  const setDefaultPatient = async (id: string) => {
+    try {
+      await userApi.setDefaultPatient(id)
+      patients.value.forEach(p => {
+        p.isDefault = p.id === id
+      })
+    } catch (error) {
+      console.error('设置默认就诊人失败:', error)
+      throw error
+    }
+  }
+
   // 初始化加载
   const init = () => {
     const savedToken = localStorage.getItem('token')
     const savedUserInfo = localStorage.getItem('userInfo')
-    
+
     if (savedToken) {
       token.value = savedToken
     }
-    
+
     if (savedUserInfo) {
-      userInfo.value = JSON.parse(savedUserInfo)
-      loadPatients()
+      try {
+        userInfo.value = JSON.parse(savedUserInfo)
+      } catch {
+        userInfo.value = null
+      }
     }
   }
-  
+
   init()
-  
+
   return {
     token,
     userInfo,
@@ -158,6 +158,8 @@ export const useUserStore = defineStore('user', () => {
     setUserInfo,
     login,
     logout,
+    fetchUserInfo,
+    loadPatients,
     addPatient,
     updatePatient,
     deletePatient,

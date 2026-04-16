@@ -173,15 +173,11 @@ const handleRebuy = () => {
 }
 
 const handleReview = () => {
-  if (order.value) {
-    router.push(`/order/review/${order.value.id}`)
-  }
+  ElMessage.info('评价功能开发中')
 }
 
 const handleRefund = () => {
-  if (order.value) {
-    router.push(`/order/refund/${order.value.id}`)
-  }
+  ElMessage.info('退款功能开发中')
 }
 
 const handleContactService = () => {
@@ -498,7 +494,7 @@ const handleCopyOrderNo = () => {
 
     .progress-fill {
       height: 100%;
-      background: $primary-color;
+      background: $primary;
       border-radius: 1px;
       transition: width 0.3s ease;
     }
@@ -521,7 +517,7 @@ const handleCopyOrderNo = () => {
 
       &.current {
         .step-label {
-          color: $primary-color;
+          color: $primary;
           font-weight: 500;
         }
       }
@@ -545,7 +541,7 @@ const handleCopyOrderNo = () => {
 
       .step-time {
         font-size: 10px;
-        color: $text-hint;
+        color: $text-tertiary;
       }
     }
   }
@@ -572,7 +568,7 @@ const handleCopyOrderNo = () => {
 
     .el-icon {
       font-size: 20px;
-      color: $primary-color;
+      color: $primary;
     }
   }
 
@@ -593,7 +589,7 @@ const handleCopyOrderNo = () => {
 
   .el-icon {
     font-size: 16px;
-    color: $text-hint;
+    color: $text-tertiary;
   }
 }
 
@@ -659,7 +655,7 @@ const handleCopyOrderNo = () => {
 
           .goods-price {
             font-size: $font-md;
-            color: $price-color;
+            color: $error;
             font-weight: 500;
           }
 
@@ -696,7 +692,7 @@ const handleCopyOrderNo = () => {
       color: $text-secondary;
 
       &.discount {
-        color: $price-color;
+        color: $error;
       }
 
       &.total {
@@ -708,7 +704,7 @@ const handleCopyOrderNo = () => {
         color: $text-primary;
 
         .total-price {
-          color: $price-color;
+          color: $error;
           font-size: $font-xl;
         }
       }
@@ -779,7 +775,7 @@ const handleCopyOrderNo = () => {
       margin-bottom: $spacing-sm;
 
       .el-icon {
-        color: $primary-color;
+        color: $primary;
       }
     }
 
@@ -792,7 +788,7 @@ const handleCopyOrderNo = () => {
       line-height: 1.5;
 
       .el-icon {
-        color: $primary-color;
+        color: $primary;
         margin-top: 2px;
       }
     }

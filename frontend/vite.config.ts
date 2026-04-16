@@ -79,9 +79,7 @@ export default defineConfig(({ mode }) => {
             // UI 组件库
             'ui-vendor': ['element-plus', '@element-plus/icons-vue'],
             // 工具库
-            'utils-vendor': ['axios', 'dayjs', 'uuid'],
-            // 图标
-            'icons': ['@element-plus/icons-vue']
+            'utils-vendor': ['axios', 'dayjs', 'uuid']
           }
         }
       },
@@ -103,7 +101,7 @@ export default defineConfig(({ mode }) => {
       exclude: []
     },
     server: {
-      port: 3000,
+      port: 3003,
       open: true,
       cors: true,
       hmr: true,
@@ -111,7 +109,7 @@ export default defineConfig(({ mode }) => {
         '/api': {
           target: 'http://localhost:8080',
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api/, '')
+          rewrite: (path) => path.replace(/^\/api/, '/api')
         }
       }
     },

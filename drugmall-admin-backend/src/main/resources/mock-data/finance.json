@@ -1,0 +1,63 @@
+{
+  "statistics": {
+    "cards": [
+      {"title":"总收入","value":2156789.00,"change":"+32.1%","trend":"up","compareText":"较上月"},
+      {"title":"今日收入","value":128456.00,"change":"+12.5%","trend":"up","compareText":"较昨日"},
+      {"title":"本周收入","value":856320.00,"change":"+8.7%","trend":"up","compareText":"较上周"},
+      {"title":"本月收入","value":2156789.00,"change":"+32.1%","trend":"up","compareText":"较上月"}
+    ],
+    "trendData": {
+      "dates":["1日","2日","3日","4日","5日","6日","7日","8日","9日","10日","11日","12日","13日","14日","15日","16日","17日","18日","19日","20日","21日","22日","23日","24日","25日","26日","27日","28日","29日","30日"],
+      "income":[42000,45000,38000,52000,48000,55000,60000,58000,62000,65000,70000,68000,72000,75000,78000,80000,82000,85000,88000,90000,92000,95000,98000,100000,102000,105000,108000,110000,112000,115000],
+      "orders":[850,920,780,1020,960,1100,1200,1160,1240,1300,1400,1360,1440,1500,1560,1600,1640,1700,1760,1800,1840,1900,1960,2000,2040,2100,2160,2200,2240,2300]
+    },
+    "compositionData": [
+      {"name":"药品销售","value":65},
+      {"name":"保健品","value":20},
+      {"name":"医疗器械","value":10},
+      {"name":"增值服务","value":5}
+    ],
+    "compareData": {
+      "categories":["1月","2月","3月","4月","5月","6月"],
+      "thisYear":[120000,150000,180000,200000,220000,250000],
+      "lastYear":[100000,120000,140000,160000,180000,200000]
+    },
+    "topProducts": [
+      {"name":"阿莫西林胶囊","amount":45680,"percent":12.8,"change":"+5.2%"},
+      {"name":"布洛芬缓释胶囊","amount":38920,"percent":10.9,"change":"+3.8%"},
+      {"name":"板蓝根颗粒","amount":35600,"percent":10.0,"change":"+8.1%"},
+      {"name":"维生素C片","amount":32100,"percent":9.0,"change":"+12.3%"},
+      {"name":"连花清瘟胶囊","amount":28500,"percent":8.0,"change":"-2.1%"},
+      {"name":"健胃消食片","amount":25800,"percent":7.2,"change":"+6.5%"},
+      {"name":"金嗓子喉宝","amount":22300,"percent":6.3,"change":"+15.4%"},
+      {"name":"云南白药创可贴","amount":19800,"percent":5.6,"change":"+4.2%"},
+      {"name":"复方丹参滴丸","amount":16500,"percent":4.6,"change":"-1.5%"},
+      {"name":"钙尔奇D3片","amount":14200,"percent":4.0,"change":"+9.8%"}
+    ]
+  },
+  "transactions": [
+    {"id":"TXN20240320001","type":"订单支付","amount":248.00,"status":"成功","orderNo":"DD202403200001","remark":"","createTime":"2024-03-20 10:30:00","userName":"张三","userType":"普通用户","payChannel":"微信支付","completeTime":"2024-03-20 10:30:05"},
+    {"id":"TXN20240320002","type":"订单支付","amount":166.00,"status":"成功","orderNo":"DD202403200002","remark":"","createTime":"2024-03-20 11:00:00","userName":"李四","userType":"普通用户","payChannel":"支付宝","completeTime":"2024-03-20 11:00:03"},
+    {"id":"TXN20240320003","type":"退款","amount":-1180.00,"status":"成功","orderNo":"DD202403160001","remark":"商品质量问题退款","createTime":"2024-03-20 14:00:00","userName":"林华","userType":"普通用户","payChannel":"原路退回","completeTime":"2024-03-20 14:00:10"},
+    {"id":"TXN20240320004","type":"提现","amount":-5000.00,"status":"处理中","orderNo":"WD202412010001","remark":"商户提现","createTime":"2024-03-20 15:00:00","userName":"大药房旗舰店","userType":"商户","payChannel":"银行转账","completeTime":null},
+    {"id":"TXN20240320005","type":"充值","amount":500.00,"status":"成功","orderNo":"","remark":"余额充值","createTime":"2024-03-20 09:30:00","userName":"王五","userType":"普通用户","payChannel":"微信支付","completeTime":"2024-03-20 09:30:02"},
+    {"id":"TXN20240319001","type":"订单支付","amount":360.00,"status":"成功","orderNo":"DD202403190001","remark":"","createTime":"2024-03-19 09:00:00","userName":"王五","userType":"普通用户","payChannel":"微信支付","completeTime":"2024-03-19 09:00:04"},
+    {"id":"TXN20240319002","type":"佣金","amount":25.60,"status":"成功","orderNo":"DD202403200001","remark":"推广佣金","createTime":"2024-03-19 10:00:00","userName":"孙七","userType":"推广员","payChannel":"余额","completeTime":"2024-03-19 10:00:00"},
+    {"id":"TXN20240318001","type":"订单支付","amount":470.00,"status":"成功","orderNo":"DD202403180001","remark":"","createTime":"2024-03-18 10:00:00","userName":"刘一","userType":"普通用户","payChannel":"微信支付","completeTime":"2024-03-18 10:00:05"},
+    {"id":"TXN20240318002","type":"活动奖励","amount":50.00,"status":"成功","orderNo":"","remark":"新人注册奖励","createTime":"2024-03-18 12:00:00","userName":"董娜","userType":"普通用户","payChannel":"余额","completeTime":"2024-03-18 12:00:00"},
+    {"id":"TXN20240317001","type":"订单支付","amount":55.00,"status":"已退款","orderNo":"DD202403170001","remark":"用户取消订单","createTime":"2024-03-17 08:00:00","userName":"杨明","userType":"普通用户","payChannel":"支付宝","completeTime":"2024-03-17 09:05:00"},
+    {"id":"TXN20240316001","type":"订单支付","amount":1180.00,"status":"已退款","orderNo":"DD202403160001","remark":"","createTime":"2024-03-16 12:00:00","userName":"林华","userType":"普通用户","payChannel":"支付宝","completeTime":"2024-03-16 12:00:03"},
+    {"id":"TXN20240315001","type":"订单支付","amount":64.00,"status":"成功","orderNo":"DD202403150001","remark":"","createTime":"2024-03-15 16:30:00","userName":"高鑫","userType":"普通用户","payChannel":"微信支付","completeTime":"2024-03-15 16:30:04"},
+    {"id":"TXN20240314001","type":"订单支付","amount":196.00,"status":"成功","orderNo":"DD202403140001","remark":"","createTime":"2024-03-14 10:00:00","userName":"宋燕","userType":"普通用户","payChannel":"支付宝","completeTime":"2024-03-14 10:00:06"},
+    {"id":"TXN20240313001","type":"订单支付","amount":306.00,"status":"成功","orderNo":"DD202403130001","remark":"","createTime":"2024-03-13 14:00:00","userName":"韩雪","userType":"普通用户","payChannel":"微信支付","completeTime":"2024-03-13 14:00:05"},
+    {"id":"TXN20240313002","type":"提现","amount":-3000.00,"status":"成功","orderNo":"WD202412010003","remark":"商户提现","createTime":"2024-03-13 16:00:00","userName":"健康大药房","userType":"商户","payChannel":"银行转账","completeTime":"2024-03-14 10:00:00"}
+  ],
+  "withdrawals": [
+    {"id":"WD202412010001","merchantName":"大药房旗舰店","amount":5000.00,"fee":50.00,"actualAmount":4950.00,"status":"pending","bankName":"中国工商银行","bankCard":"6222 **** **** 1234","bankBranch":"北京朝阳支行","accountName":"张某某","applyTime":"2024-12-01 10:00:00","transferTime":null,"completeTime":null,"rejectReason":null},
+    {"id":"WD202412010002","merchantName":"健康大药房","amount":8000.00,"fee":80.00,"actualAmount":7920.00,"status":"approved","bankName":"中国建设银行","bankCard":"6227 **** **** 5678","bankBranch":"上海浦东支行","accountName":"李某某","applyTime":"2024-12-01 11:00:00","transferTime":null,"completeTime":null,"rejectReason":null},
+    {"id":"WD202412010003","merchantName":"百姓大药房","amount":3000.00,"fee":30.00,"actualAmount":2970.00,"status":"completed","bankName":"中国农业银行","bankCard":"6228 **** **** 9012","bankBranch":"广州天河支行","accountName":"王某某","applyTime":"2024-11-28 09:00:00","transferTime":"2024-11-28 14:00:00","completeTime":"2024-11-29 10:00:00","rejectReason":null},
+    {"id":"WD202412010004","merchantName":"康泰药房","amount":12000.00,"fee":120.00,"actualAmount":11880.00,"status":"transferring","bankName":"招商银行","bankCard":"6225 **** **** 3456","bankBranch":"深圳南山支行","accountName":"赵某某","applyTime":"2024-11-30 15:00:00","transferTime":"2024-12-01 09:00:00","completeTime":null,"rejectReason":null},
+    {"id":"WD202412010005","merchantName":"仁和大药房","amount":2000.00,"fee":20.00,"actualAmount":1980.00,"status":"rejected","bankName":"中国银行","bankCard":"6216 **** **** 7890","bankBranch":"成都武侯支行","accountName":"孙某某","applyTime":"2024-11-25 08:00:00","transferTime":null,"completeTime":null,"rejectReason":"账户信息不匹配"},
+    {"id":"WD202412010006","merchantName":"益寿堂药房","amount":6500.00,"fee":65.00,"actualAmount":6435.00,"status":"failed","bankName":"交通银行","bankCard":"6222 **** **** 2345","bankBranch":"杭州西湖支行","accountName":"周某某","applyTime":"2024-11-20 10:00:00","transferTime":"2024-11-21 09:00:00","completeTime":null,"rejectReason":null,"failReason":"银行系统维护"}
+  ]
+}

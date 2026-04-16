@@ -63,7 +63,7 @@ const handleLogin = async () => {
   <div class="login-container">
     <div class="login-box">
       <div class="login-header">
-        <img src="/vite.svg" alt="logo" class="logo" />
+        <div class="logo-icon">💊</div>
         <h2 class="title">DrugMall 管理后台</h2>
         <p class="subtitle">药品电商平台管理系统</p>
       </div>
@@ -140,10 +140,16 @@ const handleLogin = async () => {
   text-align: center;
   margin-bottom: 32px;
   
-  .logo {
+  .logo-icon {
     width: 64px;
     height: 64px;
-    margin-bottom: 16px;
+    margin: 0 auto 16px;
+    font-size: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px;
   }
   
   .title {

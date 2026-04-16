@@ -2,17 +2,17 @@ import request, { http } from '../request'
 import type { Order, OrderItem, CreateOrderParams, OrderQueryParams, OrderStats, PayParams, PayResult, RefundApplyParams, RefundInfo, LogisticsInfo } from '@/types'
 
 // 创建订单
-export function createOrder(data: CreateOrderParams) {
+export function createOrder(data: CreateOrderParams): Promise<Order> {
   return http.post<Order>('/orders', data)
 }
 
 // 获取订单列表
-export function getOrders(params?: OrderQueryParams) {
+export function getOrders(params?: OrderQueryParams): Promise<{ list: Order[]; total: number; stats: OrderStats }> {
   return http.get<{ list: Order[]; total: number; stats: OrderStats }>('/orders', params)
 }
 
 // 获取订单详情
-export function getOrderDetail(id: string) {
+export function getOrderDetail(id: string): Promise<Order> {
   return http.get<Order>(`/orders/${id}`)
 }
 

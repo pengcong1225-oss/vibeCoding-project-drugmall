@@ -1,0 +1,28 @@
+[
+  {
+    "id": "REF20241201001",
+    "orderId": "ORD20241201001",
+    "userId": "1",
+    "status": "completed",
+    "reason": "商品质量问题",
+    "description": "药品包装破损",
+    "images": [],
+    "refundAmount": 15.80,
+    "actualRefundAmount": 15.80,
+    "createTime": "2024-12-02 10:00:00",
+    "completeTime": "2024-12-03 15:00:00"
+  },
+  {
+    "id": "REF20241202001",
+    "orderId": "ORD20241202002",
+    "userId": "1",
+    "status": "pending",
+    "reason": "不想要了",
+    "description": "买错了规格",
+    "images": [],
+    "refundAmount": 57.90,
+    "actualRefundAmount": null,
+    "createTime": "2024-12-03 10:00:00",
+    "completeTime": null
+  }
+]

@@ -2,18 +2,15 @@
 import { ref, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete, View, Rank, Search, RefreshRight, TrendCharts, Device } from '@element-plus/icons-vue'
+import { getBannerList, createBanner, updateBanner, deleteBanner, updateBannerStatus, updateBannerSort } from '@/api/content'
 import Sortable from 'sortablejs'
 import VueCropper from 'vue-cropper/lib/vue-cropper.vue'
 import 'vue-cropper/dist/index.css'
 
+const loading = ref(false)
+
 // Banner列表
-const bannerList = ref([
-  { id: '1', title: '双十二狂欢节', image: 'https://placeholder.com/800x400/1890ff/fff?text=双十二狂欢', link: '/activity/1212', sort: 1, status: 1, clicks: 2345, views: 45678, position: 'home', device: 'all' },
-  { id: '2', title: '健康节大促', image: 'https://placeholder.com/800x400/52c41a/fff?text=健康节', link: '/activity/health', sort: 2, status: 1, clicks: 1890, views: 32156, position: 'home', device: 'all' },
-  { id: '3', title: '新人专享优惠', image: 'https://placeholder.com/800x400/fa8c16/fff?text=新人专享', link: '/activity/newuser', sort: 3, status: 1, clicks: 5678, views: 89234, position: 'home', device: 'mobile' },
-  { id: '4', title: '处方药专区', image: 'https://placeholder.com/800x400/722ed1/fff?text=处方药专区', link: '/category/rx', sort: 4, status: 0, clicks: 1234, views: 23456, position: 'category', device: 'all' },
-  { id: '5', title: '家庭常备药品', image: 'https://placeholder.com/800x400/13c2c2/fff?text=家庭常备', link: '/category/home', sort: 5, status: 1, clicks: 3456, views: 56789, position: 'home', device: 'pc' }
-])
+const bannerList = ref<any[]>([])
 
 // 弹窗控制
 const dialogVisible = ref(false)
@@ -71,6 +68,19 @@ const deviceOptions = [
   { label: '仅移动端', value: 'mobile' }
 ]
 
+// 加载Banner列表
+const loadBannerList = async () => {
+  loading.value = true
+  try {
+    const data = await getBannerList()
+    bannerList.value = data || []
+  } catch (error) {
+    console.error('获取Banner列表失败:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
 // 初始化拖拽排序
 const initSortable = () => {
   nextTick(() => {
@@ -79,15 +89,24 @@ const initSortable = () => {
       Sortable.create(tbody as HTMLElement, {
         handle: '.drag-handle',
         animation: 150,
-        onEnd: (evt) => {
+        onEnd: async (evt) => {
           if (evt.oldIndex !== evt.newIndex) {
             const item = bannerList.value.splice(evt.oldIndex!, 1)[0]
             bannerList.value.splice(evt.newIndex!, 0, item)
             // 更新排序号
+            const sortData = bannerList.value.map((item, index) => ({
+              id: item.id,
+              sort: index + 1
+            }))
             bannerList.value.forEach((item, index) => {
               item.sort = index + 1
             })
-            ElMessage.success('排序已更新')
+            try {
+              await updateBannerSort(sortData)
+              ElMessage.success('排序已更新')
+            } catch (error) {
+              console.error('更新排序失败:', error)
+            }
           }
         }
       })
@@ -96,6 +115,7 @@ const initSortable = () => {
 }
 
 onMounted(() => {
+  loadBannerList()
   initSortable()
 })
 
@@ -218,7 +238,7 @@ const submitForm = () => {
 
     <!-- Banner列表 -->
     <el-card shadow="never">
-      <el-table :data="bannerList" v-loading="false" stripe border class="banner-table">
+      <el-table :data="bannerList" v-loading="loading" stripe border class="banner-table">
         <el-table-column type="index" label="排序" width="70" align="center">
           <template #default="{ $index }">
             <div class="drag-handle">
@@ -625,6 +645,11 @@ const submitForm = () => {
 }
 
 .form-tip {
+  margin-left: 12px;
+  font-size: 12px;
+  color: #909399;
+}
+</style>
   margin-left: 12px;
   font-size: 12px;
   color: #909399;

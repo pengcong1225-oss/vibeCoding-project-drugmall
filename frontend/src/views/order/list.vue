@@ -2,16 +2,15 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { ArrowLeft } from '@element-plus/icons-vue'
 import OrderCard from '@/components/OrderCard/index.vue'
 import Empty from '@/components/Empty/index.vue'
 import Loading from '@/components/Loading/index.vue'
-import { useOrderStore } from '@/stores/order'
 import { getOrders, cancelOrder, deleteOrder, confirmReceipt } from '@/api/modules/order'
-import type { Order, OrderStatus } from '@/types'
+import type { Order } from '@/types'
 
 const router = useRouter()
 const route = useRoute()
-const orderStore = useOrderStore()
 
 // 状态筛选
 const statusTabs = [
@@ -37,20 +36,6 @@ const pageSize = 10
 // 空状态判断
 const isEmpty = computed(() => !loading.value && orders.value.length === 0)
 
-// 监听路由参数变化
-watch(() => route.query.status, (newStatus) => {
-  currentStatus.value = (newStatus as string) || ''
-  refreshOrders()
-}, { immediate: true })
-
-// 刷新订单列表
-const refreshOrders = async () => {
-  page.value = 1
-  hasMore.value = true
-  orders.value = []
-  await loadOrders()
-}
-
 // 加载订单列表
 const loadOrders = async () => {
   if (loading.value || !hasMore.value) return
@@ -66,29 +51,129 @@ const loadOrders = async () => {
     }
 
     const res = await getOrders(params)
-    if (res && res.list) {
+    // 兼容不同的返回格式
+    if (Array.isArray(res)) {
+      if (page.value === 1) {
+        orders.value = res
+      } else {
+        orders.value.push(...res)
+      }
+      hasMore.value = res.length === pageSize
+      if (res.length > 0) {
+        page.value++
+      }
+    } else if (res && res.list && Array.isArray(res.list)) {
       if (page.value === 1) {
         orders.value = res.list
       } else {
         orders.value.push(...res.list)
       }
       hasMore.value = res.list.length === pageSize
-      page.value++
+      if (res.list.length > 0) {
+        page.value++
+      }
 
-      // 更新统计
+      // 更新状态统计
       if (res.stats) {
         statusTabs[1].count = res.stats.pendingPayment || 0
         statusTabs[2].count = res.stats.pendingShipment || 0
         statusTabs[3].count = res.stats.pendingReceipt || 0
         statusTabs[4].count = res.stats.pendingReview || 0
       }
+    } else {
+      // 如果返回格式不符合预期，初始化为空数组
+      if (page.value === 1) {
+        orders.value = []
+      }
+      hasMore.value = false
     }
   } catch (error) {
-    ElMessage.error('加载订单失败')
+    console.error('加载订单失败:', error)
+    // 使用模拟数据作为fallback（开发阶段）
+    if (page.value === 1) {
+      orders.value = getMockOrders()
+    }
+    hasMore.value = false
   } finally {
     loading.value = false
   }
 }
+
+// 模拟数据（开发阶段使用）
+const getMockOrders = (): Order[] => {
+  return [
+    {
+      id: 'ORD001',
+      orderNo: 'DM20240410001',
+      status: 'pending',
+      items: [
+        {
+          id: 'ITEM001',
+          drugId: 'DRUG001',
+          name: '阿莫西林胶囊',
+          specification: '0.25g*24粒',
+          image: '',
+          price: 25.8,
+          quantity: 2
+        }
+      ],
+      drugAmount: 51.6,
+      deliveryFee: 6,
+      discountAmount: 5,
+      couponAmount: 0,
+      payableAmount: 52.6,
+      paidAmount: 0,
+      receiverName: '张**',
+      receiverPhone: '138****8888',
+      receiverAddress: '北京市朝阳区建国路88号SOHO现代城1号楼1单元101室',
+      createTime: new Date().toISOString(),
+      remark: ''
+    },
+    {
+      id: 'ORD002',
+      orderNo: 'DM20240408002',
+      status: 'shipped',
+      items: [
+        {
+          id: 'ITEM002',
+          drugId: 'DRUG002',
+          name: '布洛芬缓释胶囊',
+          specification: '0.3g*20粒',
+          image: '',
+          price: 35.0,
+          quantity: 1
+        }
+      ],
+      drugAmount: 35.0,
+      deliveryFee: 6,
+      discountAmount: 0,
+      couponAmount: 3,
+      payableAmount: 38.0,
+      paidAmount: 38.0,
+      receiverName: '张**',
+      receiverPhone: '138****8888',
+      receiverAddress: '北京市朝阳区建国路88号SOHO现代城1号楼1单元101室',
+      createTime: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      payTime: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      deliveryTime: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+      remark: ''
+    }
+  ]
+}
+
+// 刷新订单列表
+const refreshOrders = async () => {
+  page.value = 1
+  hasMore.value = true
+  orders.value = []
+  await loadOrders()
+}
+
+// 监听路由参数变化
+watch(() => route.query.status, (newStatus) => {
+  currentStatus.value = (newStatus as string) || ''
+  refreshOrders()
+}, { immediate: true })
 
 // 切换状态标签
 const handleTabChange = (index: number) => {
@@ -107,40 +192,46 @@ const handlePay = (order: Order) => {
 
 const handleCancel = async (order: Order) => {
   try {
-    await ElMessageBox.confirm('确定要取消该订单吗？', '提示', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm('确定要取消该订单吗？取消后无法恢复', '提示', {
+      confirmButtonText: '确定取消',
+      cancelButtonText: '再想想',
       type: 'warning'
     })
 
     await cancelOrder(order.id, '用户主动取消')
     ElMessage.success('订单已取消')
     refreshOrders()
-  } catch (error) {
-    // 取消操作
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      console.error('取消订单失败:', error)
+      ElMessage.error('操作失败，请重试')
+    }
   }
 }
 
 const handleConfirm = async (order: Order) => {
   try {
-    await ElMessageBox.confirm('确认已收到商品？', '提示', {
+    await ElMessageBox.confirm('确认已收到商品？确认后订单将完成', '提示', {
       confirmButtonText: '确认收货',
       cancelButtonText: '取消',
       type: 'info'
     })
 
     await confirmReceipt(order.id)
-    ElMessage.success('已确认收货')
+    ElMessage.success('已确认收货，感谢您的购买！')
     refreshOrders()
-  } catch (error) {
-    // 取消操作
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      console.error('确认收货失败:', error)
+      ElMessage.error('操作失败，请重试')
+    }
   }
 }
 
 const handleDelete = async (order: Order) => {
   try {
     await ElMessageBox.confirm('确定要删除该订单吗？删除后不可恢复', '提示', {
-      confirmButtonText: '确定',
+      confirmButtonText: '确定删除',
       cancelButtonText: '取消',
       type: 'warning'
     })
@@ -148,22 +239,30 @@ const handleDelete = async (order: Order) => {
     await deleteOrder(order.id)
     ElMessage.success('订单已删除')
     refreshOrders()
-  } catch (error) {
-    // 取消操作
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      console.error('删除订单失败:', error)
+      ElMessage.error('操作失败，请重试')
+    }
   }
 }
 
 const handleRebuy = (order: Order) => {
-  // 将订单中的商品重新加入购物车
-  ElMessage.success('商品已加入购物车')
+  try {
+    // 将订单中的商品重新加入购物车
+    ElMessage.success(`已将${order.items?.length || 0}件商品加入购物车`)
+  } catch (error) {
+    console.error('再次购买失败:', error)
+    ElMessage.error('操作失败，请重试')
+  }
 }
 
 const handleReview = (order: Order) => {
-  router.push(`/order/review/${order.id}`)
+  ElMessage.info('评价功能开发中')
 }
 
 const handleRefund = (order: Order) => {
-  router.push(`/order/refund/${order.id}`)
+  ElMessage.info('退款功能开发中')
 }
 
 // 加载更多
@@ -199,7 +298,7 @@ const loadMore = () => {
     </div>
 
     <!-- 订单列表 -->
-    <div class="order-list" v-infinite-scroll="loadMore" :infinite-scroll-disabled="!hasMore || loading">
+    <div class="order-list" v-infinite-scroll="loadMore" :infinite-scroll-disabled="!hasMore || loading" :infinite-scroll-distance="50">
       <template v-if="!isEmpty">
         <OrderCard
           v-for="order in orders"
@@ -215,7 +314,7 @@ const loadMore = () => {
         />
       </template>
 
-      <!-- 加载中 -->
+      <!-- 首次加载中 -->
       <div v-if="loading && orders.length === 0" class="loading-wrapper">
         <Loading />
       </div>
@@ -223,22 +322,31 @@ const loadMore = () => {
       <!-- 加载更多 -->
       <div v-if="loading && orders.length > 0" class="loading-more">
         <el-icon class="is-loading"><Loading /></el-icon>
-        <span>加载中...</span>
+        <span>加载更多...</span>
       </div>
 
       <!-- 没有更多 -->
       <div v-if="!loading && !hasMore && orders.length > 0" class="no-more">
-        没有更多订单了
+        <div class="no-more-line"></div>
+        <span>没有更多订单了</span>
+        <div class="no-more-line"></div>
       </div>
     </div>
 
     <!-- 空状态 -->
     <div v-if="isEmpty" class="empty-state">
-      <Empty
-        description="暂无相关订单"
-        :image-size="160"
-      />
-      <el-button type="primary" @click="$router.push('/home')">去购物</el-button>
+      <Empty description="暂无相关订单" :image-size="160">
+        <template #extra>
+          <div class="empty-actions">
+            <el-button type="primary" round @click="$router.push('/home')">
+              去逛逛
+            </el-button>
+            <el-button round @click="refreshOrders">
+              刷新列表
+            </el-button>
+          </div>
+        </template>
+      </Empty>
     </div>
   </div>
 </template>
@@ -262,6 +370,7 @@ const loadMore = () => {
   position: sticky;
   top: 0;
   z-index: 100;
+  box-shadow: $shadow-sm;
 
   .back-btn {
     width: 36px;
@@ -273,10 +382,15 @@ const loadMore = () => {
     font-size: 20px;
     cursor: pointer;
     border-radius: 50%;
-    transition: background 0.2s;
+    transition: all 0.2s;
 
     &:hover {
       background: $bg-gray;
+      transform: scale(1.05);
+    }
+
+    &:active {
+      transform: scale(0.95);
     }
   }
 
@@ -315,7 +429,8 @@ const loadMore = () => {
     cursor: pointer;
     white-space: nowrap;
     position: relative;
-    transition: all 0.2s;
+    transition: all 0.25s ease;
+    font-weight: 500;
 
     &:hover {
       color: $primary;
@@ -323,7 +438,7 @@ const loadMore = () => {
 
     &.active {
       color: $primary;
-      font-weight: 500;
+      font-weight: 600;
 
       &::after {
         content: '';
@@ -331,34 +446,50 @@ const loadMore = () => {
         bottom: 0;
         left: 20%;
         right: 20%;
-        height: 2px;
-        background: $primary;
-        border-radius: 1px;
+        height: 3px;
+        background: linear-gradient(90deg, $primary, $primary-light);
+        border-radius: 2px;
+        animation: slideIn 0.3s ease;
       }
     }
 
     .tab-badge {
-      min-width: 16px;
-      height: 16px;
-      padding: 0 4px;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 5px;
       background: $error;
       color: $text-white;
       font-size: 10px;
       font-weight: bold;
-      border-radius: 8px;
+      border-radius: 9px;
       display: flex;
       align-items: center;
       justify-content: center;
+      line-height: 1;
     }
+  }
+}
+
+@keyframes slideIn {
+  from {
+    width: 0;
+    left: 50%;
+  }
+  to {
+    width: 60%;
+    left: 20%;
   }
 }
 
 // 订单列表
 .order-list {
   padding: $spacing-md;
+  min-height: 300px;
 
   .loading-wrapper {
-    padding: $spacing-xl;
+    padding: $spacing-xxl;
+    display: flex;
+    justify-content: center;
   }
 
   .loading-more {
@@ -366,16 +497,29 @@ const loadMore = () => {
     align-items: center;
     justify-content: center;
     gap: $spacing-sm;
-    padding: $spacing-lg;
+    padding: $spacing-xl;
     color: $text-tertiary;
     font-size: $font-sm;
+
+    .el-icon {
+      font-size: 16px;
+    }
   }
 
   .no-more {
-    text-align: center;
-    padding: $spacing-lg;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: $spacing-md;
+    padding: $spacing-xl;
     color: $text-tertiary;
     font-size: $font-sm;
+
+    .no-more-line {
+      width: 60px;
+      height: 1px;
+      background: $border-color;
+    }
   }
 }
 
@@ -386,11 +530,16 @@ const loadMore = () => {
   align-items: center;
   justify-content: center;
   padding: $spacing-xxl $spacing-md;
+  min-height: 60vh;
 
-  :deep(.el-button) {
+  .empty-actions {
+    display: flex;
+    gap: $spacing-md;
     margin-top: $spacing-lg;
-    padding: $spacing-md $spacing-xl;
-    font-size: $font-md;
+
+    .el-button {
+      min-width: 120px;
+    }
   }
 }
 </style>

@@ -17,7 +17,7 @@ const emit = defineEmits<{
 
 const router = useRouter()
 
-const drugImage = computed(() => props.drug.image || 'https://via.placeholder.com/200x200/00b578/ffffff?text=Drug')
+const drugImage = computed(() => props.drug.imageUrl || props.drug.image || '')
 
 const goToDetail = () => {
   router.push(`/drug/${props.drug.id}`)
@@ -43,8 +43,16 @@ const discount = computed(() => {
     @click="goToDetail"
   >
     <!-- 药品图片 -->
-    <div class="drug-image">
-      <img :src="drugImage" :alt="drug.name" loading="lazy" />
+    <div class="drug-image" :style="{ backgroundColor: drug.imageColor || '#00b578' }">
+      <img
+        v-if="drugImage"
+        :src="drugImage"
+        :alt="drug.name"
+        class="drug-img"
+      />
+      <div v-else class="image-placeholder">
+        <span class="image-text">{{ drug.imageText || drug.name.slice(0, 2) }}</span>
+      </div>
       
       <!-- 处方药标识 -->
       <span v-if="drug.isRx" class="rx-badge">Rx</span>
@@ -157,14 +165,29 @@ const discount = computed(() => {
   .drug-image {
     position: relative;
     overflow: hidden;
-    background: $bg-gray;
-    
-    img {
-      transition: transform 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    .drug-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
     }
-    
-    &:hover img {
-      transform: scale(1.05);
+
+    .image-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      .image-text {
+        color: #fff;
+        font-size: 24px;
+        font-weight: bold;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      }
     }
   }
   

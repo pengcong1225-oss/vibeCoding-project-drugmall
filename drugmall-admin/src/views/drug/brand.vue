@@ -3,6 +3,7 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Refresh, Edit, Delete } from '@element-plus/icons-vue'
 import type { Brand } from '@/types/product'
+import { getBrandList, createBrand, updateBrand, deleteBrand } from '@/api/product'
 
 // 搜索表单
 const searchForm = reactive({
@@ -48,41 +49,22 @@ const formRules = {
   ]
 }
 
-// 模拟品牌数据
-const mockBrandList: Brand[] = [
-  { id: 1, brandName: '同仁堂', brandLogo: 'https://via.placeholder.com/100', brandDesc: '中华老字号，创建于1669年', sortOrder: 1, status: 1, createTime: '2024-01-01' },
-  { id: 2, brandName: '云南白药', brandLogo: 'https://via.placeholder.com/100', brandDesc: '国家保密配方', sortOrder: 2, status: 1, createTime: '2024-01-02' },
-  { id: 3, brandName: '999三九', brandLogo: 'https://via.placeholder.com/100', brandDesc: '专注健康30年', sortOrder: 3, status: 1, createTime: '2024-01-03' },
-  { id: 4, brandName: '东阿阿胶', brandLogo: 'https://via.placeholder.com/100', brandDesc: '滋补国宝', sortOrder: 4, status: 0, createTime: '2024-01-04' },
-  { id: 5, brandName: '汤臣倍健', brandLogo: 'https://via.placeholder.com/100', brandDesc: '营养补充剂领导品牌', sortOrder: 5, status: 1, createTime: '2024-01-05' }
-]
-
 // 获取列表
-const getList = () => {
+const getList = async () => {
   loading.value = true
-  setTimeout(() => {
-    let result = [...mockBrandList]
-    
-    // 搜索过滤
-    if (searchForm.keyword) {
-      result = result.filter(item => 
-        item.brandName.includes(searchForm.keyword) ||
-        (item.brandDesc && item.brandDesc.includes(searchForm.keyword))
-      )
-    }
-    if (searchForm.status !== undefined) {
-      result = result.filter(item => item.status === searchForm.status)
-    }
-    
-    total.value = result.length
-    
-    // 分页
-    const start = (currentPage.value - 1) * pageSize.value
-    const end = start + pageSize.value
-    brandList.value = result.slice(start, end)
-    
+  try {
+    const res = await getBrandList({
+      pageNum: currentPage.value,
+      pageSize: pageSize.value,
+      keyword: searchForm.keyword
+    })
+    brandList.value = res.list
+    total.value = res.total
+  } catch (error) {
+    console.error('获取品牌列表失败:', error)
+  } finally {
     loading.value = false
-  }, 300)
+  }
 }
 
 // 搜索
@@ -126,19 +108,30 @@ const handleEdit = (row: Brand) => {
 }
 
 // 删除
-const handleDelete = (row: Brand) => {
-  ElMessageBox.confirm('确定删除该品牌吗？删除后无法恢复', '提示', {
-    type: 'warning'
-  }).then(() => {
+const handleDelete = async (row: Brand) => {
+  try {
+    await ElMessageBox.confirm('确定删除该品牌吗？删除后无法恢复', '提示', {
+      type: 'warning'
+    })
+    await deleteBrand(String(row.id))
     ElMessage.success('删除成功')
     getList()
-  })
+  } catch {
+    // 取消操作
+  }
 }
 
 // 状态切换
-const handleStatusChange = (row: Brand) => {
-  const statusText = row.status === 1 ? '启用' : '禁用'
-  ElMessage.success(`${statusText}成功`)
+const handleStatusChange = async (row: Brand) => {
+  try {
+    await updateBrand(String(row.id), { status: row.status })
+    const statusText = row.status === 1 ? '启用' : '禁用'
+    ElMessage.success(`${statusText}成功`)
+  } catch (error) {
+    // 恢复原状态
+    row.status = row.status === 1 ? 0 : 1
+    console.error('更新品牌状态失败:', error)
+  }
 }
 
 // 提交
@@ -147,12 +140,21 @@ const handleSubmit = async () => {
   if (!valid) return
   
   submitLoading.value = true
-  setTimeout(() => {
-    ElMessage.success(isEdit.value ? '编辑成功' : '新增成功')
+  try {
+    if (isEdit.value) {
+      await updateBrand(String(formData.id), formData)
+      ElMessage.success('编辑成功')
+    } else {
+      await createBrand(formData)
+      ElMessage.success('新增成功')
+    }
     dialogVisible.value = false
     getList()
+  } catch (error) {
+    console.error('提交品牌失败:', error)
+  } finally {
     submitLoading.value = false
-  }, 500)
+  }
 }
 
 // 重置表单

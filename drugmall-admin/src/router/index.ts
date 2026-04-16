@@ -37,6 +37,18 @@ const routes: RouteRecordRaw[] = [
             name: 'UserList',
             component: () => import('@/views/user/index.vue'),
             meta: { title: '用户列表' }
+          },
+          {
+            path: '/user/detail/:id',
+            name: 'UserDetail',
+            component: () => import('@/views/user/detail.vue'),
+            meta: { title: '用户详情', hidden: true }
+          },
+          {
+            path: '/user/auth',
+            name: 'UserAuth',
+            component: () => import('@/views/user/auth.vue'),
+            meta: { title: '实名认证' }
           }
         ]
       },
@@ -62,6 +74,12 @@ const routes: RouteRecordRaw[] = [
             name: 'DrugBrand',
             component: () => import('@/views/drug/brand.vue'),
             meta: { title: '品牌管理' }
+          },
+          {
+            path: '/drug/edit',
+            name: 'DrugEdit',
+            component: () => import('@/views/drug/edit.vue'),
+            meta: { title: '药品编辑', hidden: true }
           }
         ]
       },
@@ -94,6 +112,12 @@ const routes: RouteRecordRaw[] = [
             name: 'FinanceTransactions',
             component: () => import('@/views/finance/transactions.vue'),
             meta: { title: '交易流水' }
+          },
+          {
+            path: '/finance/withdrawal',
+            name: 'FinanceWithdrawal',
+            component: () => import('@/views/finance/withdrawal.vue'),
+            meta: { title: '提现管理' }
           }
         ]
       },
@@ -113,6 +137,12 @@ const routes: RouteRecordRaw[] = [
             name: 'ContentNotice',
             component: () => import('@/views/content/notice.vue'),
             meta: { title: '公告管理' }
+          },
+          {
+            path: '/content/article',
+            name: 'ContentArticle',
+            component: () => import('@/views/content/article.vue'),
+            meta: { title: '资讯管理' }
           }
         ]
       },
@@ -126,6 +156,12 @@ const routes: RouteRecordRaw[] = [
             name: 'SettingsBasic',
             component: () => import('@/views/settings/basic.vue'),
             meta: { title: '基础配置' }
+          },
+          {
+            path: '/settings/payment',
+            name: 'SettingsPayment',
+            component: () => import('@/views/settings/payment.vue'),
+            meta: { title: '支付配置' }
           }
         ]
       }

@@ -1,0 +1,227 @@
+// 问医生主题样式 - 青绿色系
+// 用于统一问医生相关页面的配色和样式
+
+// ==================== 主题色变量 ====================
+:root {
+  // 主色
+  --inquiry-primary: #00C9A7;
+  --inquiry-primary-light: #00E5BF;
+  --inquiry-primary-dark: #00B894;
+  --inquiry-primary-rgb: 0, 201, 167;
+
+  // 背景色
+  --inquiry-bg: #F0F9F6;
+  --inquiry-bg-light: #F5FBF9;
+  --inquiry-card-bg: #FFFFFF;
+
+  // 文字色
+  --inquiry-text-primary: #1A1A1A;
+  --inquiry-text-secondary: #666666;
+  --inquiry-text-tertiary: #999999;
+
+  // 标签色
+  --inquiry-tag-hot: #FF6B6B;
+  --inquiry-tag-fever: #FF9500;
+  --inquiry-tag-price: #FF4D4F;
+
+  // 在线状态
+  --inquiry-online: #00C9A7;
+  --inquiry-offline: #CCCCCC;
+
+  // 渐变
+  --inquiry-gradient: linear-gradient(135deg, #00C9A7 0%, #00B894 100%);
+}
+
+// ==================== SCSS 变量 ====================
+$inquiry-primary: #00C9A7;
+$inquiry-primary-light: #00E5BF;
+$inquiry-primary-dark: #00B894;
+$inquiry-bg: #F0F9F6;
+$inquiry-bg-light: #F5FBF9;
+$inquiry-card-bg: #FFFFFF;
+$inquiry-text-primary: #1A1A1A;
+$inquiry-text-secondary: #666666;
+$inquiry-text-tertiary: #999999;
+$inquiry-tag-hot: #FF6B6B;
+$inquiry-tag-fever: #FF9500;
+$inquiry-tag-price: #FF4D4F;
+$inquiry-online: #00C9A7;
+$inquiry-offline: #CCCCCC;
+
+// ==================== Mixins ====================
+
+// 问医生页面背景
+@mixin inquiry-page {
+  background-color: $inquiry-bg;
+  min-height: 100vh;
+}
+
+// 问医生卡片样式
+@mixin inquiry-card {
+  background-color: $inquiry-card-bg;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 201, 167, 0.08);
+}
+
+// 问医生顶部导航
+@mixin inquiry-header {
+  background: linear-gradient(135deg, $inquiry-primary 0%, $inquiry-primary-dark 100%);
+  color: #FFFFFF;
+}
+
+// 问医生按钮
+@mixin inquiry-btn {
+  background: $inquiry-primary;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 20px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: $inquiry-primary-dark;
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+// 问医生标签
+@mixin inquiry-tag {
+  padding: 2px 8px;
+  background: rgba($inquiry-primary, 0.1);
+  color: $inquiry-primary;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+// 在线状态点
+@mixin online-dot {
+  width: 12px;
+  height: 12px;
+  background: $inquiry-online;
+  border: 2px solid #FFFFFF;
+  border-radius: 50%;
+}
+
+// ==================== 全局样式类 ====================
+
+// 问医生页面容器
+.inquiry-page {
+  @include inquiry-page;
+}
+
+// 问医生卡片
+.inquiry-card {
+  @include inquiry-card;
+}
+
+// 问医生主按钮
+.inquiry-btn-primary {
+  @include inquiry-btn;
+}
+
+// 问医生标签
+.inquiry-tag {
+  @include inquiry-tag;
+}
+
+// 在线状态指示器
+.inquiry-online-indicator {
+  @include online-dot;
+}
+
+// 问医生顶部导航
+.inquiry-header {
+  @include inquiry-header;
+}
+
+// 科室图标容器
+.dept-icon-wrapper {
+  width: 44px;
+  height: 44px;
+  background-color: rgba($inquiry-primary, 0.08);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+
+  .el-icon {
+    font-size: 22px;
+    color: $inquiry-primary;
+  }
+}
+
+// 医生卡片样式统一
+.doctor-card-unified {
+  background: $inquiry-card-bg;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  transition: all 0.2s ease;
+
+  &:active {
+    transform: scale(0.985);
+    background: #FAFAFA;
+  }
+
+  .avatar-section {
+    position: relative;
+    flex-shrink: 0;
+
+    .avatar {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: $inquiry-bg;
+    }
+
+    .online-indicator {
+      @include online-dot;
+      position: absolute;
+      bottom: 2px;
+      right: 2px;
+    }
+  }
+
+  .hospital-badge {
+    @include inquiry-tag;
+  }
+
+  .consult-btn {
+    @include inquiry-btn;
+    padding: 8px 16px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+
+    .el-icon {
+      font-size: 14px;
+    }
+  }
+}
+
+// 筛选标签激活状态
+.filter-tag-active {
+  background: rgba($inquiry-primary, 0.1) !important;
+  border-color: $inquiry-primary !important;
+  color: $inquiry-primary !important;
+}
+
+// 价格文字
+.price-text {
+  color: $inquiry-tag-price;
+  font-weight: 600;
+}
+
+// 好评率文字
+.rating-text {
+  color: $inquiry-tag-price;
+  font-weight: 600;
+}

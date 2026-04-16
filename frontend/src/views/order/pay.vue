@@ -122,10 +122,9 @@ const handleConfirmPay = async () => {
       ElMessage.success('支付成功')
       // 跳转到支付结果页
       router.replace({
-        path: '/order/pay-result',
+        path: `/order/${order.value.id}`,
         query: {
-          orderId: order.value.id,
-          status: 'success'
+          paySuccess: 'true'
         }
       })
     }

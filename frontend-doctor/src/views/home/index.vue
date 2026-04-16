@@ -111,38 +111,39 @@ onMounted(() => {
     </div>
 
     <div class="page-content">
-      <!-- 快捷功能 -->
-      <div class="section">
-        <div class="quick-actions">
-          <div v-for="action in quickActions" :key="action.name" class="quick-action" @click="goToPage(action.path)">
-            <div class="action-icon">
-              <svg v-if="action.icon === 'stethoscope'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/>
-              </svg>
-              <svg v-else-if="action.icon === 'prescription'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
-              </svg>
-              <svg v-else-if="action.icon === 'users'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-              </svg>
-              <svg v-else-if="action.icon === 'wallet'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"/><path d="M4 6v12a2 2 0 0 0 2 2h14v-4"/><path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z"/>
-              </svg>
-              <svg v-else-if="action.icon === 'calendar'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-              </svg>
-              <svg v-else-if="action.icon === 'book'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-              </svg>
-              <svg v-else-if="action.icon === 'chart'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
-              </svg>
-              <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>
-              </svg>
-            </div>
-            <span class="action-name">{{ action.name }}</span>
+      <!-- 快捷功能入口 -->
+      <div class="quick-entry">
+        <div class="entry-item" @click="goToPage('/consultation')">
+          <div class="entry-icon primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/>
+            </svg>
           </div>
+          <span class="entry-name">开始接诊</span>
+        </div>
+        <div class="entry-item" @click="goToPage('/prescription')">
+          <div class="entry-icon success">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+            </svg>
+          </div>
+          <span class="entry-name">处方管理</span>
+        </div>
+        <div class="entry-item" @click="goToPage('/patients')">
+          <div class="entry-icon warning">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+          </div>
+          <span class="entry-name">患者管理</span>
+        </div>
+        <div class="entry-item" @click="goToPage('/income')">
+          <div class="entry-icon danger">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"/><path d="M4 6v12a2 2 0 0 0 2 2h14v-4"/><path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z"/>
+            </svg>
+          </div>
+          <span class="entry-name">收入明细</span>
         </div>
       </div>
 
@@ -275,7 +276,7 @@ onMounted(() => {
 <style lang="scss" scoped>
 .home-page {
   min-height: 100vh;
-  background: $bg-primary;
+  background: #f5f5f5;
   padding-bottom: calc(56px + env(safe-area-inset-bottom));
 }
 
@@ -290,7 +291,7 @@ onMounted(() => {
     left: 0;
     right: 0;
     height: 120px;
-    background: linear-gradient(135deg, $primary 0%, $primary-light 100%);
+    background: linear-gradient(135deg, #2E7D32 0%, #4CAF50 100%);
     border-radius: 0 0 24px 24px;
   }
   
@@ -318,7 +319,7 @@ onMounted(() => {
     justify-content: center;
     font-size: 24px;
     font-weight: 600;
-    color: $primary;
+    color: #2E7D32;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     
     img {
@@ -338,7 +339,7 @@ onMounted(() => {
       right: 0;
       width: 18px;
       height: 18px;
-      background: $success;
+      background: #4CAF50;
       color: #fff;
       border-radius: 50%;
       display: flex;
@@ -363,7 +364,7 @@ onMounted(() => {
     .certified-icon {
       width: 16px;
       height: 16px;
-      background: $success;
+      background: #4CAF50;
       border-radius: 50%;
       display: flex;
       align-items: center;
@@ -412,7 +413,7 @@ onMounted(() => {
       min-width: 16px;
       height: 16px;
       padding: 0 4px;
-      background: $error;
+      background: #D32F2F;
       color: #fff;
       border-radius: 8px;
       font-size: 10px;
@@ -425,11 +426,11 @@ onMounted(() => {
 
 // 数据概览卡片
 .stats-card {
-  margin: -40px 16px 16px;
-  background: linear-gradient(135deg, $primary 0%, $primary-light 100%);
+  margin: 12px 16px 16px;
+  background: linear-gradient(135deg, #2E7D32 0%, #4CAF50 100%);
   border-radius: 16px;
   padding: 20px 16px;
-  box-shadow: 0 4px 16px rgba($primary, 0.3);
+  box-shadow: 0 4px 16px rgba(46, 125, 50, 0.3);
   position: relative;
   z-index: 1;
   
@@ -450,19 +451,22 @@ onMounted(() => {
     }
     
     .stat-value {
-      font-size: 24px;
+      font-size: 28px;
       font-weight: 700;
       line-height: 1.2;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
       
       &.income {
-        font-size: 18px;
+        font-size: 28px;
       }
     }
     
     .stat-label {
-      font-size: 12px;
-      opacity: 0.9;
-      margin-top: 4px;
+      font-size: 13px;
+      font-weight: 500;
+      opacity: 0.95;
+      margin-top: 6px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
     }
   }
 }
@@ -486,13 +490,13 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 16px;
-  border-bottom: 1px solid $border-light;
+  border-bottom: 1px solid #f0f0f0;
 }
 
 .section-title {
   font-size: 16px;
   font-weight: 600;
-  color: $text-primary;
+  color: #333;
 }
 
 .section-more {
@@ -500,7 +504,7 @@ onMounted(() => {
   align-items: center;
   gap: 4px;
   font-size: 13px;
-  color: $primary;
+  color: #2E7D32;
   cursor: pointer;
   
   svg {
@@ -519,7 +523,7 @@ onMounted(() => {
   align-items: center;
   gap: 4px;
   font-size: 13px;
-  color: $income;
+  color: #FF6B00;
   cursor: pointer;
   
   svg {
@@ -528,7 +532,76 @@ onMounted(() => {
   }
 }
 
-// 快捷功能
+// 快捷入口
+.quick-entry {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  padding: 16px;
+  background: #fff;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+.entry-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 4px;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.2s;
+  
+  &:active {
+    background: #f5f5f5;
+    transform: scale(0.98);
+  }
+  
+  .entry-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    svg {
+      width: 24px;
+      height: 24px;
+    }
+    
+    &.primary {
+      background: #E8F5E9;
+      color: #2E7D32;
+    }
+    
+    &.success {
+      background: #E3F2FD;
+      color: #1976D2;
+    }
+    
+    &.warning {
+      background: #FFF3E0;
+      color: #FF9800;
+    }
+    
+    &.danger {
+      background: #FFEBEE;
+      color: #D32F2F;
+    }
+  }
+  
+  .entry-name {
+    font-size: 12px;
+    color: #666;
+    text-align: center;
+    font-weight: 500;
+  }
+}
+
+// 快捷功能（旧版兼容）
 .quick-actions {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -547,7 +620,7 @@ onMounted(() => {
   transition: background 0.2s;
   
   &:active {
-    background: $gray-100;
+    background: #f5f5f5;
   }
   
   .action-icon {
@@ -557,8 +630,8 @@ onMounted(() => {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: $primary-50;
-    color: $primary;
+    background: #E8F5E9;
+    color: #2E7D32;
     
     svg {
       width: 24px;
@@ -568,7 +641,7 @@ onMounted(() => {
   
   .action-name {
     font-size: 12px;
-    color: $text-secondary;
+    color: #666;
     text-align: center;
   }
 }

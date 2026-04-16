@@ -9,10 +9,13 @@ export interface Drug {
   price: number
   originalPrice?: number
   image: string
+  imageColor?: string
+  imageText?: string
   images?: string[]
   isRx: boolean
   categoryId: string
   categoryName?: string
+  category?: string
   disease?: string
   usage?: string
   dosage?: string

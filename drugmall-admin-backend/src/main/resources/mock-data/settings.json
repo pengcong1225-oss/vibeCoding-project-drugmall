@@ -1,0 +1,31 @@
+{
+  "basic": {
+    "siteName":"药品电商平台",
+    "siteLogo":"",
+    "siteIcon":"",
+    "siteDescription":"专业的药品电商平台，为您提供优质的药品和健康服务",
+    "siteKeywords":"药品,药店,健康,医药,买药",
+    "servicePhone":"400-123-4567",
+    "serviceEmail":"service@drugmall.com",
+    "companyAddress":"北京市朝阳区医药大厦18层",
+    "workTime":"周一至周日 9:00-21:00",
+    "icp":"京ICP备12345678号",
+    "police":"京公网安备11010502030405号",
+    "business":"药品经营许可证：京BA1234567号",
+    "copyright":"© 2024 药品电商平台 版权所有"
+  },
+  "payment": {
+    "wxEnabled":true,
+    "wxMchId":"1234567890",
+    "wxKey":"************************",
+    "wxCertPath":"/cert/apiclient_cert.p12",
+    "wxNotifyUrl":"https://api.drugmall.com/notify/wxpay",
+    "aliEnabled":true,
+    "aliAppId":"2024XXXXXXXXXXXX",
+    "aliPrivateKey":"************************",
+    "aliPublicKey":"************************",
+    "aliNotifyUrl":"https://api.drugmall.com/notify/alipay",
+    "balanceEnabled":true,
+    "feeRate":0.6
+  }
+}

@@ -99,5 +99,8 @@ export const request = {
   },
   delete: <T>(url: string, params?: object) => {
     return service.delete<T>(url, { params }) as Promise<T>
+  },
+  patch: <T>(url: string, data?: object) => {
+    return service.patch<T>(url, data) as Promise<T>
   }
 }

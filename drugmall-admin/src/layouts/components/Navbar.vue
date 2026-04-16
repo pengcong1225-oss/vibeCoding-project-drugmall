@@ -2,13 +2,13 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { Fold, Expand, FullScreen, Bell, ArrowDown } from '@element-plus/icons-vue'
+import { Fold, Expand, FullScreen, Bell, ArrowDown, User, Setting, SwitchButton } from '@element-plus/icons-vue'
 
 const props = defineProps<{
   isCollapse: boolean
 }>()
 
-const emit = defineEmits<['toggle-collapse']>()
+const emit = defineEmits(['toggle-collapse'])
 
 const route = useRoute()
 const router = useRouter()

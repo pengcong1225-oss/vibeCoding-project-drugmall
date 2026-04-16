@@ -1,49 +1,24 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import * as echarts from 'echarts'
 import {
   Money, ShoppingCart, User, ChatLineRound,
   ArrowUp, ArrowDown
 } from '@element-plus/icons-vue'
+import { getDashboardOverview, getGmvTrend, getOrderSource } from '@/api/dashboard'
+import { ElMessage } from 'element-plus'
 
 const router = useRouter()
+const loading = ref(false)
+
+const iconMap: Record<string, any> = { Money, ShoppingCart, User, ChatDotRound: ChatLineRound }
 
 // 数据概览卡片
-const overviewCards = ref([
-  {
-    title: '今日GMV',
-    value: '¥128,456.00',
-    change: '+12.5%',
-    trend: 'up',
-    icon: Money,
-    color: '#52c41a'
-  },
-  {
-    title: '今日订单',
-    value: '1,286',
-    change: '+8.2%',
-    trend: 'up',
-    icon: ShoppingCart,
-    color: '#1890ff'
-  },
-  {
-    title: '新增用户',
-    value: '156',
-    change: '-2.3%',
-    trend: 'down',
-    icon: User,
-    color: '#722ed1'
-  },
-  {
-    title: '今日问诊',
-    value: '89',
-    change: '+15.6%',
-    trend: 'up',
-    icon: ChatLineRound,
-    color: '#fa8c16'
-  }
-])
+const overviewCards = ref<any[]>([])
+
+// 分类数据
+const categoryData = ref<any[]>([])
 
 // 图表实例
 let gmvChart: echarts.ECharts | null = null
@@ -51,12 +26,15 @@ let orderChart: echarts.ECharts | null = null
 let sourceChart: echarts.ECharts | null = null
 let categoryChart: echarts.ECharts | null = null
 
+// 时间范围
+const timeRange = ref('day')
+
 // 初始化销售趋势图
-const initGmvChart = () => {
+const initGmvChart = (dates: string[] = [], gmv: number[] = [], orders: number[] = []) => {
   const chartDom = document.getElementById('gmv-chart')
   if (!chartDom) return
   
-  gmvChart = echarts.init(chartDom)
+  if (!gmvChart) gmvChart = echarts.init(chartDom)
   const option: echarts.EChartsOption = {
     tooltip: {
       trigger: 'axis',
@@ -74,7 +52,7 @@ const initGmvChart = () => {
     },
     xAxis: {
       type: 'category',
-      data: ['1日', '2日', '3日', '4日', '5日', '6日', '7日', '8日', '9日', '10日', '11日', '12日'],
+      data: dates,
       axisLine: { lineStyle: { color: '#ccc' } }
     },
     yAxis: [
@@ -98,7 +76,7 @@ const initGmvChart = () => {
         type: 'line',
         smooth: true,
         yAxisIndex: 0,
-        data: [82000, 93200, 90100, 93400, 129000, 133000, 132000, 125000, 118000, 128000, 135000, 128456],
+        data: gmv,
         itemStyle: { color: '#52c41a' },
         areaStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
@@ -111,7 +89,7 @@ const initGmvChart = () => {
         name: '订单量',
         type: 'bar',
         yAxisIndex: 1,
-        data: [820, 932, 901, 934, 1290, 1330, 1320, 1250, 1180, 1286, 1350, 1286],
+        data: orders,
         itemStyle: { color: '#1890ff' }
       }
     ]
@@ -120,11 +98,11 @@ const initGmvChart = () => {
 }
 
 // 初始化订单来源分布图
-const initSourceChart = () => {
+const initSourceChart = (sourceData: any[] = []) => {
   const chartDom = document.getElementById('source-chart')
   if (!chartDom) return
   
-  sourceChart = echarts.init(chartDom)
+  if (!sourceChart) sourceChart = echarts.init(chartDom)
   const option: echarts.EChartsOption = {
     tooltip: {
       trigger: 'item',
@@ -161,16 +139,48 @@ const initSourceChart = () => {
         labelLine: {
           show: false
         },
-        data: [
-          { value: 520, name: 'APP端', itemStyle: { color: '#1890ff' } },
-          { value: 380, name: 'H5网页', itemStyle: { color: '#52c41a' } },
-          { value: 290, name: '微信小程序', itemStyle: { color: '#faad14' } },
-          { value: 96, name: '支付宝小程序', itemStyle: { color: '#722ed1' } }
-        ]
+        data: sourceData
       }
     ]
   }
   sourceChart.setOption(option)
+}
+
+// 加载仪表盘数据
+const fetchDashboardData = async () => {
+  loading.value = true
+  try {
+    const [overviewData, gmvData, sourceData] = await Promise.all([
+      getDashboardOverview(),
+      getGmvTrend(timeRange.value),
+      getOrderSource()
+    ])
+    
+    overviewCards.value = overviewData.cards.map((card: any) => ({
+      ...card,
+      icon: iconMap[card.icon] || Money
+    }))
+    categoryData.value = overviewData.categoryData
+    
+    initGmvChart(gmvData.dates, gmvData.gmv, gmvData.orders)
+    initSourceChart(sourceData)
+  } catch (error) {
+    console.error('加载仪表盘数据失败:', error)
+    ElMessage.error('加载数据失败，请稍后重试')
+  } finally {
+    loading.value = false
+  }
+}
+
+// 加载GMV趋势数据
+const fetchGmvTrendData = async () => {
+  try {
+    const gmvData = await getGmvTrend(timeRange.value)
+    initGmvChart(gmvData.dates, gmvData.gmv, gmvData.orders)
+  } catch (error) {
+    console.error('加载GMV趋势数据失败:', error)
+    ElMessage.error('加载趋势数据失败')
+  }
 }
 
 // 窗口大小改变时重新计算图表大小
@@ -179,9 +189,13 @@ const handleResize = () => {
   sourceChart?.resize()
 }
 
+// 监听时间范围变化
+watch(timeRange, () => {
+  fetchGmvTrendData()
+})
+
 onMounted(() => {
-  initGmvChart()
-  initSourceChart()
+  fetchDashboardData()
   window.addEventListener('resize', handleResize)
 })
 
@@ -271,23 +285,6 @@ const handleCardClick = (card: any) => {
     </el-row>
   </div>
 </template>
-
-<script lang="ts">
-// 额外的script用于定义时间范围变量
-timeRange: 'day'
-</script>
-
-<script setup lang="ts">
-const timeRange = ref('day')
-
-const categoryData = ref([
-  { name: '处方药', value: 35, color: '#409eff' },
-  { name: '非处方药', value: 28, color: '#67c23a' },
-  { name: '保健品', value: 18, color: '#e6a23c' },
-  { name: '医疗器械', value: 12, color: '#f56c6c' },
-  { name: '中药饮片', value: 7, color: '#909399' }
-])
-</script>
 
 <style scoped lang="scss">
 .dashboard-container {

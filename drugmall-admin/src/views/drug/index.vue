@@ -2,8 +2,9 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh, Plus, Edit, Delete, View, Top, Bottom } from '@element-plus/icons-vue'
+import { Search, Refresh, Plus, Edit, Delete, View } from '@element-plus/icons-vue'
 import type { Product, ProductQueryParams } from '@/types/product'
+import { getProductList, deleteProduct, updateProductStatus, getCategoryList, getBrandList } from '@/api/product'
 
 const router = useRouter()
 
@@ -24,77 +25,40 @@ const tableData = ref<Product[]>([])
 const total = ref(0)
 
 // 分类和品牌选项
-const categoryOptions = ref([
-  { id: '1', name: '感冒药' },
-  { id: '2', name: '消化系统' },
-  { id: '3', name: '心脑血管' },
-  { id: '4', name: '维生素' },
-  { id: '5', name: '医疗器械' }
-])
+const categoryOptions = ref<{ id: string; name: string }[]>([])
+const brandOptions = ref<{ id: string; name: string }[]>([])
 
-const brandOptions = ref([
-  { id: '1', name: '修正药业' },
-  { id: '2', name: '同仁堂' },
-  { id: '3', name: '白云山' },
-  { id: '4', name: '云南白药' }
-])
+// 加载分类和品牌下拉选项
+const loadOptions = async () => {
+  try {
+    const [categories, brandRes] = await Promise.all([
+      getCategoryList(),
+      getBrandList({ pageNum: 1, pageSize: 100 })
+    ])
+    categoryOptions.value = categories
+    brandOptions.value = brandRes.list
+  } catch (error) {
+    console.error('加载选项数据失败:', error)
+  }
+}
 
 // 获取列表数据
 const getList = async () => {
   loading.value = true
   try {
-    // 模拟API调用
-    await new Promise(resolve => setTimeout(resolve, 500))
-    
-    // 模拟数据
-    const mockData: Product[] = Array.from({ length: 35 }, (_, i) => ({
-      id: String(i + 1),
-      productCode: `P${String(i + 1).padStart(6, '0')}`,
-      productName: ['阿莫西林胶囊', '布洛芬缓释片', '维生素C咀嚼片', '感冒灵颗粒', '血压计'][i % 5] + ` (${i + 1})`,
-      categoryId: String((i % 5) + 1),
-      categoryName: categoryOptions.value[i % 5]?.name,
-      brandId: String((i % 4) + 1),
-      brandName: brandOptions.value[i % 4]?.name,
-      mainImage: 'https://via.placeholder.com/100x100',
-      price: [25.5, 18.8, 35.0, 29.9, 128.0][i % 5],
-      originalPrice: [35.0, 28.0, 45.0, 39.9, 168.0][i % 5],
-      stock: [100, 50, 200, 80, 30][i % 5],
-      warningStock: 10,
-      isRx: i % 3 === 0 ? 1 : 0,
-      approvalNumber: `国药准字H${20240001 + i}`,
-      manufacturer: ['修正药业', '同仁堂', '白云山', '云南白药', '欧姆龙'][i % 5],
-      spec: ['0.25g*24粒', '0.3g*20片', '100mg*60片', '10g*9袋', 'HEM-7121'][i % 5],
-      unit: ['盒', '盒', '瓶', '盒', '个'][i % 5],
-      status: Math.random() > 0.3 ? 1 : 0,
-      salesCount: Math.floor(Math.random() * 1000),
-      sortOrder: i,
-      createTime: '2024-01-15 10:30:00',
-      updateTime: '2024-03-20 15:45:00'
-    }))
-    
-    // 筛选
-    let filteredData = [...mockData]
-    if (searchForm.status !== undefined) {
-      filteredData = filteredData.filter(item => item.status === searchForm.status)
-    }
-    if (searchForm.isRx !== undefined) {
-      filteredData = filteredData.filter(item => item.isRx === searchForm.isRx)
-    }
-    if (searchForm.categoryId) {
-      filteredData = filteredData.filter(item => item.categoryId === searchForm.categoryId)
-    }
-    if (searchForm.keyword) {
-      const keyword = searchForm.keyword.toLowerCase()
-      filteredData = filteredData.filter(item => 
-        item.productName.toLowerCase().includes(keyword) ||
-        item.productCode.toLowerCase().includes(keyword) ||
-        item.manufacturer.toLowerCase().includes(keyword)
-      )
-    }
-    
-    total.value = filteredData.length
-    const start = (searchForm.pageNum - 1) * searchForm.pageSize
-    tableData.value = filteredData.slice(start, start + searchForm.pageSize)
+    const res = await getProductList({
+      pageNum: searchForm.pageNum,
+      pageSize: searchForm.pageSize,
+      keyword: searchForm.keyword,
+      categoryId: searchForm.categoryId,
+      brandId: searchForm.brandId,
+      isRx: searchForm.isRx,
+      status: searchForm.status
+    })
+    tableData.value = res.list
+    total.value = res.total
+  } catch (error) {
+    console.error('获取药品列表失败:', error)
   } finally {
     loading.value = false
   }
@@ -143,7 +107,7 @@ const handleEdit = (row: Product) => {
 
 // 查看详情
 const handleView = (row: Product) => {
-  ElMessage.info('查看详情功能开发中...')
+  router.push(`/drug/edit?id=${row.id}&readonly=true`)
 }
 
 // 删除药品
@@ -155,12 +119,12 @@ const handleDelete = async (row: Product) => {
       {
         confirmButtonText: '确认删除',
         cancelButtonText: '取消',
-        type: 'danger'
+        type: 'warning' as const
       }
     )
     
-    // 模拟API调用
-    await new Promise(resolve => setTimeout(resolve, 300))
+    // 调用删除API
+    await deleteProduct(row.id)
     ElMessage.success('删除成功')
     getList()
   } catch {
@@ -178,9 +142,10 @@ const handleStatusChange = async (row: Product) => {
       { type: 'warning' }
     )
     
-    // 模拟API调用
-    await new Promise(resolve => setTimeout(resolve, 300))
-    row.status = row.status === 1 ? 0 : 1
+    // 调用上下架API
+    const newStatus = row.status === 1 ? 0 : 1
+    await updateProductStatus(row.id, newStatus)
+    row.status = newStatus
     ElMessage.success(`${action}成功`)
   } catch {
     // 取消操作
@@ -188,6 +153,7 @@ const handleStatusChange = async (row: Product) => {
 }
 
 onMounted(() => {
+  loadOptions()
   getList()
 })
 </script>

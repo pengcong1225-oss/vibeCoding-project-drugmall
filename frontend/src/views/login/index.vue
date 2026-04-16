@@ -3,6 +3,7 @@ import { ref, reactive, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
+import { sendVerifyCode } from '@/api/modules/user'
 
 const router = useRouter()
 const route = useRoute()
@@ -40,17 +41,20 @@ const isFormValid = computed(() => {
 const sendCode = async () => {
   if (!canSendCode.value) return
   
-  // 验证手机号格式
   const phoneReg = /^1[3-9]\d{9}$/
   if (!phoneReg.test(form.phone)) {
     ElMessage.error('请输入正确的手机号')
     return
   }
 
-  // 模拟发送验证码
-  ElMessage.success('验证码已发送')
+  try {
+    await sendVerifyCode(form.phone)
+    ElMessage.success('验证码已发送')
+  } catch (error) {
+    ElMessage.error('验证码发送失败，请重试')
+    return
+  }
   
-  // 开始倒计时
   countdown.value = 60
   const timer = setInterval(() => {
     countdown.value--

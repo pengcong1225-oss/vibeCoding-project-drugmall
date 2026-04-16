@@ -1,0 +1,72 @@
+{
+  "users": [
+    {
+      "id": "1",
+      "phone": "13800138000",
+      "nickname": "用户1",
+      "avatar": "",
+      "gender": 1,
+      "birthday": "1990-01-01",
+      "realName": "张三",
+      "idCard": "110101199001011234",
+      "isRealNameAuth": true,
+      "balance": 1000.00,
+      "points": 500,
+      "createTime": "2024-01-01 10:00:00"
+    }
+  ],
+  "patients": [
+    {
+      "id": "1",
+      "userId": "1",
+      "name": "张三",
+      "idCard": "110101199001011234",
+      "phone": "13800138000",
+      "gender": 1,
+      "birthday": "1990-01-01",
+      "relation": "本人",
+      "isDefault": true,
+      "createTime": "2024-01-01 10:00:00"
+    },
+    {
+      "id": "2",
+      "userId": "1",
+      "name": "李四",
+      "idCard": "110101199505052345",
+      "phone": "13900139000",
+      "gender": 2,
+      "birthday": "1995-05-05",
+      "relation": "配偶",
+      "isDefault": false,
+      "createTime": "2024-01-02 10:00:00"
+    }
+  ],
+  "addresses": [
+    {
+      "id": "1",
+      "userId": "1",
+      "name": "张三",
+      "phone": "13800138000",
+      "province": "北京市",
+      "city": "北京市",
+      "district": "朝阳区",
+      "detail": "某某小区1号楼1单元101室",
+      "isDefault": true,
+      "tag": "家",
+      "createTime": "2024-01-01 10:00:00"
+    },
+    {
+      "id": "2",
+      "userId": "1",
+      "name": "张三",
+      "phone": "13800138000",
+      "province": "北京市",
+      "city": "北京市",
+      "district": "海淀区",
+      "detail": "某某大厦A座1001室",
+      "isDefault": false,
+      "tag": "公司",
+      "createTime": "2024-01-02 10:00:00"
+    }
+  ]
+}

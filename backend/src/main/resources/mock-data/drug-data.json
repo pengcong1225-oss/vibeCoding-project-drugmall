@@ -1,0 +1,272 @@
+{
+  "drugs": [
+    {
+      "id": "1",
+      "name": "阿莫西林胶囊",
+      "specification": "0.25g*24粒",
+      "manufacturer": "华北制药",
+      "price": 12.50,
+      "originalPrice": 18.00,
+      "image": "",
+      "imageColor": "#00b578",
+      "imageText": "阿莫",
+      "isRx": true,
+      "category": "抗生素",
+      "categoryId": "1",
+      "disease": "呼吸道感染",
+      "usage": "口服，成人一次0.5g，每6-8小时1次",
+      "stock": 100,
+      "sales": 999,
+      "description": "阿莫西林适用于敏感菌所致的各种感染，如溶血性链球菌、肺炎链球菌、葡萄球菌或流感嗜血杆菌所致的中耳炎、鼻窦炎、咽炎、扁桃体炎等上呼吸道感染。",
+      "status": 1,
+      "sortOrder": 1,
+      "createTime": "2024-01-01 10:00:00"
+    },
+    {
+      "id": "2",
+      "name": "布洛芬缓释胶囊",
+      "specification": "0.3g*20粒",
+      "manufacturer": "中美史克",
+      "price": 15.80,
+      "originalPrice": 22.00,
+      "image": "",
+      "imageColor": "#ff9500",
+      "imageText": "布洛芬",
+      "isRx": false,
+      "category": "解热镇痛",
+      "categoryId": "6",
+      "disease": "头痛、牙痛",
+      "usage": "口服，成人一次1粒，一日2次",
+      "stock": 200,
+      "sales": 1999,
+      "description": "用于缓解轻至中度疼痛，如头痛、关节痛、偏头痛、牙痛、肌肉痛、神经痛、痛经。也用于普通感冒或流行性感冒引起的发热。",
+      "status": 1,
+      "sortOrder": 2,
+      "createTime": "2024-01-01 10:00:00"
+    },
+    {
+      "id": "3",
+      "name": "感冒灵颗粒",
+      "specification": "10g*9袋",
+      "manufacturer": "999药业",
+      "price": 18.50,
+      "originalPrice": 25.00,
+      "image": "",
+      "imageColor": "#ff4d4f",
+      "imageText": "感冒灵",
+      "isRx": false,
+      "category": "感冒药",
+      "categoryId": "1",
+      "disease": "感冒",
+      "usage": "开水冲服，一次10克，一日3次",
+      "stock": 150,
+      "sales": 2999,
+      "description": "解热镇痛。用于感冒引起的头痛，发热，鼻塞，流涕，咽痛。",
+      "status": 1,
+      "sortOrder": 3,
+      "createTime": "2024-01-01 10:00:00"
+    },
+    {
+      "id": "4",
+      "name": "阿奇霉素片",
+      "specification": "0.25g*6片",
+      "manufacturer": "辉瑞制药",
+      "price": 28.00,
+      "originalPrice": 38.00,
+      "image": "",
+      "imageColor": "#1890ff",
+      "imageText": "阿奇",
+      "isRx": true,
+      "category": "抗生素",
+      "categoryId": "1",
+      "disease": "支原体感染",
+      "usage": "口服，成人一次0.5g，一日1次",
+      "stock": 80,
+      "sales": 599,
+      "description": "适用于敏感致病菌株所引起的下列感染：由肺炎衣原体、流感嗜血杆菌、嗜肺军团菌、卡他莫拉菌、肺炎支原体、金黄色葡萄球菌或肺炎链球菌引起的社区获得性肺炎。",
+      "status": 1,
+      "sortOrder": 4,
+      "createTime": "2024-01-01 10:00:00"
+    },
+    {
+      "id": "5",
+      "name": "蒙脱石散",
+      "specification": "3g*10袋",
+      "manufacturer": "博福-益普生",
+      "price": 22.50,
+      "originalPrice": 30.00,
+      "image": "",
+      "imageColor": "#52c41a",
+      "imageText": "蒙脱石",
+      "isRx": false,
+      "category": "消化系统",
+      "categoryId": "3",
+      "disease": "腹泻",
+      "usage": "口服，成人一次1袋，一日3次",
+      "stock": 120,
+      "sales": 1299,
+      "description": "用于成人及儿童急、慢性腹泻。",
+      "status": 1,
+      "sortOrder": 5,
+      "createTime": "2024-01-01 10:00:00"
+    },
+    {
+      "id": "6",
+      "name": "维生素C片",
+      "specification": "100mg*100片",
+      "manufacturer": "养生堂",
+      "price": 19.90,
+      "originalPrice": 28.00,
+      "image": "",
+      "imageColor": "#fa8c16",
+      "imageText": "维C",
+      "isRx": false,
+      "category": "维生素",
+      "categoryId": "5",
+      "disease": "维生素缺乏",
+      "usage": "口服，一次1-2片，一日3次",
+      "stock": 200,
+      "sales": 3999,
+      "description": "用于预防坏血病，也可用于各种急慢性传染疾病及紫癜等的辅助治疗。",
+      "status": 1,
+      "sortOrder": 6,
+      "createTime": "2024-01-01 10:00:00"
+    },
+    {
+      "id": "7",
+      "name": "盐酸氨溴索口服液",
+      "specification": "100ml",
+      "manufacturer": "勃林格殷格翰",
+      "price": 35.00,
+      "originalPrice": 45.00,
+      "image": "",
+      "imageColor": "#722ed1",
+      "imageText": "氨溴索",
+      "isRx": false,
+      "category": "呼吸系统",
+      "categoryId": "2",
+      "disease": "咳嗽痰多",
+      "usage": "口服，成人一次10ml，一日3次",
+      "stock": 80,
+      "sales": 899,
+      "description": "适用于伴有痰液分泌不正常及排痰功能不良的急性、慢性呼吸道疾病，例如慢性支气管炎急性加重、喘息型支气管炎及支气管哮喘的祛痰治疗。",
+      "status": 1,
+      "sortOrder": 7,
+      "createTime": "2024-01-01 10:00:00"
+    },
+    {
+      "id": "8",
+      "name": "奥美拉唑肠溶胶囊",
+      "specification": "20mg*14粒",
+      "manufacturer": "阿斯利康",
+      "price": 42.00,
+      "originalPrice": 55.00,
+      "image": "",
+      "imageColor": "#13c2c2",
+      "imageText": "奥美",
+      "isRx": true,
+      "category": "消化系统",
+      "categoryId": "3",
+      "disease": "胃溃疡",
+      "usage": "口服，成人一次1粒，一日1-2次",
+      "stock": 60,
+      "sales": 699,
+      "description": "适用于胃溃疡、十二指肠溃疡、应激性溃疡、反流性食管炎和卓-艾综合征。",
+      "status": 1,
+      "sortOrder": 8,
+      "createTime": "2024-01-01 10:00:00"
+    }
+  ],
+  "categories": [
+    {
+      "id": "1",
+      "name": "感冒发烧",
+      "icon": "🤒",
+      "sortOrder": 1
+    },
+    {
+      "id": "2",
+      "name": "呼吸系统",
+      "icon": "🫁",
+      "sortOrder": 2
+    },
+    {
+      "id": "3",
+      "name": "消化系统",
+      "icon": "🍽️",
+      "sortOrder": 3
+    },
+    {
+      "id": "4",
+      "name": "皮肤用药",
+      "icon": "🧴",
+      "sortOrder": 4
+    },
+    {
+      "id": "5",
+      "name": "维生素钙",
+      "icon": "💊",
+      "sortOrder": 5
+    },
+    {
+      "id": "6",
+      "name": "解热镇痛",
+      "icon": "💉",
+      "sortOrder": 6
+    },
+    {
+      "id": "7",
+      "name": "五官用药",
+      "icon": "👁️",
+      "sortOrder": 7
+    },
+    {
+      "id": "8",
+      "name": "医疗器械",
+      "icon": "🏥",
+      "sortOrder": 8
+    }
+  ],
+  "hotSearches": [
+    {
+      "keyword": "感冒药",
+      "heat": 9999
+    },
+    {
+      "keyword": "退烧药",
+      "heat": 8888
+    },
+    {
+      "keyword": "咳嗽",
+      "heat": 7777
+    },
+    {
+      "keyword": "维生素",
+      "heat": 6666
+    },
+    {
+      "keyword": "消炎药",
+      "heat": 5555
+    },
+    {
+      "keyword": "胃药",
+      "heat": 4444
+    },
+    {
+      "keyword": "止痛药",
+      "heat": 3333
+    },
+    {
+      "keyword": "腹泻",
+      "heat": 2222
+    },
+    {
+      "keyword": "过敏",
+      "heat": 1111
+    },
+    {
+      "keyword": "抗生素",
+      "heat": 1000
+    }
+  ]
+}

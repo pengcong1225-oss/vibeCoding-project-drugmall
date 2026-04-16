@@ -2,6 +2,15 @@
 import { ref, onMounted, reactive } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh, Check, Close, View } from '@element-plus/icons-vue'
+import { getUserAuthList, getUserAuthStats, auditUserAuth } from '@/api/user'
+
+// 统计数据
+const authStats = reactive({
+  pending: 0,
+  passed: 0,
+  rejected: 0,
+  total: 0
+})
 
 // 搜索表单
 const searchForm = reactive({
@@ -33,70 +42,28 @@ const auditForm = reactive({
 const getList = async () => {
   loading.value = true
   try {
-    // 模拟API调用
-    await new Promise(resolve => setTimeout(resolve, 500))
-    
-    // 模拟数据
-    const mockData = [
-      {
-        id: '1',
-        userId: '10001',
-        username: 'zhangsan',
-        realName: '张三',
-        idCard: '110101199001011234',
-        phone: '13800138000',
-        status: 0,
-        submitTime: '2024-03-20 10:30:00',
-        idCardFront: 'https://via.placeholder.com/300x200',
-        idCardBack: 'https://via.placeholder.com/300x200'
-      },
-      {
-        id: '2',
-        userId: '10002',
-        username: 'lisi',
-        realName: '李四',
-        idCard: '110101199002022345',
-        phone: '13800138001',
-        status: 1,
-        submitTime: '2024-03-19 15:20:00',
-        auditTime: '2024-03-19 16:00:00',
-        idCardFront: 'https://via.placeholder.com/300x200',
-        idCardBack: 'https://via.placeholder.com/300x200'
-      },
-      {
-        id: '3',
-        userId: '10003',
-        username: 'wangwu',
-        realName: '王五',
-        idCard: '110101199003033456',
-        phone: '13800138002',
-        status: 2,
-        submitTime: '2024-03-18 09:10:00',
-        auditTime: '2024-03-18 10:30:00',
-        rejectReason: '身份证照片不清晰，请重新上传',
-        idCardFront: 'https://via.placeholder.com/300x200',
-        idCardBack: 'https://via.placeholder.com/300x200'
-      }
-    ]
-    
-    // 筛选
-    let filteredData = [...mockData]
-    if (searchForm.status !== undefined) {
-      filteredData = filteredData.filter(item => item.status === searchForm.status)
-    }
-    if (searchForm.keyword) {
-      const keyword = searchForm.keyword.toLowerCase()
-      filteredData = filteredData.filter(item => 
-        item.username.toLowerCase().includes(keyword) ||
-        item.realName.includes(keyword) ||
-        item.phone.includes(keyword)
-      )
-    }
-    
-    total.value = filteredData.length
-    tableData.value = filteredData.slice((pageNum.value - 1) * pageSize.value, pageNum.value * pageSize.value)
+    const res = await getUserAuthList({
+      pageNum: pageNum.value,
+      pageSize: pageSize.value,
+      keyword: searchForm.keyword,
+      status: searchForm.status
+    })
+    tableData.value = res.list
+    total.value = res.total
+  } catch (error) {
+    console.error('获取认证列表失败:', error)
   } finally {
     loading.value = false
+  }
+}
+
+// 获取统计数据
+const loadStats = async () => {
+  try {
+    const stats = await getUserAuthStats()
+    Object.assign(authStats, stats)
+  } catch (error) {
+    console.error('获取认证统计失败:', error)
   }
 }
 
@@ -151,11 +118,14 @@ const submitAudit = async () => {
   }
   
   try {
-    // 模拟API调用
-    await new Promise(resolve => setTimeout(resolve, 500))
+    await auditUserAuth(currentRecord.value.id, {
+      result: auditForm.result,
+      reason: auditForm.reason
+    })
     ElMessage.success(auditForm.result === 'pass' ? '审核通过' : '已拒绝')
     auditVisible.value = false
     getList()
+    loadStats()
   } catch (error) {
     ElMessage.error('操作失败')
   }
@@ -189,6 +159,7 @@ const maskIdCard = (idCard: string) => {
 
 onMounted(() => {
   getList()
+  loadStats()
 })
 </script>
 
@@ -246,7 +217,7 @@ onMounted(() => {
               <el-icon><Document /></el-icon>
             </div>
             <div class="stat-info">
-              <div class="stat-value">128</div>
+              <div class="stat-value">{{ authStats.pending }}</div>
               <div class="stat-label">待审核</div>
             </div>
           </div>
@@ -259,7 +230,7 @@ onMounted(() => {
               <el-icon><Check /></el-icon>
             </div>
             <div class="stat-info">
-              <div class="stat-value">3,256</div>
+              <div class="stat-value">{{ authStats.passed }}</div>
               <div class="stat-label">已通过</div>
             </div>
           </div>
@@ -272,7 +243,7 @@ onMounted(() => {
               <el-icon><Close /></el-icon>
             </div>
             <div class="stat-info">
-              <div class="stat-value">86</div>
+              <div class="stat-value">{{ authStats.rejected }}</div>
               <div class="stat-label">已拒绝</div>
             </div>
           </div>
@@ -285,7 +256,7 @@ onMounted(() => {
               <el-icon><User /></el-icon>
             </div>
             <div class="stat-info">
-              <div class="stat-value">3,470</div>
+              <div class="stat-value">{{ authStats.total }}</div>
               <div class="stat-label">认证总数</div>
             </div>
           </div>

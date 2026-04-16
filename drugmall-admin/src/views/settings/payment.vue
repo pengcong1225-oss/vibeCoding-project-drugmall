@@ -1,41 +1,56 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Upload, Check } from '@element-plus/icons-vue'
+import { getPaymentSettings, savePaymentSettings } from '@/api/settings'
+
+const loading = ref(false)
 
 // 支付配置表单
 const formRef = ref()
 const formData = ref({
-  // 微信支付
-  wxEnabled: true,
-  wxMchId: '1234567890',
-  wxKey: '************************',
-  wxCertPath: '/cert/apiclient_cert.p12',
-  wxNotifyUrl: 'https://api.drugmall.com/notify/wxpay',
-  
-  // 支付宝
-  aliEnabled: true,
-  aliAppId: '2024XXXXXXXXXXXX',
-  aliPrivateKey: '************************',
-  aliPublicKey: '************************',
-  aliNotifyUrl: 'https://api.drugmall.com/notify/alipay',
-  
-  // 余额支付
-  balanceEnabled: true,
-  
-  // 手续费
-  feeRate: 0.6
+  wxEnabled: false,
+  wxMchId: '',
+  wxKey: '',
+  wxCertPath: '',
+  wxNotifyUrl: '',
+  aliEnabled: false,
+  aliAppId: '',
+  aliPrivateKey: '',
+  aliPublicKey: '',
+  aliNotifyUrl: '',
+  balanceEnabled: false,
+  feeRate: 0
 })
 
 // 测试弹窗
 const testDialogVisible = ref(false)
 const testAmount = ref(0.01)
 
+// 加载配置
+const loadSettings = async () => {
+  loading.value = true
+  try {
+    const data = await getPaymentSettings()
+    formData.value = { ...formData.value, ...data }
+  } catch (error) {
+    console.error('获取支付配置失败:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
 // 保存配置
-const handleSave = () => {
-  formRef.value?.validate((valid: boolean) => {
+const handleSave = async () => {
+  formRef.value?.validate(async (valid: boolean) => {
     if (valid) {
-      ElMessage.success('支付配置保存成功')
+      try {
+        await savePaymentSettings(formData.value)
+        ElMessage.success('支付配置保存成功')
+      } catch (error) {
+        console.error('保存支付配置失败:', error)
+        ElMessage.error('支付配置保存失败')
+      }
     }
   })
 }
@@ -50,6 +65,10 @@ const confirmTest = () => {
   ElMessage.success(`支付测试发起成功，金额：¥${testAmount.value}`)
   testDialogVisible.value = false
 }
+
+onMounted(() => {
+  loadSettings()
+})
 </script>
 
 <template>

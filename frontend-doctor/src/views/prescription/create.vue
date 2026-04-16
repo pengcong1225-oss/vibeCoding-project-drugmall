@@ -287,6 +287,15 @@ onMounted(() => {
 </template>
 
 <style lang="scss" scoped>
+$primary: #00B578;
+$primary-light: #00C78A;
+$text-primary: #333;
+$text-secondary: #666;
+$text-tertiary: #999;
+$bg-primary: #f5f5f5;
+$bg-white: #fff;
+$border-light: #e8e8e8;
+
 .create-prescription-page {
   min-height: 100vh;
   background: $bg-primary;

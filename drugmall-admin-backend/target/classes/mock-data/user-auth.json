@@ -1,0 +1,10 @@
+{
+  "stats": {"pending":128,"passed":3256,"rejected":86,"total":3470},
+  "records": [
+    {"id":"1","userId":"10001","username":"zhangsan","realName":"张三","idCard":"110101199001011234","phone":"13800138000","status":0,"submitTime":"2024-03-20 10:30:00","auditTime":null,"rejectReason":null,"idCardFront":"https://via.placeholder.com/300x200?text=身份证正面","idCardBack":"https://via.placeholder.com/300x200?text=身份证背面"},
+    {"id":"2","userId":"10002","username":"lisi","realName":"李四","idCard":"310101198505052345","phone":"13900139000","status":1,"submitTime":"2024-03-18 14:00:00","auditTime":"2024-03-19 09:00:00","rejectReason":null,"idCardFront":"https://via.placeholder.com/300x200?text=身份证正面","idCardBack":"https://via.placeholder.com/300x200?text=身份证背面"},
+    {"id":"3","userId":"10003","username":"wangwu","realName":"王五","idCard":"440101199203063456","phone":"13700137000","status":2,"submitTime":"2024-03-15 09:00:00","auditTime":"2024-03-16 11:00:00","rejectReason":"身份证照片模糊，无法识别","idCardFront":"https://via.placeholder.com/300x200?text=身份证正面","idCardBack":"https://via.placeholder.com/300x200?text=身份证背面"},
+    {"id":"4","userId":"10004","username":"zhaoliu","realName":"赵六","idCard":"510101199108074567","phone":"13600136000","status":0,"submitTime":"2024-03-20 16:00:00","auditTime":null,"rejectReason":null,"idCardFront":"https://via.placeholder.com/300x200?text=身份证正面","idCardBack":"https://via.placeholder.com/300x200?text=身份证背面"},
+    {"id":"5","userId":"10005","username":"sunqi","realName":"孙七","idCard":"330101199412085678","phone":"13500135000","status":1,"submitTime":"2024-03-17 11:00:00","auditTime":"2024-03-18 10:00:00","rejectReason":null,"idCardFront":"https://via.placeholder.com/300x200?text=身份证正面","idCardBack":"https://via.placeholder.com/300x200?text=身份证背面"}
+  ]
+}

@@ -43,7 +43,7 @@ const primaryAction = computed(() => {
     case 'shipped':
       return { text: '确认收货', action: () => emit('confirm', props.order) }
     case 'completed':
-      if (!props.order.items.every(item => item.reviewStatus === 'completed')) {
+      if (props.order.items && props.order.items.length > 0 && !props.order.items.every(item => item.reviewStatus === 'completed')) {
         return { text: '评价', action: () => emit('review', props.order) }
       }
       return { text: '再次购买', action: () => emit('rebuy', props.order) }
@@ -80,6 +80,7 @@ const getDrugImage = (image: string | undefined) => {
 
 // 显示更多商品数量
 const moreCount = computed(() => {
+  if (!props.order.items || props.order.items.length === 0) return 0
   const count = props.order.items.length - 3
   return count > 0 ? count : 0
 })
@@ -103,7 +104,7 @@ const moreCount = computed(() => {
       <!-- 多个商品时显示缩略图列表 -->
       <div class="drug-list">
         <div 
-          v-for="(item, index) in order.items.slice(0, 3)" 
+          v-for="(item, index) in (order.items || []).slice(0, 3)" 
           :key="item.id"
           class="drug-thumb"
           :class="{ 'is-rx': item.isRx }"

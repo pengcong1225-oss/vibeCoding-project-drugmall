@@ -438,7 +438,7 @@ onMounted(() => {
       color: #fff;
       
       &:active {
-        background: darken($primary, 5%);
+        background: $primary-dark;
       }
     }
     
@@ -483,5 +483,3 @@ onMounted(() => {
   }
 }
 </style>
-</file_content>
-</function_results>现在继续创建问诊会话页面(chat.vue)：<|tool_calls_section_begin|><|tool_call_begin|>functions.Write:11<|tool_call_argument_begin|>{

@@ -1,0 +1,7 @@
+[
+  {"id":"1","title":"双十二狂欢节","image":"https://via.placeholder.com/800x400/1890ff/fff?text=双十二狂欢","link":"/activity/1212","sort":1,"status":1,"clicks":2345,"views":45678,"position":"home","device":"all","createTime":"2024-11-01 10:00:00"},
+  {"id":"2","title":"冬季暖心特惠","image":"https://via.placeholder.com/800x400/67c23a/fff?text=冬季特惠","link":"/activity/winter","sort":2,"status":1,"clicks":1890,"views":38900,"position":"home","device":"all","createTime":"2024-11-15 10:00:00"},
+  {"id":"3","title":"新人专享礼包","image":"https://via.placeholder.com/800x400/e6a23c/fff?text=新人礼包","link":"/activity/newuser","sort":3,"status":1,"clicks":3456,"views":56789,"position":"home","device":"mobile","createTime":"2024-12-01 10:00:00"},
+  {"id":"4","title":"健康体检套餐","image":"https://via.placeholder.com/800x400/f56c6c/fff?text=体检套餐","link":"/activity/checkup","sort":4,"status":0,"clicks":890,"views":12345,"position":"home","device":"all","createTime":"2024-12-10 10:00:00"},
+  {"id":"5","title":"年终大促","image":"https://via.placeholder.com/800x400/909399/fff?text=年终大促","link":"/activity/yearend","sort":5,"status":1,"clicks":4567,"views":78900,"position":"home","device":"pc","createTime":"2024-12-15 10:00:00"}
+]

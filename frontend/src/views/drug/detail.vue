@@ -2,8 +2,9 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { ArrowLeft, ShoppingCart, HomeFilled, Plus, Minus, ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 import { useCartStore } from '@/stores/cart'
-import { mockDrugs } from '@/api/mock'
+import { getDrugDetail } from '@/api/modules/drug'
 import type { Drug } from '@/types'
 
 const route = useRoute()
@@ -13,6 +14,7 @@ const cartStore = useCartStore()
 // 药品数据
 const drug = ref<Drug | null>(null)
 const loading = ref(true)
+const error = ref(false)
 
 // 当前选中的规格
 const selectedSpec = ref(0)
@@ -28,43 +30,53 @@ const currentSwiperIndex = ref(0)
 
 // 图片列表
 const images = computed(() => {
-  if (drug.value?.images?.length) {
+  if (!drug.value) return []
+  if (drug.value.images?.length) {
     return drug.value.images
   }
-  return drug.value?.image ? [drug.value.image] : []
+  return drug.value.image ? [drug.value.image] : []
 })
 
 // 规格列表
 const specs = computed(() => {
+  if (!drug.value) return []
   return [
-    { label: drug.value?.specification || '默认规格', price: drug.value?.price || 0 }
+    {
+      label: drug.value.specification || '默认规格',
+      price: drug.value.price || 0,
+      stock: drug.value.stock || 0
+    }
   ]
 })
 
 // 加载药品数据
 const loadDrugData = async () => {
   loading.value = true
+  error.value = false
   const drugId = route.params.id as string
-  
-  // 模拟API调用
-  setTimeout(() => {
-    const found = mockDrugs.find(d => d.id === drugId.split('-')[0])
-    if (found) {
-      drug.value = {
-        ...found,
-        id: drugId,
-        images: [found.image, found.image, found.image],
-        description: `${found.name}是一款常用的${found.category}药品，由${found.manufacturer}生产。`,
-        detail: `【药品名称】${found.name}\n【成分】详见说明书\n【适应症】${found.disease}\n【用法用量】${found.usage}\n【不良反应】偶见胃肠道不适\n【禁忌】对本品过敏者禁用\n【注意事项】请遵医嘱使用`,
-        approvalNumber: '国药准字Z' + Math.floor(Math.random() * 100000000),
-        storage: '密封，置阴凉干燥处',
-        contraindications: '对本品过敏者禁用',
-        precautions: '请遵医嘱使用，孕妇慎用',
-        adverseReactions: '偶见胃肠道不适、皮疹'
-      }
-    }
+
+  if (!drugId) {
+    ElMessage.error('药品ID不能为空')
+    error.value = true
     loading.value = false
-  }, 500)
+    return
+  }
+
+  try {
+    const data = await getDrugDetail(drugId)
+    // 兼容不同的返回格式
+    if (data) {
+      drug.value = data as Drug
+    } else {
+      throw new Error('数据为空')
+    }
+  } catch (err) {
+    console.error('获取药品详情失败:', err)
+    error.value = true
+    ElMessage.error('获取药品信息失败')
+  } finally {
+    loading.value = false
+  }
 }
 
 // 增加数量
@@ -84,43 +96,53 @@ const decreaseQuantity = () => {
 // 加入购物车
 const addToCart = () => {
   if (!drug.value) return
-  
-  cartStore.addItem({
-    drugId: drug.value.id,
-    name: drug.value.name,
-    specification: drug.value.specification,
-    manufacturer: drug.value.manufacturer,
-    price: drug.value.price,
-    quantity: quantity.value,
-    image: drug.value.image,
-    disease: drug.value.disease || '',
-    usage: drug.value.usage || '',
-    isRx: drug.value.isRx
-  })
-  
-  ElMessage.success('已加入购物车')
+
+  try {
+    cartStore.addItem({
+      drugId: drug.value.id,
+      name: drug.value.name || '未知药品',
+      specification: drug.value.specification || '',
+      manufacturer: drug.value.manufacturer || '',
+      price: drug.value.price || 0,
+      quantity: quantity.value,
+      image: drug.value.image || '',
+      disease: drug.value.disease || '',
+      usage: drug.value.usage || '',
+      isRx: drug.value.isRx || false
+    })
+
+    ElMessage.success('已加入购物车')
+  } catch (err) {
+    console.error('加入购物车失败:', err)
+    ElMessage.error('加入购物车失败')
+  }
 }
 
 // 立即购买
 const buyNow = () => {
   if (!drug.value) return
-  
-  // 先加入购物车
-  cartStore.addItem({
-    drugId: drug.value.id,
-    name: drug.value.name,
-    specification: drug.value.specification,
-    manufacturer: drug.value.manufacturer,
-    price: drug.value.price,
-    quantity: quantity.value,
-    image: drug.value.image,
-    disease: drug.value.disease || '',
-    usage: drug.value.usage || '',
-    isRx: drug.value.isRx
-  })
-  
-  // 跳转到订单确认页
-  router.push('/order/confirm')
+
+  try {
+    // 先加入购物车
+    cartStore.addItem({
+      drugId: drug.value.id,
+      name: drug.value.name || '未知药品',
+      specification: drug.value.specification || '',
+      manufacturer: drug.value.manufacturer || '',
+      price: drug.value.price || 0,
+      quantity: quantity.value,
+      image: drug.value.image || '',
+      disease: drug.value.disease || '',
+      usage: drug.value.usage || '',
+      isRx: drug.value.isRx || false
+    })
+
+    // 跳转到订单确认页
+    router.push('/order/confirm')
+  } catch (err) {
+    console.error('购买失败:', err)
+    ElMessage.error('操作失败')
+  }
 }
 
 // 返回上一页
@@ -128,9 +150,19 @@ const goBack = () => {
   router.back()
 }
 
+// 返回首页
+const goHome = () => {
+  router.push('/')
+}
+
 // 查看购物车
 const goToCart = () => {
   router.push('/cart')
+}
+
+// 重试加载
+const retryLoad = () => {
+  loadDrugData()
 }
 
 onMounted(() => {
@@ -141,29 +173,62 @@ onMounted(() => {
 <template>
   <div class="drug-detail-page">
     <!-- 顶部导航栏 -->
-    <div class="detail-header">
+    <div class="detail-header" :class="{ scrolled: false }">
       <div class="back-btn" @click="goBack">
         <el-icon><ArrowLeft /></el-icon>
       </div>
       <span class="header-title">药品详情</span>
       <div class="cart-btn" @click="goToCart">
         <el-icon><ShoppingCart /></el-icon>
-        <span v-if="cartStore.totalCount > 0" class="cart-badge">{{ cartStore.totalCount }}</span>
+        <span v-if="cartStore.totalCount > 0" class="cart-badge">{{ cartStore.totalCount > 99 ? '99+' : cartStore.totalCount }}</span>
       </div>
     </div>
 
+    <!-- 加载状态 -->
     <div v-if="loading" class="loading-container">
-      <el-skeleton :rows="10" animated />
+      <el-skeleton animated>
+        <template #template>
+          <!-- 图片骨架 -->
+          <div style="width: 100%; aspect-ratio: 1; background: #f5f5f5; margin-bottom: 12px;" />
+          <!-- 价格骨架 -->
+          <div style="padding: 16px; background: #fff;">
+            <el-skeleton-item variant="text" style="width: 40%; height: 32px; margin-bottom: 8px;" />
+            <el-skeleton-item variant="text" style="width: 30%;" />
+          </div>
+          <!-- 信息骨架 -->
+          <div style="padding: 16px; background: #fff; margin-top: 12px;">
+            <el-skeleton-item variant="h1" style="width: 70%; margin-bottom: 12px;" />
+            <el-skeleton-item variant="text" style="width: 50%; margin-bottom: 8px;" />
+            <el-skeleton-item variant="text" style="width: 60%;" />
+          </div>
+        </template>
+      </el-skeleton>
     </div>
 
-    <template v-else-if="drug">
+    <!-- 错误状态 -->
+    <div v-else-if="error || !drug" class="error-container">
+      <el-empty description="加载失败" :image-size="120">
+        <el-button type="primary" @click="retryLoad">重新加载</el-button>
+      </el-empty>
+    </div>
+
+    <!-- 药品详情内容 -->
+    <template v-else>
       <!-- 图片轮播 -->
       <div class="image-section">
-        <div class="image-swiper">
-          <img :src="images[currentSwiperIndex]" :alt="drug.name" />
-          <div v-if="drug.isRx" class="rx-tag">处方药</div>
+        <div class="image-swiper" :style="{ backgroundColor: drug.imageColor || '#3B8CFF' }">
+          <img
+            v-if="drug.imageUrl"
+            :src="drug.imageUrl"
+            class="drug-image"
+            :alt="drug.name"
+          />
+          <div v-else class="image-placeholder">
+            <span class="image-text">{{ drug.imageText || drug.name?.slice(0, 2) || '药' }}</span>
+          </div>
+          <span v-if="drug.isRx" class="rx-tag">处方药</span>
         </div>
-        <div class="swiper-dots">
+        <div v-if="images.length > 1" class="swiper-dots">
           <span
             v-for="(_, index) in images"
             :key="index"
@@ -178,35 +243,36 @@ onMounted(() => {
       <div class="price-section">
         <div class="price-row">
           <span class="price-symbol">¥</span>
-          <span class="price-value">{{ drug.price.toFixed(2) }}</span>
-          <span v-if="drug.originalPrice" class="original-price">¥{{ drug.originalPrice.toFixed(2) }}</span>
+          <span class="price-value">{{ (drug.price || 0).toFixed(2) }}</span>
+          <span v-if="drug.originalPrice && drug.originalPrice > drug.price" class="original-price">¥{{ drug.originalPrice.toFixed(2) }}</span>
         </div>
         <div class="sales-info">
-          <span class="sales">已售 {{ drug.sales > 10000 ? (drug.sales / 10000).toFixed(1) + '万' : drug.sales }}</span>
+          <span class="sales">已售 {{ drug.sales > 10000 ? (drug.sales / 10000).toFixed(1) + '万' : (drug.sales || 0) }}</span>
           <span v-if="drug.stock > 0" class="stock">库存充足</span>
+          <span v-else class="stock out-of-stock">暂无库存</span>
         </div>
       </div>
 
       <!-- 药品基本信息 -->
       <div class="info-section">
-        <h1 class="drug-name">{{ drug.name }}</h1>
-        <p class="drug-spec">规格：{{ drug.specification }}</p>
-        <p class="drug-manufacturer">生产厂家：{{ drug.manufacturer }}</p>
+        <h1 class="drug-name">{{ drug.name || '未知药品' }}</h1>
+        <p v-if="drug.specification" class="drug-spec">规格：{{ drug.specification }}</p>
+        <p v-if="drug.manufacturer" class="drug-manufacturer">生产厂家：{{ drug.manufacturer }}</p>
         <div v-if="drug.tags?.length" class="drug-tags">
           <span v-for="tag in drug.tags" :key="tag" class="tag">{{ tag }}</span>
         </div>
       </div>
 
       <!-- 规格选择 -->
-      <div class="spec-section">
+      <div v-if="specs.length > 0" class="spec-section">
         <div class="section-title">规格选择</div>
         <div class="spec-list">
           <div
             v-for="(spec, index) in specs"
             :key="index"
             class="spec-item"
-            :class="{ active: selectedSpec === index }"
-            @click="selectedSpec = index"
+            :class="{ active: selectedSpec === index, disabled: spec.stock <= 0 }"
+            @click="spec.stock > 0 && (selectedSpec = index)"
           >
             <span class="spec-label">{{ spec.label }}</span>
             <span class="spec-price">¥{{ spec.price.toFixed(2) }}</span>
@@ -234,35 +300,35 @@ onMounted(() => {
         <div class="instruction-content" :class="{ expanded: instructionExpanded }">
           <div class="instruction-item">
             <span class="label">【适应症】</span>
-            <span class="value">{{ drug.disease }}</span>
+            <span class="value">{{ drug.disease || '详见说明书' }}</span>
           </div>
           <div class="instruction-item">
             <span class="label">【用法用量】</span>
-            <span class="value">{{ drug.usage }}</span>
+            <span class="value">{{ drug.usage || '详见说明书' }}</span>
           </div>
-          <div class="instruction-item">
+          <div v-if="drug.approvalNumber" class="instruction-item">
             <span class="label">【批准文号】</span>
             <span class="value">{{ drug.approvalNumber }}</span>
           </div>
           <div class="instruction-item">
             <span class="label">【生产厂家】</span>
-            <span class="value">{{ drug.manufacturer }}</span>
+            <span class="value">{{ drug.manufacturer || '详见说明书' }}</span>
           </div>
           <div class="instruction-item">
             <span class="label">【贮藏】</span>
-            <span class="value">{{ drug.storage }}</span>
+            <span class="value">{{ drug.storage || '密封，置阴凉干燥处' }}</span>
           </div>
           <div class="instruction-item">
             <span class="label">【禁忌】</span>
-            <span class="value">{{ drug.contraindications }}</span>
+            <span class="value">{{ drug.contraindications || '详见说明书' }}</span>
           </div>
           <div class="instruction-item">
             <span class="label">【注意事项】</span>
-            <span class="value">{{ drug.precautions }}</span>
+            <span class="value">{{ drug.precautions || '请遵医嘱使用' }}</span>
           </div>
           <div class="instruction-item">
             <span class="label">【不良反应】</span>
-            <span class="value">{{ drug.adverseReactions }}</span>
+            <span class="value">{{ drug.adverseReactions || '详见说明书' }}</span>
           </div>
         </div>
         <div class="expand-btn" @click="instructionExpanded = !instructionExpanded">
@@ -278,8 +344,8 @@ onMounted(() => {
       <div class="bottom-placeholder" />
     </template>
 
-    <!-- 底部操作栏 -->
-    <div v-if="drug" class="bottom-actions">
+    <!-- 底部操作栏（仅在非loading和非error时显示）-->
+    <div v-if="drug && !loading && !error" class="bottom-actions">
       <div class="action-btns">
         <div class="icon-btn" @click="goHome">
           <el-icon><HomeFilled /></el-icon>
@@ -288,12 +354,14 @@ onMounted(() => {
         <div class="icon-btn" @click="goToCart">
           <el-icon><ShoppingCart /></el-icon>
           <span>购物车</span>
-          <span v-if="cartStore.totalCount > 0" class="badge">{{ cartStore.totalCount }}</span>
+          <span v-if="cartStore.totalCount > 0" class="badge">{{ cartStore.totalCount > 99 ? '99+' : cartStore.totalCount }}</span>
         </div>
       </div>
       <div class="buy-btns">
         <button class="btn-cart" @click="addToCart">加入购物车</button>
-        <button class="btn-buy" @click="buyNow">立即购买</button>
+        <button class="btn-buy" @click="buyNow" :disabled="drug.stock <= 0">
+          {{ drug.stock <= 0 ? '暂无库存' : '立即购买' }}
+        </button>
       </div>
     </div>
   </div>
@@ -320,12 +388,27 @@ onMounted(() => {
   justify-content: space-between;
   padding: $spacing-md;
   padding-top: calc($safe-area-top + $spacing-md);
-  background: transparent;
-  transition: background 0.3s ease;
+  background: rgba(59, 140, 255, 0.95);
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
 
   &.scrolled {
     background: $bg-white;
     box-shadow: $shadow-sm;
+
+    .back-btn,
+    .cart-btn {
+      color: $text-primary;
+      background: rgba(0, 0, 0, 0.05);
+    }
+
+    .header-title {
+      color: $text-primary;
+    }
+
+    .cart-badge {
+      background: $error;
+    }
   }
 
   .back-btn,
@@ -335,20 +418,26 @@ onMounted(() => {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.3);
+    background: rgba(255, 255, 255, 0.2);
     border-radius: 50%;
     color: $text-white;
     cursor: pointer;
+    transition: all 0.2s;
     position: relative;
 
     &:hover {
-      background: rgba(0, 0, 0, 0.5);
+      background: rgba(255, 255, 255, 0.3);
+      transform: scale(1.05);
+    }
+
+    &:active {
+      transform: scale(0.95);
     }
   }
 
   .header-title {
     font-size: $font-lg;
-    font-weight: 500;
+    font-weight: 600;
     color: $text-white;
   }
 
@@ -370,16 +459,22 @@ onMounted(() => {
   }
 }
 
-// 加载状态
-.loading-container {
+// 加载和错误状态
+.loading-container,
+.error-container {
   padding: $spacing-lg;
   padding-top: 100px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 60vh;
 }
 
 // 图片轮播
 .image-section {
   position: relative;
   background: $bg-white;
+  margin-top: 60px;
 
   .image-swiper {
     position: relative;
@@ -388,12 +483,26 @@ onMounted(() => {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: $bg-gray;
 
-    img {
-      max-width: 100%;
-      max-height: 100%;
-      object-fit: contain;
+    .drug-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .image-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      .image-text {
+        color: #fff;
+        font-size: 48px;
+        font-weight: bold;
+        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      }
     }
 
     .rx-tag {
@@ -405,6 +514,7 @@ onMounted(() => {
       font-size: $font-sm;
       padding: 4px 8px;
       border-radius: $radius-sm;
+      box-shadow: 0 2px 6px rgba($error, 0.3);
     }
   }
 
@@ -420,14 +530,14 @@ onMounted(() => {
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background: rgba(0, 0, 0, 0.3);
+      background: rgba(255, 255, 255, 0.5);
       cursor: pointer;
       transition: all 0.3s ease;
 
       &.active {
         width: 16px;
         border-radius: 4px;
-        background: $primary;
+        background: #fff;
       }
     }
   }
@@ -435,7 +545,7 @@ onMounted(() => {
 
 // 价格区域
 .price-section {
-  padding: $spacing-md;
+  padding: $spacing-lg;
   background: $bg-white;
   border-bottom: 1px solid $border-light;
 
@@ -448,7 +558,7 @@ onMounted(() => {
     .price-symbol {
       font-size: $font-md;
       color: $error;
-      font-weight: 500;
+      font-weight: 600;
     }
 
     .price-value {
@@ -461,6 +571,7 @@ onMounted(() => {
       font-size: $font-md;
       color: $text-tertiary;
       text-decoration: line-through;
+      margin-left: $spacing-sm;
     }
   }
 
@@ -472,13 +583,17 @@ onMounted(() => {
 
     .stock {
       color: $success;
+
+      &.out-of-stock {
+        color: $error;
+      }
     }
   }
 }
 
 // 信息区域
 .info-section {
-  padding: $spacing-md;
+  padding: $spacing-lg;
   background: $bg-white;
   margin-bottom: $spacing-sm;
 
@@ -486,7 +601,7 @@ onMounted(() => {
     font-size: $font-xl;
     font-weight: 600;
     color: $text-primary;
-    margin-bottom: $spacing-sm;
+    margin: 0 0 $spacing-sm 0;
     line-height: 1.4;
   }
 
@@ -494,7 +609,7 @@ onMounted(() => {
   .drug-manufacturer {
     font-size: $font-sm;
     color: $text-secondary;
-    margin-bottom: $spacing-xs;
+    margin: 0 0 $spacing-xs 0;
   }
 
   .drug-tags {
@@ -505,7 +620,7 @@ onMounted(() => {
 
     .tag {
       padding: 4px 8px;
-      background: rgba($primary, 0.1);
+      background: rgba($primary, 0.08);
       color: $primary;
       font-size: $font-xs;
       border-radius: $radius-sm;
@@ -513,16 +628,16 @@ onMounted(() => {
   }
 }
 
-// 规格选择
+// 规格选择、数量选择
 .spec-section,
 .quantity-section {
-  padding: $spacing-md;
+  padding: $spacing-lg;
   background: $bg-white;
   margin-bottom: $spacing-sm;
 
   .section-title {
     font-size: $font-md;
-    font-weight: 500;
+    font-weight: 600;
     color: $text-primary;
     margin-bottom: $spacing-md;
   }
@@ -539,13 +654,23 @@ onMounted(() => {
       cursor: pointer;
       transition: all 0.2s ease;
 
-      &:hover {
+      &:hover:not(.disabled) {
         border-color: $primary;
       }
 
       &.active {
         border-color: $primary;
-        background: rgba($primary, 0.1);
+        background: rgba($primary, 0.06);
+
+        .spec-label,
+        .spec-price {
+          color: $primary;
+        }
+      }
+
+      &.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
       }
 
       .spec-label {
@@ -569,12 +694,12 @@ onMounted(() => {
 
     .btn-minus,
     .btn-plus {
-      width: 32px;
-      height: 32px;
+      width: 36px;
+      height: 36px;
       display: flex;
       align-items: center;
       justify-content: center;
-      border: 1px solid $border-light;
+      border: 1px solid $border-color;
       background: $bg-white;
       border-radius: $radius-sm;
       cursor: pointer;
@@ -592,10 +717,10 @@ onMounted(() => {
     }
 
     .quantity-value {
-      min-width: 40px;
+      min-width: 48px;
       text-align: center;
-      font-size: $font-md;
-      font-weight: 500;
+      font-size: $font-lg;
+      font-weight: 600;
       color: $text-primary;
     }
   }
@@ -603,13 +728,13 @@ onMounted(() => {
 
 // 说明书
 .instruction-section {
-  padding: $spacing-md;
+  padding: $spacing-lg;
   background: $bg-white;
   margin-bottom: $spacing-sm;
 
   .section-title {
     font-size: $font-md;
-    font-weight: 500;
+    font-weight: 600;
     color: $text-primary;
     margin-bottom: $spacing-md;
   }
@@ -624,9 +749,9 @@ onMounted(() => {
     }
 
     .instruction-item {
-      margin-bottom: $spacing-sm;
+      margin-bottom: $spacing-md;
       font-size: $font-sm;
-      line-height: 1.6;
+      line-height: 1.7;
 
       .label {
         color: $text-secondary;
@@ -644,12 +769,17 @@ onMounted(() => {
     align-items: center;
     justify-content: center;
     gap: $spacing-xs;
-    padding: $spacing-sm;
+    padding: $spacing-md 0;
     margin-top: $spacing-sm;
     color: $primary;
     font-size: $font-sm;
     cursor: pointer;
     border-top: 1px solid $border-light;
+    transition: opacity 0.2s;
+
+    &:hover {
+      opacity: 0.8;
+    }
   }
 }
 
@@ -669,12 +799,12 @@ onMounted(() => {
   padding: $spacing-sm $spacing-md;
   padding-bottom: calc($safe-area-bottom + $spacing-sm);
   background: $bg-white;
-  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.08);
   z-index: 100;
 
   .action-btns {
     display: flex;
-    gap: $spacing-md;
+    gap: $spacing-xs;
 
     .icon-btn {
       display: flex;
@@ -685,13 +815,14 @@ onMounted(() => {
       color: $text-secondary;
       cursor: pointer;
       position: relative;
+      transition: all 0.2s;
 
       &:hover {
         color: $primary;
       }
 
       .el-icon {
-        font-size: 20px;
+        font-size: 22px;
       }
 
       span {
@@ -726,30 +857,43 @@ onMounted(() => {
     .btn-cart,
     .btn-buy {
       flex: 1;
-      height: 40px;
+      height: 44px;
       border: none;
       border-radius: $radius-lg;
       font-size: $font-md;
-      font-weight: 500;
+      font-weight: 600;
       cursor: pointer;
       transition: all 0.2s ease;
+
+      &:active {
+        transform: scale(0.98);
+      }
     }
 
     .btn-cart {
-      background: rgba($primary, 0.1);
-      color: $primary;
+      background: linear-gradient(135deg, #FFF4E6 0%, #FFE7BA 100%);
+      color: $warning;
+      border: 1px solid rgba($warning, 0.3);
 
       &:hover {
-        background: rgba($primary, 0.2);
+        background: linear-gradient(135deg, #FFE7BA 0%, #FFD9A0 100%);
       }
     }
 
     .btn-buy {
       background: linear-gradient(135deg, $primary 0%, $primary-light 100%);
       color: $text-white;
+      box-shadow: 0 4px 12px rgba($primary, 0.35);
 
-      &:hover {
-        opacity: 0.9;
+      &:hover:not(:disabled) {
+        box-shadow: 0 6px 16px rgba($primary, 0.45);
+        transform: translateY(-1px);
+      }
+
+      &:disabled {
+        background: #ccc;
+        box-shadow: none;
+        cursor: not-allowed;
       }
     }
   }
