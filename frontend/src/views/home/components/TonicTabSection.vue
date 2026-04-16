@@ -211,7 +211,7 @@ $text-tertiary: #999999;
 
 .tonic-tab-section {
   padding: 0 0 12px;
-  background: linear-gradient(180deg, $theme-blue-bg 0%, #F5F5F5 100%);
+  background: #F5F5F5;
   min-height: calc(100vh - 200px);
 }
 
@@ -220,6 +220,7 @@ $text-tertiary: #999999;
   background: #fff;
   border-radius: 12px;
   padding: 16px 12px;
+  margin-top: 0;
   margin-bottom: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }

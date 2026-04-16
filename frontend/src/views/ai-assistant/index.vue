@@ -153,31 +153,83 @@
             <div class="message-bubble" :class="message.type">
               <!-- 结构化内容展示 -->
               <div v-if="message.structured" class="structured-content">
+                <!-- 概述 -->
+                <div v-if="message.structured.summary" class="content-summary">
+                  <p v-html="highlightKeywords(message.structured.summary)"></p>
+                </div>
+
                 <!-- 原因分析 -->
                 <div v-if="message.structured.causeAnalysis" class="content-section">
                   <div class="section-title">
-                    <span class="title-icon">🔍</span>
+                    <span class="title-line"></span>
                     原因分析
                   </div>
                   <div class="section-body" v-html="highlightKeywords(message.structured.causeAnalysis)"></div>
                 </div>
 
-                <!-- 治疗方案 -->
-                <div v-if="message.structured.treatment" class="content-section">
-                  <div class="section-title">
-                    <span class="title-icon">💊</span>
-                    治疗方案
+                <!-- 可展开的内容 -->
+                <div v-show="message.expanded" class="expandable-content">
+                  <!-- 治疗方案 -->
+                  <div v-if="message.structured.treatment" class="content-section">
+                    <div class="section-title">
+                      <span class="title-line"></span>
+                      治疗方案
+                    </div>
+                    <div class="section-body treatment-body">
+                      <div v-html="formatTreatmentText(message.structured.treatment)"></div>
+                      <!-- 内嵌药品卡片 -->
+                      <div v-if="message.drugs?.length" class="inline-drug-list">
+                        <div
+                          v-for="drug in message.drugs"
+                          :key="drug.id"
+                          class="inline-drug-card"
+                          @click="goToDrugDetail(drug.id)"
+                        >
+                          <img :src="drug.image" class="inline-drug-img" :alt="drug.name">
+                          <div class="inline-drug-info">
+                            <div class="inline-drug-name">{{ drug.name }}</div>
+                            <div class="inline-drug-tag">{{ drug.indication || '治疗' + drug.name.replace(/[^\u4e00-\u9fa5]/g, '').slice(0, 4) }}</div>
+                          </div>
+                          <button class="inline-buy-btn" @click.stop="handleAddToCart(drug)">去购买</button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div class="section-body" v-html="highlightKeywords(message.structured.treatment)"></div>
+
+                  <!-- 生活建议 -->
+                  <div v-if="message.structured.lifestyle" class="content-section">
+                    <div class="section-title">
+                      <span class="title-line"></span>
+                      生活建议
+                    </div>
+                    <div class="section-body lifestyle-body" v-html="formatLifestyle(message.structured.lifestyle)"></div>
+                  </div>
+
+                  <!-- 何时就医 -->
+                  <div v-if="message.structured.whenToSeeDoctor" class="content-section warning-section">
+                    <div class="section-title">
+                      <span class="title-line warning"></span>
+                      何时需要就医？
+                    </div>
+                    <div class="section-body warning-body" v-html="formatWhenToSeeDoctor(message.structured.whenToSeeDoctor)"></div>
+                  </div>
+
+                  <!-- 追问 -->
+                  <div v-if="message.structured.followUp" class="follow-up-section">
+                    <div class="follow-up-text" v-html="highlightKeywords(message.structured.followUp)"></div>
+                  </div>
                 </div>
 
-                <!-- 注意事项 -->
-                <div v-if="message.structured.precautions" class="content-section">
-                  <div class="section-title">
-                    <span class="title-icon">⚠️</span>
-                    注意事项
+                <!-- 追问快捷卡片 -->
+                <div v-if="message.followUpChips?.length" class="follow-up-chips">
+                  <div
+                    v-for="(chip, idx) in message.followUpChips"
+                    :key="idx"
+                    class="follow-up-chip"
+                    @click="quickQuery(chip)"
+                  >
+                    {{ chip }}
                   </div>
-                  <div class="section-body">{{ message.structured.precautions }}</div>
                 </div>
 
                 <!-- 展开/收起按钮 -->
@@ -190,52 +242,7 @@
               <div v-else class="message-text" v-html="formatMessage(message.content)"></div>
             </div>
 
-            <!-- 推荐药品卡片 -->
-            <div v-if="message.drugs?.length" class="drug-recommend-section">
-              <div class="section-header">
-                <div class="header-icon">
-                  <el-icon><FirstAidKit /></el-icon>
-                </div>
-                <span class="header-title">为您推荐</span>
-                <span class="header-subtitle">{{ message.drugs.length }}款相关药品</span>
-              </div>
 
-              <div class="drug-list">
-                <div
-                  v-for="drug in message.drugs"
-                  :key="drug.id"
-                  class="drug-card"
-                  @click="goToDrugDetail(drug.id)"
-                >
-                  <div class="drug-image">
-                    <img :src="drug.image" :alt="drug.name">
-                    <div v-if="drug.isRx" class="rx-badge">处方药</div>
-                  </div>
-                  <div class="drug-info">
-                    <div class="drug-name">{{ drug.name }}</div>
-                    <div class="drug-indication">{{ drug.indication || '治疗' + drug.name.replace(/[^\u4e00-\u9fa5]/g, '').slice(0, 4) }}</div>
-                    <div class="drug-footer">
-                      <span class="drug-price">¥{{ drug.price.toFixed(2) }}</span>
-                      <button class="buy-btn" @click.stop="handleAddToCart(drug)">
-                        去购买
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- 快捷操作 -->
-              <div class="action-bar">
-                <button class="action-btn consult" @click="goToInquiry">
-                  <el-icon><User /></el-icon>
-                  咨询医生
-                </button>
-                <button class="action-btn add-all" @click="addToCart(message.drugs)">
-                  <el-icon><ShoppingCart /></el-icon>
-                  全部加购
-                </button>
-              </div>
-            </div>
 
             <!-- 推荐医生 -->
             <div v-if="message.doctors?.length" class="doctor-recommend-section">
@@ -298,18 +305,6 @@
 
     <!-- 底部输入区域 -->
     <div class="bottom-section">
-      <!-- 快捷操作栏（仅在对话状态显示） -->
-      <div v-if="messages.length" class="quick-bar">
-        <span
-          v-for="action in quickActions"
-          :key="action"
-          class="quick-tag"
-          @click="quickQuery(action)"
-        >
-          {{ action }}
-        </span>
-      </div>
-
       <!-- 输入框 -->
       <div class="input-bar">
         <button
@@ -426,6 +421,7 @@ const messages = ref<Array<{
   drugs?: RecommendedDrug[]
   doctors?: RecommendedDoctor[]
   showActions?: boolean
+  followUpChips?: string[]
 }>>([])
 
 const inputMessage = ref('')
@@ -483,7 +479,49 @@ const qaList = [
 ]
 
 // 快捷操作
-const quickActions = ['感冒发烧吃什么药？', '孕妇可以吃这个药吗？', '这个药有什么副作用', '儿童用量是多少？']
+
+// 生成追问快捷卡片
+const generateFollowUpChips = (userQuestion: string, aiFollowUp?: string): string[] => {
+  const chips: string[] = []
+  
+  // 根据用户问题生成相关追问
+  if (userQuestion.includes('发烧') || userQuestion.includes('发热')) {
+    chips.push('感冒发烧吃什么药？')
+    chips.push('发烧多少度需要就医？')
+    chips.push('儿童发烧怎么退烧？')
+  } else if (userQuestion.includes('咳嗽')) {
+    chips.push('咳嗽吃什么药？')
+    chips.push('干咳和湿咳怎么区分？')
+    chips.push('咳嗽多久不好需要看医生？')
+  } else if (userQuestion.includes('头痛') || userQuestion.includes('头疼')) {
+    chips.push('头痛吃什么药？')
+    chips.push('偏头痛怎么缓解？')
+    chips.push('头痛伴随什么症状需要就医？')
+  } else if (userQuestion.includes('感冒')) {
+    chips.push('感冒发烧吃什么药？')
+    chips.push('风寒感冒和风热感冒怎么区分？')
+    chips.push('感冒多久能好？')
+  } else if (userQuestion.includes('过敏')) {
+    chips.push('过敏吃什么药？')
+    chips.push('过敏原怎么检测？')
+    chips.push('过敏能根治吗？')
+  } else if (userQuestion.includes('腹泻') || userQuestion.includes('拉肚子')) {
+    chips.push('腹泻吃什么药？')
+    chips.push('腹泻需要禁食吗？')
+    chips.push('腹泻多久不好需要就医？')
+  } else if (userQuestion.includes('胃痛') || userQuestion.includes('胃疼')) {
+    chips.push('胃痛吃什么药？')
+    chips.push('胃酸过多怎么缓解？')
+    chips.push('胃痛伴随什么症状需要就医？')
+  } else {
+    // 默认追问
+    chips.push('感冒发烧吃什么药？')
+    chips.push('孕妇可以吃这个药吗？')
+    chips.push('这个药有什么副作用？')
+  }
+  
+  return chips.slice(0, 3)
+}
 
 // 历史记录
 const historyList = ref<Array<{
@@ -639,33 +677,96 @@ const shouldShowDrugRecommendation = (userMessage: string): boolean => {
 // 解析结构化内容
 const parseStructuredContent = (content: string) => {
   const structured: {
+    summary?: string
     causeAnalysis?: string
     treatment?: string
-    precautions?: string
+    lifestyle?: string
+    whenToSeeDoctor?: string
+    followUp?: string
     hasMore?: boolean
   } = {}
 
+  // 提取概述（第一段）
+  const summaryMatch = content.match(/^([^]*?)(?=\n\s*(?:原因分析|病因|可能原因|治疗|方案)|$)/i)
+  if (summaryMatch && summaryMatch[1].trim().length > 20) {
+    structured.summary = summaryMatch[1].trim()
+  }
+
   // 提取原因分析
-  const causeMatch = content.match(/(?:原因分析|病因|可能原因)[：:]?\s*([^]*?)(?=\n\s*(?:治疗|方案|注意|建议)|$)/i)
+  const causeMatch = content.match(/(?:原因分析|病因|可能原因)[：:]?\s*([^]*?)(?=\n\s*(?:治疗|方案|生活建议|何时|注意|建议|追问)|$)/i)
   if (causeMatch) {
     structured.causeAnalysis = causeMatch[1].trim()
   }
 
   // 提取治疗方案
-  const treatmentMatch = content.match(/(?:治疗方案|治疗|用药建议)[：:]?\s*([^]*?)(?=\n\s*(?:注意|建议|提醒)|$)/i)
+  const treatmentMatch = content.match(/(?:治疗方案|治疗|用药建议)[：:]?\s*([^]*?)(?=\n\s*(?:生活建议|何时|注意|建议|追问)|$)/i)
   if (treatmentMatch) {
     structured.treatment = treatmentMatch[1].trim()
   }
 
-  // 提取注意事项
-  const precautionsMatch = content.match(/(?:注意事项|注意|提醒)[：:]?\s*([^]*?)$/i)
-  if (precautionsMatch) {
-    structured.precautions = precautionsMatch[1].trim()
+  // 提取生活建议
+  const lifestyleMatch = content.match(/(?:生活建议|日常建议|护理建议)[：:]?\s*([^]*?)(?=\n\s*(?:何时|就医|注意|建议|追问)|$)/i)
+  if (lifestyleMatch) {
+    structured.lifestyle = lifestyleMatch[1].trim()
   }
 
-  structured.hasMore = !!(structured.causeAnalysis || structured.treatment)
+  // 提取何时就医
+  const whenToSeeDoctorMatch = content.match(/(?:何时需要就医|何时就医|就医提示|需要就医)[：:]?\s*([^]*?)(?=\n\s*(?:追问|注意|建议)|$)/i)
+  if (whenToSeeDoctorMatch) {
+    structured.whenToSeeDoctor = whenToSeeDoctorMatch[1].trim()
+  }
+
+  // 提取追问
+  const followUpMatch = content.match(/(?:追问|请问|你可以告诉我|有没有)[：:]?\s*([^]*?)$/i)
+  if (followUpMatch) {
+    structured.followUp = followUpMatch[1].trim()
+  }
+
+  structured.hasMore = !!(structured.treatment || structured.lifestyle || structured.whenToSeeDoctor || structured.followUp)
 
   return structured
+}
+
+// 格式化治疗方案文本（去除markdown风格）
+const formatTreatmentText = (content: string) => {
+  let formatted = content
+  
+  // 去除markdown加粗 **xxx**
+  formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+  
+  // 去除markdown斜体 *xxx*
+  formatted = formatted.replace(/\*([^*]+)\*/g, '$1')
+  
+  // 处理列表项（以•或-或*开头的行）
+  formatted = formatted.replace(/^[\s]*[•\-\*][\s]+(.+)$/gm, '<div class="treatment-item">$1</div>')
+  
+  // 处理数字列表（如"1. xxx"）
+  formatted = formatted.replace(/^[\s]*\d+\.\s+(.+)$/gm, '<div class="treatment-item">$1</div>')
+  
+  // 处理子标题（如"干咳无痰："）
+  formatted = formatted.replace(/([^：]+：)/g, '<strong class="treatment-subtitle">$1</strong>')
+  
+  return highlightKeywords(formatted)
+}
+
+// 格式化生活建议
+const formatLifestyle = (content: string) => {
+  let formatted = content
+  
+  // 处理列表项
+  formatted = formatted.replace(/^[\s]*[•\-\*][\s]+(.+)$/gm, '<div class="lifestyle-item"><span class="lifestyle-dot"></span>$1</div>')
+  
+  return highlightKeywords(formatted)
+}
+
+// 格式化何时就医
+const formatWhenToSeeDoctor = (content: string) => {
+  let formatted = content
+  
+  // 处理列表项
+  formatted = formatted.replace(/^[\s]*[•\-\*][\s]+(.+)$/gm, '<div class="warning-item"><span class="warning-dot"></span>$1</div>')
+  
+  return highlightKeywords(formatted)
 }
 
 // 发送消息
@@ -711,13 +812,17 @@ const sendMessage = async () => {
         recommendedDrugs = getRecommendedDrugs(text)
       }
 
+      // 生成追问快捷卡片
+      const followUpChips = generateFollowUpChips(text, structured.followUp)
+
       messages.value.push({
         type: 'ai',
         content: data.content,
         structured: structured.hasMore ? structured : undefined,
         expanded: false,
         drugs: recommendedDrugs,
-        showActions: data.showActions || (recommendedDrugs && recommendedDrugs.length > 0)
+        showActions: data.showActions || (recommendedDrugs && recommendedDrugs.length > 0),
+        followUpChips
       })
 
       saveHistory()
@@ -1576,8 +1681,22 @@ $radius-full: 9999px;
 
 // 结构化内容
 .structured-content {
-  .content-section {
+  // 概述
+  .content-summary {
     margin-bottom: $space-md;
+    padding-bottom: $space-md;
+    border-bottom: 1px solid #F0F0F0;
+
+    p {
+      font-size: 15px;
+      color: $text-primary;
+      line-height: 1.7;
+      margin: 0;
+    }
+  }
+
+  .content-section {
+    margin-bottom: $space-lg;
 
     &:last-child {
       margin-bottom: 0;
@@ -1586,25 +1705,176 @@ $radius-full: 9999px;
     .section-title {
       display: flex;
       align-items: center;
-      gap: $space-xs;
-      font-size: 15px;
+      gap: $space-sm;
+      font-size: 16px;
       font-weight: 600;
       color: $text-primary;
-      margin-bottom: $space-sm;
+      margin-bottom: $space-md;
 
-      .title-icon {
-        font-size: 16px;
+      .title-line {
+        width: 4px;
+        height: 18px;
+        background: $primary;
+        border-radius: 2px;
+
+        &.warning {
+          background: #FF5252;
+        }
       }
     }
 
     .section-body {
       font-size: 14px;
       color: $text-secondary;
-      line-height: 1.7;
+      line-height: 1.8;
+
+      :deep(.highlight-keyword) {
+        color: $primary;
+        font-weight: 600;
+      }
+
+      // 治疗方案样式
+      :deep(.treatment-item) {
+        margin-bottom: $space-md;
+        padding-left: $space-md;
+        position: relative;
+
+        &::before {
+          content: '•';
+          position: absolute;
+          left: 0;
+          color: $primary;
+          font-weight: bold;
+        }
+      }
+
+      :deep(.treatment-subtitle) {
+        color: $text-primary;
+        font-weight: 600;
+        display: block;
+        margin-bottom: $space-xs;
+      }
+
+      :deep(.drug-name-link) {
+        color: $primary;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: underline;
+        text-decoration-color: rgba($primary, 0.3);
+        transition: all 0.2s;
+
+        &:hover {
+          text-decoration-color: $primary;
+        }
+      }
+
+      // 生活建议样式
+      :deep(.lifestyle-item) {
+        position: relative;
+        padding-left: 14px;
+        margin-bottom: $space-sm;
+        font-size: 14px;
+        line-height: 1.8;
+
+        &::before {
+          content: '';
+          position: absolute;
+          left: 0;
+          top: 10px;
+          width: 6px;
+          height: 6px;
+          background: $primary;
+          border-radius: 50%;
+        }
+      }
+
+      // 何时就医样式
+      :deep(.warning-item) {
+        position: relative;
+        padding-left: 14px;
+        margin-bottom: $space-sm;
+        font-size: 14px;
+        line-height: 1.8;
+        color: #D48806;
+
+        &::before {
+          content: '';
+          position: absolute;
+          left: 0;
+          top: 10px;
+          width: 6px;
+          height: 6px;
+          background: #FF5252;
+          border-radius: 50%;
+        }
+      }
+    }
+
+    // 警告区域特殊样式
+    &.warning-section {
+      background: #FFFBE6;
+      border-radius: $radius-md;
+      padding: $space-md;
+      margin: $space-md 0;
+
+      .section-title {
+        color: #D48806;
+      }
+
+      .section-body {
+        color: #666;
+      }
+    }
+  }
+
+  // 追问区域
+  .follow-up-section {
+    display: flex;
+    align-items: flex-start;
+    gap: $space-sm;
+    margin-top: $space-lg;
+    padding: $space-md;
+    background: #F0F7FF;
+    border-radius: $radius-md;
+    border-left: 3px solid #2196F3;
+
+    .follow-up-icon {
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .follow-up-text {
+      font-size: 14px;
+      color: $text-primary;
+      line-height: 1.6;
 
       :deep(.highlight-keyword) {
         color: $primary;
         font-weight: 500;
+      }
+    }
+  }
+
+  // 追问快捷卡片
+  .follow-up-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $space-sm;
+    margin-top: $space-md;
+
+    .follow-up-chip {
+      padding: 8px 16px;
+      background: #F0F7FF;
+      border: 1px solid #D6E4FF;
+      border-radius: $radius-full;
+      font-size: 13px;
+      color: #1890FF;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+
+      &:active {
+        background: #D6E4FF;
       }
     }
   }
@@ -1627,6 +1897,74 @@ $radius-full: 9999px;
       &.expanded {
         transform: rotate(180deg);
       }
+    }
+  }
+}
+
+// 内嵌药品列表（治疗方案中）
+.inline-drug-list {
+  margin-top: $space-md;
+  display: flex;
+  flex-direction: column;
+  gap: $space-sm;
+}
+
+.inline-drug-card {
+  display: flex;
+  align-items: center;
+  gap: $space-sm;
+  padding: $space-sm;
+  background: #F5F5F5;
+  border-radius: $radius-md;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:active {
+    background: #EEEEEE;
+  }
+
+  .inline-drug-img {
+    width: 48px;
+    height: 48px;
+    object-fit: cover;
+    border-radius: $radius-sm;
+    flex-shrink: 0;
+  }
+
+  .inline-drug-info {
+    flex: 1;
+    min-width: 0;
+
+    .inline-drug-name {
+      font-size: 14px;
+      font-weight: 500;
+      color: $text-primary;
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .inline-drug-tag {
+      font-size: 12px;
+      color: $text-tertiary;
+    }
+  }
+
+  .inline-buy-btn {
+    padding: 6px 12px;
+    background: $primary;
+    color: white;
+    border: none;
+    border-radius: $radius-full;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+
+    &:active {
+      opacity: 0.8;
     }
   }
 }

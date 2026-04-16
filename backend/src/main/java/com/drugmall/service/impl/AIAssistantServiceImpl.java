@@ -90,8 +90,8 @@ public class AIAssistantServiceImpl implements AIAssistantService {
             response.setContent(aiResponse);
             response.setSessionId(sessionId);
 
-            // 6. 推荐相关药品
-            List<AIChatVO.RecommendedDrug> recommendedDrugs = recommendDrugs(chatDTO.getMessage());
+            // 6. 从AI回复中提取药品名称并推荐
+            List<AIChatVO.RecommendedDrug> recommendedDrugs = recommendDrugsFromAIResponse(aiResponse);
             response.setDrugs(recommendedDrugs);
             response.setShowActions(!recommendedDrugs.isEmpty());
 
@@ -206,7 +206,140 @@ public class AIAssistantServiceImpl implements AIAssistantService {
     }
 
     /**
-     * 推荐相关药品
+     * 从AI回复中提取药品名称并推荐
+     */
+    private List<AIChatVO.RecommendedDrug> recommendDrugsFromAIResponse(String aiResponse) {
+        try {
+            // 从AI回复中提取药品名称
+            Set<String> drugNames = extractDrugNames(aiResponse);
+            
+            if (drugNames.isEmpty()) {
+                return Collections.emptyList();
+            }
+            
+            // 根据提取的药品名称查询数据库
+            List<Drug> drugs = searchDrugsByNames(new ArrayList<>(drugNames));
+            
+            if (drugs == null || drugs.isEmpty()) {
+                return Collections.emptyList();
+            }
+            
+            List<AIChatVO.RecommendedDrug> recommendedDrugs = new ArrayList<>();
+            for (Drug drug : drugs) {
+                AIChatVO.RecommendedDrug recommendedDrug = new AIChatVO.RecommendedDrug();
+                recommendedDrug.setId(drug.getId().toString());
+                recommendedDrug.setName(drug.getName());
+                recommendedDrug.setImage(drug.getImage());
+                recommendedDrug.setPrice(drug.getPrice() != null ? drug.getPrice().doubleValue() : 0.0);
+                recommendedDrug.setSpec(drug.getSpecification());
+                recommendedDrug.setManufacturer(drug.getManufacturer());
+                recommendedDrug.setIsRx(drug.getIsRx() != null && drug.getIsRx());
+                recommendedDrugs.add(recommendedDrug);
+            }
+            
+            return recommendedDrugs;
+            
+        } catch (Exception e) {
+            log.error("从AI回复推荐药品失败", e);
+            return Collections.emptyList();
+        }
+    }
+    
+    /**
+     * 从AI回复中提取药品名称
+     */
+    private Set<String> extractDrugNames(String aiResponse) {
+        Set<String> drugNames = new LinkedHashSet<>();
+        
+        // 常见药品关键词模式
+        String[] patterns = {
+            "可选用(.*?)(?:缓解|治疗|帮助|止咳|祛痰|退烧|止痛|消炎|抗过敏)",
+            "可使用(.*?)(?:缓解|治疗|帮助|止咳|祛痰|退烧|止痛|消炎|抗过敏)",
+            "推荐使用(.*?)(?:缓解|治疗|帮助|止咳|祛痰|退烧|止痛|消炎|抗过敏)",
+            "建议服用(.*?)(?:缓解|治疗|帮助|止咳|祛痰|退烧|止痛|消炎|抗过敏)",
+            "可选择(.*?)(?:缓解|治疗|帮助|止咳|祛痰|退烧|止痛|消炎|抗过敏)",
+            "服用(.*?)(?:胶囊|膏|颗粒|片|口服液|糖浆|散|丸|栓|贴|喷雾)",
+            "选用(.*?)(?:胶囊|膏|颗粒|片|口服液|糖浆|散|丸|栓|贴|喷雾)"
+        };
+        
+        for (String pattern : patterns) {
+            java.util.regex.Pattern p = java.util.regex.Pattern.compile(pattern);
+            java.util.regex.Matcher m = p.matcher(aiResponse);
+            while (m.find()) {
+                String drugName = m.group(1).trim();
+                // 清理药品名称
+                drugName = drugName.replaceAll("[，。、；：,.;:]", "").trim();
+                if (drugName.length() > 1 && drugName.length() < 30) {
+                    drugNames.add(drugName);
+                }
+            }
+        }
+        
+        // 如果没有提取到，尝试从常见药品名称中匹配
+        if (drugNames.isEmpty()) {
+            String[] commonDrugs = {
+                "布洛芬", "对乙酰氨基酚", "阿莫西林", "头孢", "氯雷他定",
+                "蒙脱石散", "京都念慈菴", "川贝枇杷膏", "咳特灵", "感冒灵",
+                "连花清瘟", "板蓝根", "维生素C", "奥美拉唑", "多潘立酮",
+                "双黄连", "小柴胡", "藿香正气", "健胃消食片", "复方甘草片"
+            };
+            
+            for (String drug : commonDrugs) {
+                if (aiResponse.contains(drug)) {
+                    drugNames.add(drug);
+                }
+            }
+        }
+        
+        log.info("从AI回复中提取到药品名称: {}", drugNames);
+        return drugNames;
+    }
+    
+    /**
+     * 根据药品名称列表搜索药品
+     */
+    private List<Drug> searchDrugsByNames(List<String> drugNames) {
+        try {
+            List<Drug> allDrugs = new ArrayList<>();
+            
+            for (String drugName : drugNames) {
+                com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Drug> queryWrapper =
+                        new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+                
+                queryWrapper.like(Drug::getName, drugName)
+                        .or()
+                        .like(Drug::getDescription, drugName);
+                
+                queryWrapper.eq(Drug::getStatus, 1);
+                queryWrapper.orderByDesc(Drug::getSales);
+                queryWrapper.last("LIMIT 2");
+                
+                List<Drug> drugs = drugMapper.selectList(queryWrapper);
+                if (drugs != null && !drugs.isEmpty()) {
+                    allDrugs.addAll(drugs);
+                }
+            }
+            
+            // 去重（按药品ID）
+            return allDrugs.stream()
+                    .collect(java.util.stream.Collectors.toMap(
+                            Drug::getId,
+                            drug -> drug,
+                            (existing, replacement) -> existing
+                    ))
+                    .values()
+                    .stream()
+                    .limit(5)
+                    .collect(java.util.stream.Collectors.toList());
+            
+        } catch (Exception e) {
+            log.error("根据药品名称搜索失败", e);
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * 推荐相关药品（保留原有方法作为备用）
      */
     private List<AIChatVO.RecommendedDrug> recommendDrugs(String userMessage) {
         try {

@@ -66,34 +66,6 @@
       </div>
     </div>
 
-    <!-- 慢病分类快捷入口 -->
-    <div class="chronic-categories">
-      <div class="category-item" @click="goToCategory('hypertension')">
-        <div class="category-icon" style="background: linear-gradient(135deg, #FF6B6B 0%, #EE5A6F 100%)">
-          <span>🫀</span>
-        </div>
-        <span class="category-name">高血压</span>
-      </div>
-      <div class="category-item" @click="goToCategory('diabetes')">
-        <div class="category-icon" style="background: linear-gradient(135deg, #4ECDC4 0%, #44A08D 100%)">
-          <span>🩸</span>
-        </div>
-        <span class="category-name">糖尿病</span>
-      </div>
-      <div class="category-item" @click="goToCategory('heart')">
-        <div class="category-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%)">
-          <span>❤️</span>
-        </div>
-        <span class="category-name">心脏病</span>
-      </div>
-      <div class="category-item" @click="goToCategory('respiratory')">
-        <div class="category-icon" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%)">
-          <span>🫁</span>
-        </div>
-        <span class="category-name">呼吸系统</span>
-      </div>
-    </div>
-
     <!-- 活动Banner -->
     <div class="activity-banner">
       <img src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=150&fit=crop" alt="慢病管理" />
@@ -235,11 +207,6 @@ const handleKingkongClick = (item: any) => {
   item.isActive = true
 }
 
-// 去分类
-const goToCategory = (category: string) => {
-  router.push(`/category?type=chronic&sub=${category}`)
-}
-
 // 去商品详情
 const goToProduct = (id: string) => {
   router.push(`/drug/${id}`)
@@ -260,7 +227,7 @@ $text-tertiary: #999999;
 
 .chronic-tab-section {
   padding: 0 0 12px;
-  background: linear-gradient(180deg, $theme-teal-bg 0%, #F5F5F5 100%);
+  background: #F5F5F5;
   min-height: calc(100vh - 200px);
 }
 
@@ -269,6 +236,7 @@ $text-tertiary: #999999;
   background: #fff;
   border-radius: 12px;
   padding: 16px 12px;
+  margin-top: 0;
   margin-bottom: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
@@ -409,42 +377,6 @@ $text-tertiary: #999999;
       top: 8px;
       right: 8px;
       font-size: 24px;
-    }
-  }
-}
-
-// 慢病分类快捷入口
-.chronic-categories {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-  margin-bottom: 12px;
-  background: #fff;
-  border-radius: 12px;
-  padding: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-
-  .category-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    cursor: pointer;
-
-    .category-icon {
-      width: 56px;
-      height: 56px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 8px;
-      font-size: 28px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    }
-
-    .category-name {
-      font-size: 12px;
-      color: $text-secondary;
     }
   }
 }

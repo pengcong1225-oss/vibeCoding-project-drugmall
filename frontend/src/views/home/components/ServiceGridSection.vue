@@ -106,17 +106,17 @@ function handleScroll() {
 </script>
 
 <style scoped lang="scss">
-$primary-yellow: #FFD100;
-$text-primary: #333333;
+$primary-cyan: #0891B2;
+$text-primary: #1A1A1A;
 $text-secondary: #666666;
 $text-tertiary: #999999;
 
 .service-section {
   background: #fff;
-  margin: -20px 12px 10px;
+  margin: -28px 12px 10px;
   border-radius: 16px;
-  padding: 14px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  padding: 12px 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   position: relative;
   z-index: 2;
 
@@ -250,7 +250,7 @@ $text-tertiary: #999999;
         &.active {
           width: 12px;
           border-radius: 3px;
-          background: $primary-yellow;
+          background: $primary-cyan;
         }
       }
     }

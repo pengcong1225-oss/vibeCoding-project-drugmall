@@ -108,7 +108,7 @@ function handleProductClick(item: WaterfallItemData) {
 
 $price-red: #FF4D4F;
 $accent-green: #00C9A7;
-$text-primary: #333333;
+$text-primary: #1A1A1A;
 $text-tertiary: #999999;
 
 .waterfall-section {

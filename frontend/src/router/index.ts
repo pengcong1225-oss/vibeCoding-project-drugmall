@@ -212,7 +212,7 @@ router.beforeEach((to, from, next) => {
   
   // 简单的登录验证
   const token = localStorage.getItem('token')
-  const needAuth = !['Login', 'Home', 'Category', 'Search', 'DrugDetail', 'AiAssistant'].includes(to.name as string)
+  const needAuth = !['Login', 'Home', 'Category', 'Search', 'DrugDetail'].includes(to.name as string)
   
   if (needAuth && !token) {
     next('/login')

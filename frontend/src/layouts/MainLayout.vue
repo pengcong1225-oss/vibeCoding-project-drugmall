@@ -8,10 +8,10 @@
         </keep-alive>
       </router-view>
     </div>
-    
-    <!-- 底部导航栏 -->
-    <Tabbar v-if="showTabbar" />
   </div>
+  
+  <!-- 底部导航栏 - 放在布局外部 -->
+  <Tabbar v-if="showTabbar" />
 </template>
 
 <script setup lang="ts">
@@ -37,6 +37,8 @@ const showTabbar = computed(() => {
 .main-layout {
   min-height: 100vh;
   background-color: $bg-primary;
+  max-width: 430px;
+  margin: 0 auto;
 }
 
 .page-content {

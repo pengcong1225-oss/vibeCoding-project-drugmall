@@ -258,9 +258,9 @@ onUnmounted(() => {
 <style lang="scss">
 @use '@/styles/variables' as *;
 
-$primary-yellow: #FFD100;
-$primary-teal: #00C9A7;
-$bg-gray: #F5F5F5;
+$primary-cyan: #0891B2;
+$primary-light: #22D3EE;
+$bg-gray: #ECFEFF;
 $bg-teal: #F0F9F6;
 $bg-warm: #FFF9E6;
 
@@ -268,8 +268,6 @@ $bg-warm: #FFF9E6;
   min-height: 100vh;
   background: $bg-gray;
   padding-bottom: 80px;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
 
   // 头部渐变包装器 - 固定高度结构
   .header-wrapper {
@@ -280,18 +278,17 @@ $bg-warm: #FFF9E6;
     .header-gradient {
       padding: 8px 0 12px;
       transition: background 0.3s ease;
-      --tab-active-color: #FFD100;
-      // 默认推荐Tab - 黄色渐变
-      background: linear-gradient(180deg, #FFD100 0%, #FFE066 100%);
+      --tab-active-color: #0891B2;
+      // 默认推荐Tab - 青蓝科技感渐变
+      background: linear-gradient(180deg, #0891B2 0%, #22D3EE 100%);
     }
 
     // 渐变过渡区域 - 平滑过渡到内容区
     .header-fade {
-      height: 24px;
-      background: linear-gradient(180deg, 
-        #FFE066 0%, 
-        rgba(255, 224, 102, 0.5) 30%, 
-        rgba(255, 224, 102, 0.1) 70%, 
+      height: 12px;
+      background: linear-gradient(180deg,
+        #22D3EE 0%,
+        rgba(34, 211, 238, 0.3) 50%,
         transparent 100%
       );
       pointer-events: none;
@@ -308,69 +305,73 @@ $bg-warm: #FFF9E6;
     }
 
     .header-wrapper .header-fade {
-      background: linear-gradient(180deg, 
-        #00E5BF 0%, 
-        rgba(0, 229, 191, 0.5) 30%, 
-        rgba(0, 229, 191, 0.1) 70%, 
+      background: linear-gradient(180deg,
+        #00E5BF 0%,
+        rgba(0, 229, 191, 0.3) 50%,
         transparent 100%
       );
     }
   }
 
-  // 滋补保健Tab - 天蓝色系
+  // 滋补保健Tab - 独立头部设计
   &.theme-tcm {
-    background: #E8F4FC;
+    background: #F5F5F5;
 
-    .header-wrapper .header-gradient {
-      background: linear-gradient(180deg, #4A90E2 0%, #5BA3F5 100%);
-      --tab-active-color: #4A90E2;
-    }
+    .header-wrapper {
+      background: url('/images/tcm-header-bg.svg') no-repeat center top;
+      background-size: cover;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 
-    .header-wrapper .header-fade {
-      background: linear-gradient(180deg, 
-        #5BA3F5 0%, 
-        rgba(91, 163, 245, 0.5) 30%, 
-        rgba(91, 163, 245, 0.1) 70%, 
-        transparent 100%
-      );
+      .header-gradient {
+        background: transparent;
+        padding: 8px 0 0;
+        --tab-active-color: #D4A574;
+      }
+
+      .header-fade {
+        display: none;
+      }
     }
   }
 
-  // 慢病关怀Tab - 医疗青绿色系
+  // 慢病关怀Tab - 独立头部设计
   &.theme-chronic {
-    background: #E0F7F5;
+    background: #F5F5F5;
 
-    .header-wrapper .header-gradient {
-      background: linear-gradient(180deg, #00A896 0%, #00C9B7 100%);
-      --tab-active-color: #00A896;
-    }
+    .header-wrapper {
+      background: url('/images/chronic-header-bg.svg') no-repeat center top;
+      background-size: cover;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 
-    .header-wrapper .header-fade {
-      background: linear-gradient(180deg, 
-        #00C9B7 0%, 
-        rgba(0, 201, 183, 0.5) 30%, 
-        rgba(0, 201, 183, 0.1) 70%, 
-        transparent 100%
-      );
+      .header-gradient {
+        background: transparent;
+        padding: 8px 0 0;
+        --tab-active-color: #00A896;
+      }
+
+      .header-fade {
+        display: none;
+      }
     }
   }
 
-  // 做检测Tab - 暖黄色渐变背景
+  // 做检测Tab - 独立头部设计
   &.theme-test {
-    background: $bg-warm;
+    background: #F5F5F5;
 
-    .header-wrapper .header-gradient {
-      background: linear-gradient(180deg, #FFD93D 0%, #FFE066 100%);
-      --tab-active-color: #FFD93D;
-    }
+    .header-wrapper {
+      background: #FFD93D;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 
-    .header-wrapper .header-fade {
-      background: linear-gradient(180deg, 
-        #FFE066 0%, 
-        rgba(255, 224, 102, 0.5) 30%, 
-        rgba(255, 224, 102, 0.1) 70%, 
-        transparent 100%
-      );
+      .header-gradient {
+        background: transparent;
+        padding: 8px 0 0;
+        --tab-active-color: #FFD93D;
+      }
+
+      .header-fade {
+        display: none;
+      }
     }
   }
 

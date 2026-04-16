@@ -86,8 +86,9 @@ const tabs = computed(() => [
 </script>
 
 <style scoped lang="scss">
-$primary-yellow: #FFD100;
-$text-primary: #333333;
+$primary-cyan: #0891B2;
+$primary-light: #22D3EE;
+$text-primary: #1A1A1A;
 $text-secondary: #666666;
 $text-tertiary: #999999;
 
@@ -97,15 +98,16 @@ $text-tertiary: #999999;
   left: 0;
   right: 0;
   width: 100%;
-  background: #fff;
-  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+  background: linear-gradient(180deg, #FFFFFF 0%, #FAFAFA 100%);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
   z-index: 9999;
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .tabbar-inner {
   max-width: 430px;
   margin: 0 auto;
+  padding: 0 env(safe-area-inset-left, 0) 0 env(safe-area-inset-right, 0);
 }
 
 .tabbar-content {
@@ -113,7 +115,7 @@ $text-tertiary: #999999;
   justify-content: space-around;
   align-items: center;
   height: 56px;
-  padding: 0 20px;
+  padding: 0 32px;
 }
 
 .tab-item {
@@ -125,27 +127,32 @@ $text-tertiary: #999999;
   height: 100%;
   color: $text-tertiary;
   text-decoration: none;
-  transition: all 0.2s ease;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
 
+  &:active {
+    transform: scale(0.92);
+  }
+
   &.active {
-    color: $text-primary;
+    color: $primary-cyan;
   }
 
   // 中间健康管家特殊样式
   &.center-item {
       .center-icon-wrapper {
-        width: 48px;
-        height: 48px;
+        width: 52px;
+        height: 52px;
         border-radius: 50%;
-        background: transparent;
+        background: linear-gradient(135deg, #0E7490 0%, #0891B2 100%);
         display: flex;
         align-items: center;
         justify-content: center;
-        margin-top: -16px;
-        border: 3px solid #fff;
-        box-shadow: 0 4px 12px rgba(255, 209, 0, 0.3);
+        margin-top: -20px;
+        border: 4px solid #fff;
+        box-shadow: 0 6px 16px rgba(8, 145, 178, 0.4);
         overflow: hidden;
+        transition: all 0.3s ease;
 
         .center-icon {
           width: 100%;
@@ -155,19 +162,26 @@ $text-tertiary: #999999;
       }
 
     .center-text {
-      font-size: 11px;
+      font-size: 10px;
       color: $text-secondary;
-      margin-top: 2px;
-      transform: scale(0.9);
+      margin-top: 4px;
+      font-weight: 500;
+    }
+
+    &:active {
+      .center-icon-wrapper {
+        transform: scale(0.95);
+      }
     }
 
     &.active {
       .center-icon-wrapper {
-        background: linear-gradient(135deg, $primary-yellow 0%, #FFA500 100%);
+        background: linear-gradient(135deg, #0891B2 0%, #22D3EE 100%);
+        box-shadow: 0 6px 16px rgba(8, 145, 178, 0.4);
       }
       .center-text {
-        color: $text-primary;
-        font-weight: 500;
+        color: $primary-cyan;
+        font-weight: 600;
       }
     }
   }
@@ -175,31 +189,36 @@ $text-tertiary: #999999;
 
 .tab-icon {
   position: relative;
-  margin-bottom: 2px;
-  width: 24px;
-  height: 24px;
+  margin-bottom: 3px;
+  width: 26px;
+  height: 26px;
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 8px;
+  transition: all 0.25s ease;
 
   .tab-icon-img {
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
     object-fit: contain;
   }
 
   &.active {
-    color: $primary-yellow;
+    color: $primary-cyan;
+    background: rgba(8, 145, 178, 0.1);
   }
 }
 
 .tab-text {
   font-size: 11px;
   font-weight: 400;
+  transition: all 0.25s ease;
 
   &.active {
-    color: $primary-yellow;
+    color: $primary-cyan;
     font-weight: 600;
+    transform: scale(1.05);
   }
 }
 

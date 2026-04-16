@@ -1,10 +1,8 @@
 <template>
   <div class="tcm-banner-section">
-    <el-carousel height="180px" :interval="3000" arrow="never" indicator-position="outside">
+    <el-carousel height="200px" :interval="3000" arrow="never" indicator-position="outside">
       <el-carousel-item v-for="(slide, index) in bannerSlides" :key="index" @click="handleSlideClick(slide)">
         <div class="slide-wrapper">
-          <img :src="slide.image" :alt="slide.title" class="slide-bg" />
-          <div class="slide-overlay"></div>
           <div class="slide-content">
             <div class="slide-tag">{{ slide.tag }}</div>
             <h3 class="slide-title">{{ slide.title }}</h3>
@@ -18,8 +16,8 @@
               </div>
             </div>
           </div>
-          <div class="delivery-badge" v-if="slide.deliveryTime">
-            <span class="time">{{ slide.deliveryTime }}分钟达</span>
+          <div class="slide-image-wrapper">
+            <img :src="slide.image" :alt="slide.title" class="slide-image" />
           </div>
         </div>
       </el-carousel-item>
@@ -39,7 +37,7 @@ const bannerSlides = ref([
     price: '260',
     priceTag: '优惠价',
     deliveryTime: '26',
-    image: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=600&h=300&fit=crop',
+    image: '/images/商品1.jpeg',
     link: '/drug/1'
   },
   {
@@ -50,19 +48,8 @@ const bannerSlides = ref([
     price: '198',
     priceTag: '限时价',
     deliveryTime: '30',
-    image: 'https://images.unsplash.com/photo-1550572017-edd951aa8f72?w=600&h=300&fit=crop',
+    image: '/images/商品2.jpg',
     link: '/drug/2'
-  },
-  {
-    tag: '新品上市',
-    title: 'Swisse钙片维生素D柠檬酸钙',
-    subtitle: '{ 澳洲进口 品质保证 }',
-    originalPrice: '168',
-    price: '128',
-    priceTag: '新品价',
-    deliveryTime: '25',
-    image: 'https://images.unsplash.com/photo-1626285861696-9f0bf5a49c6d?w=600&h=300&fit=crop',
-    link: '/drug/3'
   }
 ])
 
@@ -83,6 +70,8 @@ const handleSlideClick = (slide: any) => {
       bottom: 12px;
       left: 50%;
       transform: translateX(-50%);
+      position: absolute;
+      z-index: 10;
 
       .el-carousel__indicator {
         padding: 0 4px;
@@ -101,7 +90,7 @@ const handleSlideClick = (slide: any) => {
     }
 
     .el-carousel__container {
-      height: 180px;
+      height: 200px;
     }
   }
 
@@ -111,37 +100,22 @@ const handleSlideClick = (slide: any) => {
     position: relative;
     overflow: hidden;
     cursor: pointer;
-  }
-
-  .slide-bg {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  .slide-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(90deg, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.3) 40%, transparent 100%);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    background: transparent;
   }
 
   .slide-content {
-    position: absolute;
-    top: 50%;
-    left: 16px;
-    transform: translateY(-50%);
+    flex: 1;
     z-index: 2;
-    color: #fff;
-    max-width: 65%;
+    color: #333;
+    max-width: 60%;
 
     .slide-tag {
       display: inline-block;
-      background: rgba(255, 255, 255, 0.25);
-      backdrop-filter: blur(4px);
-      color: #fff;
+      background: rgba(74, 144, 226, 0.15);
+      color: #4A90E2;
       font-size: 11px;
       padding: 3px 10px;
       border-radius: 12px;
@@ -153,12 +127,12 @@ const handleSlideClick = (slide: any) => {
       font-weight: bold;
       line-height: 1.4;
       margin-bottom: 6px;
-      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+      color: #333;
     }
 
     .slide-subtitle {
       font-size: 12px;
-      color: rgba(255, 255, 255, 0.9);
+      color: #666;
       margin-bottom: 12px;
     }
 
@@ -169,7 +143,7 @@ const handleSlideClick = (slide: any) => {
 
       .original-price {
         font-size: 12px;
-        color: rgba(255, 255, 255, 0.7);
+        color: #999;
         text-decoration: line-through;
       }
 
@@ -195,6 +169,26 @@ const handleSlideClick = (slide: any) => {
           margin-left: 2px;
         }
       }
+    }
+  }
+
+  .slide-image-wrapper {
+    position: absolute;
+    right: 60px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 1;
+    width: 120px;
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    .slide-image {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      border-radius: 8px;
     }
   }
 

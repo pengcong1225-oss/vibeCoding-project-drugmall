@@ -449,13 +449,13 @@ $card-bg: #FFFFFF;
 .section-card {
   background: $card-bg;
   border-radius: 0;
-  padding: 12px 16px;
+  padding: 12px 0;
   margin-bottom: 0;
   box-shadow: none;
 
   &.first-section {
     .section-header {
-      padding: 0 0 8px;
+      padding: 0 12px 8px;
       border-bottom: 1px solid #f5f5f5;
       margin-bottom: 8px;
 
@@ -484,6 +484,8 @@ $card-bg: #FFFFFF;
 
 // 话题样式
 .topic-item {
+  padding: 0 12px;
+
   .topic-header {
     display: flex;
     align-items: center;
@@ -531,8 +533,8 @@ $card-bg: #FFFFFF;
     overflow-x: auto;
     scrollbar-width: none;
     -ms-overflow-style: none;
-    margin: 0 -16px;
-    padding: 0 16px;
+    margin: 0 -12px;
+    padding: 0 12px;
 
     &::-webkit-scrollbar {
       display: none;
@@ -557,13 +559,14 @@ $card-bg: #FFFFFF;
   .product-card {
     background: #f8f8f8;
     border-radius: 8px;
-    padding: 8px;
+    padding: 10px;
     display: flex;
     flex-direction: row;
-    gap: 8px;
+    gap: 10px;
     cursor: pointer;
     transition: all 0.2s ease;
-    width: 260px;
+    width: calc(60vw - 16px);
+    max-width: 260px;
     flex-shrink: 0;
 
     &:active {
@@ -571,8 +574,8 @@ $card-bg: #FFFFFF;
     }
 
     .product-image {
-      width: 80px;
-      height: 80px;
+      width: 72px;
+      height: 72px;
       flex-shrink: 0;
       border-radius: 8px;
       overflow: hidden;
@@ -590,9 +593,10 @@ $card-bg: #FFFFFF;
       flex-direction: column;
       justify-content: space-between;
       min-width: 0;
+      overflow: hidden;
 
       .product-title {
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 500;
         color: $text-primary;
         line-height: 1.4;
@@ -600,34 +604,37 @@ $card-bg: #FFFFFF;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
+        word-break: break-all;
       }
 
       .product-sales {
-        font-size: 11px;
+        font-size: 12px;
         color: $text-tertiary;
+        margin-top: 4px;
       }
 
       .product-bottom {
         display: flex;
         justify-content: space-between;
         align-items: center;
+        margin-top: 6px;
 
         .product-price {
           color: $price-red;
 
           .price-symbol {
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 600;
           }
 
           .price-value {
-            font-size: 16px;
+            font-size: 18px;
             font-weight: 700;
           }
         }
 
         .delivery-time {
-          font-size: 10px;
+          font-size: 11px;
           color: $text-tertiary;
           white-space: nowrap;
         }

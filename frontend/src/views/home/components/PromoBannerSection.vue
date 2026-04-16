@@ -74,13 +74,13 @@ $text-secondary: #666666;
 
 .promo-banner-section {
   display: flex;
-  gap: 6px;
-  padding: 0 10px;
-  margin-bottom: 10px;
+  gap: 8px;
+  padding: 0 12px;
+  margin-bottom: 12px;
 
   .promo-left,
   .promo-right {
-    flex: 0 0 62px;
+    flex: 0 0 80px;
   }
 
   .promo-center {
@@ -88,11 +88,12 @@ $text-secondary: #666666;
   }
 
   .promo-card {
-    height: 78px;
-    border-radius: 12px;
+    height: 80px;
+    border-radius: 14px;
     overflow: hidden;
     cursor: pointer;
     transition: transform 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 
     &:active {
       transform: scale(0.98);
@@ -101,7 +102,7 @@ $text-secondary: #666666;
 
   // 左侧过敏报告
   .allergy-report {
-      background: linear-gradient(135deg, #FFE4E8 0%, #FFF2F5 100%);
+      background: linear-gradient(135deg, #FF9AA2 0%, #FFB7B2 100%);
       position: relative;
 
       .promo-content {
@@ -110,39 +111,40 @@ $text-secondary: #666666;
         align-items: center;
         justify-content: center;
         height: 100%;
-        padding: 5px;
-        gap: 3px;
+        padding: 8px;
+        gap: 4px;
       }
 
       .promo-avatar {
-        width: 36px;
-        height: 36px;
+        width: 42px;
+        height: 42px;
         border-radius: 50%;
         overflow: hidden;
-        background: linear-gradient(135deg, #FF8FAB 0%, #FF6B8A 100%);
+        background: linear-gradient(135deg, #FF6B6B 0%, #FF8E8E 100%);
         display: flex;
         align-items: center;
         justify-content: center;
         color: #fff;
-        box-shadow: 0 2px 4px rgba(255, 143, 171, 0.3);
+        box-shadow: 0 3px 8px rgba(255, 107, 107, 0.4);
       }
 
       .promo-tag {
-        background: #FFD700;
-        color: #333;
-        font-size: 9px;
+        background: #FFF;
+        color: #FF6B6B;
+        font-size: 10px;
         font-weight: 600;
-        padding: 1px 5px;
+        padding: 2px 6px;
         border-radius: 8px;
         line-height: 1.2;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
       }
     }
 
   // 中间主横幅
   .main-banner {
-    background: linear-gradient(135deg, #FFD100 0%, #FFE033 50%, #FFD100 100%);
+    background: linear-gradient(135deg, #0E7490 0%, #0891B2 100%);
     position: relative;
-    padding: 10px 12px;
+    padding: 12px 16px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -152,7 +154,7 @@ $text-secondary: #666666;
       display: flex;
       flex-direction: column;
       justify-content: center;
-      gap: 2px;
+      gap: 4px;
     }
 
     .brand-tag {
@@ -161,27 +163,28 @@ $text-secondary: #666666;
       gap: 4px;
 
       .brand-text {
-        font-size: 9px;
-        color: #8B6914;
+        font-size: 10px;
+        color: rgba(255, 255, 255, 0.9);
         font-weight: 500;
       }
     }
 
     .promo-title {
-      font-size: 15px;
+      font-size: 18px;
       font-weight: 700;
-      color: #333;
+      color: #fff;
       margin: 0;
       line-height: 1.2;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
     }
 
     .promo-subtitle {
       display: inline-block;
-      background: #FF6B35;
+      background: #22D3EE;
       color: #fff;
-      font-size: 9px;
+      font-size: 10px;
       font-weight: 600;
-      padding: 2px 6px;
+      padding: 3px 8px;
       border-radius: 8px;
       width: fit-content;
     }
@@ -201,12 +204,12 @@ $text-secondary: #666666;
 
         .pill-bottle {
           position: relative;
-          width: 52px;
-          height: 68px;
+          width: 60px;
+          height: 78px;
 
           .bottle-cap {
-            width: 22px;
-            height: 10px;
+            width: 26px;
+            height: 12px;
             background: linear-gradient(180deg, #F5F5F5 0%, #E0E0E0 100%);
             border-radius: 3px 3px 0 0;
             margin: 0 auto;
@@ -214,8 +217,8 @@ $text-secondary: #666666;
           }
 
           .bottle-body {
-            width: 48px;
-            height: 52px;
+            width: 56px;
+            height: 60px;
             background: linear-gradient(180deg, #FFFFFF 0%, #F5F5F5 100%);
             border-radius: 6px;
             border: 1px solid #E0E0E0;
@@ -226,9 +229,9 @@ $text-secondary: #666666;
             margin-top: -1px;
 
             .bottle-label {
-              font-size: 16px;
+              font-size: 18px;
               font-weight: bold;
-              color: #FF6B35;
+              color: #FF5722;
             }
           }
         }
@@ -238,7 +241,7 @@ $text-secondary: #666666;
 
   // 右侧过敏好物
   .allergy-product {
-    background: linear-gradient(135deg, #FFF8DC 0%, #FFFACD 100%);
+    background: linear-gradient(135deg, #A8E6CF 0%, #88D8A3 100%);
     position: relative;
 
     .promo-content {
@@ -247,8 +250,8 @@ $text-secondary: #666666;
       align-items: center;
       justify-content: center;
       height: 100%;
-      padding: 5px;
-      gap: 3px;
+      padding: 8px;
+      gap: 4px;
     }
 
     .product-showcase {
@@ -258,8 +261,8 @@ $text-secondary: #666666;
       justify-content: center;
 
       .medicine-box {
-        width: 38px;
-        height: 38px;
+        width: 44px;
+        height: 44px;
         position: relative;
 
         .box-front {
@@ -270,11 +273,11 @@ $text-secondary: #666666;
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+          box-shadow: 0 3px 8px rgba(76, 175, 80, 0.4);
           position: relative;
 
           .cross-icon {
-            font-size: 20px;
+            font-size: 24px;
             color: #fff;
             font-weight: bold;
             line-height: 1;
@@ -284,16 +287,18 @@ $text-secondary: #666666;
     }
 
     .promo-tag {
-      background: #FFD700;
-      color: #333;
-      font-size: 9px;
+      background: #fff;
+      color: #4CAF50;
+      font-size: 10px;
       font-weight: 600;
-      padding: 1px 5px;
+      padding: 2px 6px;
       border-radius: 8px;
       line-height: 1.2;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 
       &.yellow {
-        background: #FFD700;
+        background: #fff;
+        color: #4CAF50;
       }
     }
   }

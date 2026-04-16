@@ -156,9 +156,9 @@ onUnmounted(() => {
 </script>
 
 <style scoped lang="scss">
-$primary-yellow: #FFD100;
+$primary-cyan: #0891B2;
 $price-red: #FF4D4F;
-$text-primary: #333333;
+$text-primary: #1A1A1A;
 $text-secondary: #666666;
 $text-tertiary: #999999;
 
@@ -173,7 +173,7 @@ $text-tertiary: #999999;
     background: #fff;
     border-radius: 12px;
     padding: 10px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 
     .subsidy-header {
       display: flex;
@@ -188,7 +188,7 @@ $text-tertiary: #999999;
       }
 
       .subsidy-tag {
-        background: linear-gradient(90deg, #ff7a45 0%, #ff4d4f 100%);
+        background: linear-gradient(90deg, #0891B2 0%, #22D3EE 100%);
         color: #fff;
         padding: 2px 6px;
         border-radius: 4px;
@@ -296,6 +296,7 @@ $text-tertiary: #999999;
           width: 100%;
           height: 100%;
           object-fit: cover;
+          object-position: center;
         }
 
         .banner-bg {
@@ -332,8 +333,8 @@ $text-tertiary: #999999;
 
             .banner-btn {
               display: inline-block;
-              background: $primary-yellow;
-              color: $text-primary;
+              background: $primary-cyan;
+              color: #fff;
               padding: 3px 10px;
               border-radius: 10px;
               font-size: 11px;
