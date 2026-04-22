@@ -143,7 +143,8 @@ const goToCheckout = () => {
     return
   }
   
-  router.push('/order/confirm')
+  // 跳转到新的结算页
+  router.push('/inquiry/checkout/0')
 }
 
 // 继续购物

@@ -20,15 +20,19 @@
       </div>
     </div>
 
-    <!-- 搜索框 -->
+    <!-- 搜索框和购物车 -->
     <div class="search-box-wrapper">
       <div class="search-box" @click="$emit('searchClick')">
         <el-icon class="search-icon"><Search /></el-icon>
-        <span class="placeholder">过敏鼻炎 自救指南</span>
+        <span class="placeholder">百蕊颗粒</span>
         <div class="camera-btn" @click.stop="$emit('scanCode')">
           <el-icon><Camera /></el-icon>
         </div>
         <div class="search-btn">搜索</div>
+      </div>
+      <!-- 吸顶时显示的购物车 -->
+      <div class="sticky-cart-btn" @click="$emit('cartClick')">
+        <el-icon><ShoppingCart /></el-icon>
       </div>
     </div>
   </div>
@@ -72,6 +76,7 @@ $text-tertiary: #999999;
 .search-section {
   padding: 6px 12px 4px;
   background: transparent;
+  transition: all 0.3s ease;
 
   .top-nav {
     display: flex;
@@ -141,11 +146,17 @@ $text-tertiary: #999999;
       color: $text-primary;
       font-size: 22px;
       cursor: pointer;
+      transition: all 0.3s ease;
     }
   }
 
   .search-box-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
     .search-box {
+      flex: 1;
       display: flex;
       align-items: center;
       background: #fff;
@@ -184,9 +195,20 @@ $text-tertiary: #999999;
         cursor: pointer;
         transition: color 0.3s ease;
         background: transparent;
-
-
       }
+    }
+
+    // 吸顶时显示的购物车按钮
+    .sticky-cart-btn {
+      display: none;
+      width: 36px;
+      height: 36px;
+      align-items: center;
+      justify-content: center;
+      color: #333;
+      font-size: 22px;
+      cursor: pointer;
+      flex-shrink: 0;
     }
   }
 }

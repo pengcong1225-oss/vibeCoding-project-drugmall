@@ -46,6 +46,21 @@ export function getDrugFAQs(drugId: string) {
   return http.get<DrugFAQ[]>(`/drugs/${drugId}/faqs`)
 }
 
+// 获取药品在售门店列表
+export function getDrugStores(drugId: string, params?: { lat?: number; lng?: number; limit?: number }) {
+  return http.get<{
+    id: number
+    name: string
+    price: number
+    originalPrice: number
+    distance: string
+    delivery: string
+    rating: number
+    sales: number
+    tags: string[]
+  }[]>(`/drugs/${drugId}/stores`, params)
+}
+
 // 搜索建议
 export function getSearchSuggestions(keyword: string) {
   return http.get<string[]>('/drugs/search/suggestions', { keyword })

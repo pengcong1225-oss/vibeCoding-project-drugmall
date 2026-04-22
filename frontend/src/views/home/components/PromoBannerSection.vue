@@ -68,9 +68,7 @@ const handleRightClick = () => emit('rightClick')
 </script>
 
 <style scoped lang="scss">
-$primary-yellow: #FFD100;
-$text-primary: #333333;
-$text-secondary: #666666;
+@use '@/styles/variables' as *;
 
 .promo-banner-section {
   display: flex;
@@ -93,16 +91,16 @@ $text-secondary: #666666;
     overflow: hidden;
     cursor: pointer;
     transition: transform 0.2s ease;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    box-shadow: $shadow-sm;
 
     &:active {
       transform: scale(0.98);
     }
   }
 
-  // 左侧过敏报告
+  // 左侧过敏报告 - 使用青绿色系
   .allergy-report {
-      background: linear-gradient(135deg, #FF9AA2 0%, #FFB7B2 100%);
+      background: linear-gradient(135deg, $primary-light 0%, $primary 100%);
       position: relative;
 
       .promo-content {
@@ -120,17 +118,17 @@ $text-secondary: #666666;
         height: 42px;
         border-radius: 50%;
         overflow: hidden;
-        background: linear-gradient(135deg, #FF6B6B 0%, #FF8E8E 100%);
+        background: linear-gradient(135deg, $primary-dark 0%, $primary 100%);
         display: flex;
         align-items: center;
         justify-content: center;
         color: #fff;
-        box-shadow: 0 3px 8px rgba(255, 107, 107, 0.4);
+        box-shadow: 0 3px 8px rgba($primary, 0.4);
       }
 
       .promo-tag {
         background: #FFF;
-        color: #FF6B6B;
+        color: $primary;
         font-size: 10px;
         font-weight: 600;
         padding: 2px 6px;
@@ -140,9 +138,9 @@ $text-secondary: #666666;
       }
     }
 
-  // 中间主横幅
+  // 中间主横幅 - 使用深青绿色
   .main-banner {
-    background: linear-gradient(135deg, #0E7490 0%, #0891B2 100%);
+    background: linear-gradient(135deg, $primary-dark 0%, $primary 100%);
     position: relative;
     padding: 12px 16px;
     display: flex;
@@ -180,7 +178,7 @@ $text-secondary: #666666;
 
     .promo-subtitle {
       display: inline-block;
-      background: #22D3EE;
+      background: rgba(255, 255, 255, 0.25);
       color: #fff;
       font-size: 10px;
       font-weight: 600;
@@ -239,9 +237,9 @@ $text-secondary: #666666;
     }
   }
 
-  // 右侧过敏好物
+  // 右侧过敏好物 - 使用辅助色
   .allergy-product {
-    background: linear-gradient(135deg, #A8E6CF 0%, #88D8A3 100%);
+    background: linear-gradient(135deg, $bg-secondary 0%, rgba($primary, 0.15) 100%);
     position: relative;
 
     .promo-content {
@@ -268,12 +266,12 @@ $text-secondary: #666666;
         .box-front {
           width: 100%;
           height: 100%;
-          background: linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%);
+          background: linear-gradient(135deg, $primary 0%, $primary-light 100%);
           border-radius: 6px;
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 3px 8px rgba(76, 175, 80, 0.4);
+          box-shadow: 0 3px 8px rgba($primary, 0.4);
           position: relative;
 
           .cross-icon {
@@ -288,7 +286,7 @@ $text-secondary: #666666;
 
     .promo-tag {
       background: #fff;
-      color: #4CAF50;
+      color: $primary;
       font-size: 10px;
       font-weight: 600;
       padding: 2px 6px;
@@ -298,7 +296,7 @@ $text-secondary: #666666;
 
       &.yellow {
         background: #fff;
-        color: #4CAF50;
+        color: $primary;
       }
     }
   }

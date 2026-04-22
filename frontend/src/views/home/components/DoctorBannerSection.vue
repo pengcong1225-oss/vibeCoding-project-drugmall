@@ -43,13 +43,6 @@ defineEmits<{
 <style scoped lang="scss">
 @use '@/styles/variables' as *;
 
-$primary-teal: #00C9A7;
-$primary-teal-light: #00E5BF;
-$primary-teal-dark: #00B894;
-$text-primary: #1A1A1A;
-$text-secondary: #666666;
-$text-tertiary: #999999;
-
 .doctor-banner {
   margin: 0 12px 10px;
   padding: 14px;
@@ -93,7 +86,7 @@ $text-tertiary: #999999;
         bottom: -2px;
         left: 50%;
         transform: translateX(-50%);
-        background: $primary-teal;
+        background: $primary;
         color: #fff;
         padding: 1px 6px;
         border-radius: 8px;
@@ -121,7 +114,7 @@ $text-tertiary: #999999;
           align-items: center;
           gap: 2px;
           padding: 2px 8px;
-          background: linear-gradient(135deg, #FF6B6B 0%, #FF8E8E 100%);
+          background: linear-gradient(135deg, $warning 0%, lighten($warning, 10%) 100%);
           border-radius: 10px;
           font-size: 11px;
           font-weight: 600;
@@ -145,7 +138,7 @@ $text-tertiary: #999999;
     align-items: center;
     gap: 4px;
     padding: 10px 18px;
-    background: $primary-teal;
+    background: $primary;
     color: white;
     border: none;
     border-radius: 20px;
@@ -161,7 +154,7 @@ $text-tertiary: #999999;
     }
 
     &:active {
-      background: $primary-teal-dark;
+      background: $primary-dark;
       transform: scale(0.95);
     }
   }
@@ -174,17 +167,17 @@ $text-tertiary: #999999;
     gap: 4px;
     margin-top: 12px;
     padding-top: 12px;
-    border-top: 1px dashed rgba($primary-teal, 0.2);
+    border-top: 1px dashed rgba($primary, 0.2);
 
     .quote {
       font-size: 14px;
-      color: $primary-teal;
+      color: $primary;
       opacity: 0.5;
     }
 
     .hint-text {
       font-size: 13px;
-      color: $primary-teal;
+      color: $primary;
       line-height: 1.5;
     }
   }

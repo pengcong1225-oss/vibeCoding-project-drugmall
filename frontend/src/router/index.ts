@@ -77,6 +77,24 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '我的处方' }
   },
   {
+    path: '/prescription/apply',
+    name: 'PrescriptionApply',
+    component: () => import('@/views/prescription/apply.vue'),
+    meta: { title: '补充处方信息' }
+  },
+  {
+    path: '/prescription/consult',
+    name: 'PrescriptionConsult',
+    component: () => import('@/views/prescription/consult.vue'),
+    meta: { title: '复诊开方' }
+  },
+  {
+    path: '/prescription/success',
+    name: 'PrescriptionSuccess',
+    component: () => import('@/views/prescription/success.vue'),
+    meta: { title: '处方开具成功' }
+  },
+  {
     path: '/inquiry',
     name: 'Inquiry',
     component: () => import('@/views/inquiry/index.vue'),
@@ -93,6 +111,12 @@ const routes: RouteRecordRaw[] = [
     name: 'InquiryPre',
     component: () => import('@/views/inquiry/pre.vue'),
     meta: { title: '专家问诊' }
+  },
+  {
+    path: '/inquiry/triage/:departmentCode',
+    name: 'DepartmentTriage',
+    component: () => import('@/views/inquiry/department-triage.vue'),
+    meta: { title: '科室导诊台' }
   },
   {
     path: '/inquiry/pay/:consultationId',
@@ -155,6 +179,18 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '就诊人管理' }
   },
   {
+    path: '/patient/add',
+    name: 'PatientAdd',
+    component: () => import('@/views/patient/add.vue'),
+    meta: { title: '添加就诊人' }
+  },
+  {
+    path: '/patient/edit',
+    name: 'PatientEdit',
+    component: () => import('@/views/patient/edit.vue'),
+    meta: { title: '编辑就诊人' }
+  },
+  {
     path: '/address',
     name: 'AddressList',
     component: () => import('@/views/address/list.vue'),
@@ -165,6 +201,12 @@ const routes: RouteRecordRaw[] = [
     name: 'StoreDetail',
     component: () => import('@/views/store/detail.vue'),
     meta: { title: '药店详情' }
+  },
+  {
+    path: '/store/:storeId/drug/:drugId',
+    name: 'StoreDrugDetail',
+    component: () => import('@/views/store/drug-detail.vue'),
+    meta: { title: '商品详情' }
   },
   {
     path: '/help',
@@ -212,10 +254,30 @@ router.beforeEach((to, from, next) => {
   
   // 简单的登录验证
   const token = localStorage.getItem('token')
-  const needAuth = !['Login', 'Home', 'Category', 'Search', 'DrugDetail'].includes(to.name as string)
   
-  if (needAuth && !token) {
-    next('/login')
+  // 需要登录的页面
+  const needAuthRoutes = [
+    'OrderConfirm',
+    'OrderPay',
+    'OrderList',
+    'OrderDetail',
+    'PrescriptionList',
+    'InquiryList',
+    'InquiryPre',
+    'InquiryPay',
+    'InquiryCheckout',
+    'InquiryWaiting',
+    'InquiryChat',
+    'PatientList',
+    'AddressList',
+    'Settings'
+  ]
+  
+  if (needAuthRoutes.includes(to.name as string) && !token) {
+    next({
+      path: '/login',
+      query: { redirect: to.fullPath }
+    })
   } else {
     next()
   }

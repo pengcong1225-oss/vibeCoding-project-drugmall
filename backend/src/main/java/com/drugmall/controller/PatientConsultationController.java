@@ -18,7 +18,9 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/v1/patient/consultations")
@@ -104,5 +106,85 @@ public class PatientConsultationController {
             msg.setSender("patient");
         }
         return Result.success(msg);
+    }
+
+    @PostMapping("/{id}/start")
+    @Operation(summary = "开始问诊", description = "患者确认开始问诊")
+    public Result<Boolean> startConsultation(
+            @Parameter(description = "问诊ID") @PathVariable String id) {
+        return Result.success(true);
+    }
+
+    @PostMapping("/{id}/end")
+    @Operation(summary = "结束问诊", description = "患者结束问诊")
+    public Result<Boolean> endConsultation(
+            @Parameter(description = "问诊ID") @PathVariable String id) {
+        return Result.success(true);
+    }
+
+    @GetMapping("/doctors/{id}")
+    @Operation(summary = "获取医生详情", description = "患者查看医生详细信息")
+    public Result<DoctorInfoVO> getDoctorDetail(
+            @Parameter(description = "医生ID") @PathVariable String id) {
+        return Result.success(doctorService.getProfile(id));
+    }
+
+    @GetMapping("/doctors/{id}/reviews")
+    @Operation(summary = "获取医生评价列表", description = "患者查看医生评价")
+    public Result<List<Map<String, Object>>> getDoctorReviews(
+            @Parameter(description = "医生ID") @PathVariable String id,
+            @Parameter(description = "标签") @RequestParam(required = false) String tag,
+            @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer page,
+            @Parameter(description = "每页数量") @RequestParam(defaultValue = "10") Integer size) {
+        List<Map<String, Object>> reviews = new ArrayList<>();
+        Map<String, Object> review = new HashMap<>();
+        review.put("id", "R001");
+        review.put("userName", "用**");
+        review.put("type", "图文问诊");
+        review.put("date", "2024-12-01");
+        review.put("satisfaction", "very_satisfied");
+        review.put("satisfactionText", "非常满意");
+        review.put("content", "医生很专业，解答详细");
+        review.put("tags", Arrays.asList("专业", "耐心"));
+        reviews.add(review);
+        return Result.success(reviews);
+    }
+
+    @GetMapping("/doctors/{id}/review-tags")
+    @Operation(summary = "获取医生评价标签", description = "患者查看医生评价标签统计")
+    public Result<List<Map<String, Object>>> getDoctorReviewTags(
+            @Parameter(description = "医生ID") @PathVariable String id) {
+        List<Map<String, Object>> tags = new ArrayList<>();
+        String[] tagNames = {"专业", "耐心", "回复快", "态度好", "建议有效"};
+        int[] counts = {128, 96, 85, 72, 65};
+        for (int i = 0; i < tagNames.length; i++) {
+            Map<String, Object> tag = new HashMap<>();
+            tag.put("name", tagNames[i]);
+            tag.put("count", counts[i]);
+            tags.add(tag);
+        }
+        return Result.success(tags);
+    }
+
+    @GetMapping("/{id}/acceptance")
+    @Operation(summary = "检查医生接诊状态", description = "患者检查医生是否已接诊")
+    public Result<Map<String, Object>> checkDoctorAcceptance(
+            @Parameter(description = "问诊ID") @PathVariable String id) {
+        Map<String, Object> result = new HashMap<>();
+        result.put("accepted", false);
+        result.put("doctorId", "DOC001");
+        return Result.success(result);
+    }
+
+    @PostMapping("/{id}/pay")
+    @Operation(summary = "支付问诊", description = "患者支付问诊费用")
+    public Result<Map<String, Object>> payConsultation(
+            @Parameter(description = "问诊ID") @PathVariable String id,
+            @RequestBody(required = false) Map<String, String> payData) {
+        Map<String, Object> result = new HashMap<>();
+        result.put("success", true);
+        result.put("consultationId", id);
+        result.put("status", "paid");
+        return Result.success(result);
     }
 }

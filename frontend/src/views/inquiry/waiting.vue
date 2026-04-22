@@ -307,7 +307,7 @@ onUnmounted(() => {
 @use '@/styles/variables' as *;
 
 $primary-green: #00C9A7;
-$primary-green-light: #00b894;
+$primary-green-light: #00B894;
 
 .waiting-page {
   min-height: 100vh;

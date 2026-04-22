@@ -177,6 +177,7 @@ $text-secondary: #666666;
 .category-tabs-section {
   background: transparent;
   padding: 0 12px 4px;
+  transition: all 0.3s ease;
 }
 
 .category-tabs {

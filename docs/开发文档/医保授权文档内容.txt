@@ -1,0 +1,221 @@
+
+用户授权接入文档
+（医保信息授权）
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+腾讯科技（深圳）有限公司
+版权所有  侵权必究
+
+
+1.用户授权接入说明
+局方、医疗机构等公众业务查询微信用户的医保信息，需要通过微信医保平台获得用户授权。
+平台检查用户电子凭证绑卡状态，并返回唯一的查询授权码，公众号后台基于授权码查询接口得到用户的医保电子凭证信息。未绑卡用户，平台将引导用户先绑定电子凭证。
+公众号/小程序引导用户跳转授权页进行授权，通过回跳地址获得授权码，基于授权码调接口查询医保信息。
+2.网页授权
+2.1业务流程
+
+2.2本人支付及代亲人支付（获取payAuthNo/AuthNo）页面授权
+当做医保移动支付时，需要获取用户的payAuthNo和经纬度信息时；或者做电子处方流转时，需要获取AuthNo时，使用此种页面授权方式，最终的用户信息获取，调用“2.4获取用户信息服务接口”。
+2.2.1.H5授权
+接入方提供回跳地址RETURN_URL，微信医保处理后页面回跳至RETURN_URL/?retCode=RETCODE&authCode=AUTHCODE
+说明：合作方根据返回的retCode和authCode处理逻辑。如果回调的链接有多余的参数拼接返回，无需处理。
+2.2.2.小程序授权
+接入方提供小程序的appid，由微信医保平台开通权限；接入方跳转至微信医保平台的小程序，校验用户身份信息合法，就会回跳至接入方小程序，并带上授权码。
+
+接入方跳到小程序
+使用wx.navigateToMiniProgram()跳转到我们小程序获取授权码，相关参数如下
+示例代码：
+wx.navigateToMiniProgram({
+appId: 'wxe183cd55df4b4369', path:'auth/pages/bindcard/auth/index?openType=getAuthCode&cityCode=CITYCODE&channel=CHANNEL&orgChnlCrtfCodg=XXX&orgCodg=XXX&bizType=04107&orgAppId=XXX ',
+      envVersion: 'trial'
+    })
+备注：如果是生产环境，则需要修改小程序对应的版本，envVersion": "release"。
+
+小程序回跳到接入方
+校验成功后回跳接入方小程序，授权码在app.js的onShow函数里通过data.referrerInfo.extraData.authCode获取（注意是在app.js里的onShow()函数）
+示例代码：
+onShow: function (options) {
+    this.globalData.scene = options.scene;
+    if (this.globalData.scene === 1038) {
+      this.globalData.authCode = options.referrerInfo.extraData.authCode;
+    }
+  }
+
+2.2.3.授权链接拼接工具
+提供PC端授权链接拼接工具，在对应的输入框输入参数后，即可生成对应的公众号/小程序授权链接使用。
+2.2.4.页面授权请求参数
+说明：医保移动支付和电子处方流转使用不同的反馈单和不同的业务类型编码，无法混用，混用将无法调通。
+2.2.5.响应参数
+2.2.6.返回码
+2.3普通授权（建档选用）
+当医院需要获取用户信息进行登录/建档时，可以使用普通授权。该种授权方式与中台交互少，服务稳定。最终获取用户信息接口与支付授权的调用一致，都是使用“2.4获取用户信息服务接口”。
+
+
+2.3.1H5授权
+接入方提供回跳地址RETURN_URL，微信医保处理后页面回跳至RETURN_URL/?retCode=RETCODE&authCode=AUTHCODE
+说明：合作方根据返回的retCode和authCode处理逻辑。如果回调的链接有多余的参数拼接返回，无需处理。
+2.3.2小程序授权
+接入方提供小程序的appid，由微信医保开通权限；接入方跳转至微信医保平台的小程序，校验用户身份信息合法，就会回跳至接入方小程序，并带上授权码。
+
+接入方跳到小程序
+使用wx.navigateToMiniProgram()跳转到我们小程序获取授权码，相关参数如下
+示例代码：
+wx.navigateToMiniProgram({
+appId: 'wxe183cd55df4b4369', path:'auth/pages/bindcard/auth/index?openType=getAuthCode&cityCode=CITYCODE&channel=CHANNEL',
+      envVersion: 'trial'
+    })
+备注：如果是生产环境，则需要修改小程序对应的版本，envVersion": "release"。
+
+小程序回跳到接入方
+校验成功后回跳接入方小程序，授权码在app.js的onShow函数里通过data.referrerInfo.extraData.authCode获取（注意是在app.js里的onShow()函数）
+示例代码：
+onShow: function (options) {
+    this.globalData.scene = options.scene;
+    if (this.globalData.scene === 1038) {
+      this.globalData.authCode = options.referrerInfo.extraData.authCode;
+    }
+  }
+
+2.3.3页面授权请求参数
+2.3.4响应参数
+2.3.5返回码
+2.4获取用户信息服务接口
+2.4.1接口通用定义
+接口综述
+文档所有接口请求均为HTTPS-POST请求，UTF-8编码，请求和响应参数仅支持JSON数据格式；
+需联系腾讯工程师获取partnerId(合作方id)、partnerSecret(密钥)，生成校验signature(签名)；
+请求头信息
+god-portal-timestamp：当前的时间戳，精确到毫秒，格式为13位的数字串
+god-portal-request-id：随机的32位字符串
+god-portal-signature：请求签名，生成规则见(签名生成)
+签名生成
+请求签名通过HMAC-SHA256算法
+将partnerSecret做加密key，partnerId + god-portal-timestamp做加密数据生成god-portal-signature
+伪代码为: HMAC-SHA256(partnerSecret, partnerId + timestamp)
+签名demo
+见附录
+签名验证工具
+可以使用在线签名验证工具，验证授权签名的准确性。
+约定
+金额：默认为人民币，单位为分，参数值不能带小数
+时间：标准北京时间，时区为东八区，格式为YYYY-MM-DD HH:MM:SS
+2.4.2授权查询接口定义
+2.4.2.1接口地址
+测试环境地址：
+https://test-receiver.wecity.qq.com/api/mipuserquery/userQuery/$partnerId
+正式环境地址：
+https://receiver.wecity.qq.com/api/mipuserquery/userQuery/$partnerId
+
+以上两个域名都会指定到这四个固定ip上面124.223.124.58,101.35.76.229,114.132.130.204,175.178.31.29。如合作方对IP有白名单限制，可以设置这四个IP。
+2.4.2.2请求数据结构
+body为JSON格式，字段列表如下
+
+2.4.2.3响应数据
+亲属相关信息说明
+
+2.4.2.4.示例
+
+入参
+{"qrcode":"384198628503871591","openid":"oIdXs5a9-nmpowWaT50AHDJWQK"}
+出参
+{"code":0,"message":"success","pay_auth_no":"AUTH410100202205241618510007210","user_longitude_latitude":{"longitude":"113.700057","latitude":"34.747970"}}
+2.4.2.5返回码
+返回码约定
+通用返回码
+	
+业务返回码
+3.Version History
+附录-签名代码demo
+package com.tencent.wecity;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.io.*;
+import java.util.*;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+
+public class ClientDemo {
+private final static String partnerId = “20000011”;
+private final static String partnerSecret = “5dd6f0926a2e2b2cb19a5bcecb0e2df6”;
+private final static String url = “https://mip-receiver.tengmed.com/testapi/mipuserquery/userQuery/20000011”;
+private final static char[] hexArray = “0123456789abcdef”.toCharArray();
+
+private String bytesToHex(byte[] bytes) {
+        char[] hexChars = new char[bytes.length * 2];
+        for (int j = 0; j < bytes.length; j++) {
+            int v = bytes[j] & 0Xff;
+            hexChars[j * 2] = hexArray[v >>> 4];
+            hexChars[j * 2 + 1] = hexArray[v & 0x0F];
+        }
+        return new String(hexChars);
+}
+private String createSignature(String partnerSecret, String partnerId, String timestamp)
+        throws UnsupportedEncodingException, NoSuchAlgorithmException, InvalidKeyException {
+        Mac sha256_HMAC = Mac.getInstance(“HmacSHA256”);
+        SecretKeySpec secret_key = new SecretKeySpec(partnerSecret.getBytes(“UTF-8”), “HmacSHA256”);
+        sha256_HMAC.init(secret_key);
+        return bytesToHex(sha256_HMAC.doFinal((partnerId + timestamp).getBytes(“UTF-8”)));
+}
+
+private String postData(String businessName, String funcName, String partnerId, String data) 
+        throws IOException, NoSuchAlgorithmException, InvalidKeyException {
+        HttpURLConnection conn = null;
+        URL url = new URL(url);
+        conn = (HttpURLConnection) url.openConnection();
+        conn.setDoOutput(true);
+        conn.setDoInput(true);
+        conn.setRequestMethod(“POST”);
+        conn.setUseCaches(false);
+        conn.setInstanceFollowRedirects(true);
+        conn.setRequestProperty(“Content-Type”, “application/json”);
+        conn.setRequestProperty(“Accept”, “application/json”);
+        String timestamp = Long.toString(System.currentTimeMillis());
+        String signature = createSignature(partnerSecret, partnerId, timestamp);
+        String requestId = UUID.randomUUID().toString().replaceAll(“-“, “”);
+        conn.setRequestProperty(“god-portal-timestamp”,timestamp);
+        conn.setRequestProperty(“god-portal-signature”,signature);
+        conn.setRequestProperty(“god-portal-request-id”, requestId);
+        conn.connect();
+        OutputStream os = conn.getOutputStream();
+        os.write(data.getBytes());
+        os.flush();
+        os.close();
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        InputStream inputStream = conn.getInputStream();
+        byte[] bytes = new byte[1024];
+        int readBytes;
+        while((readBytes = inputStream.read(bytes)) != -1) {
+            byteArrayOutputStream.write(bytes, 0, readBytes);
+        }
+        bytes = byteArrayOutputStream.toByteArray();
+        inputStream.close();
+        conn.disconnect();
+        return new String(bytes, “utf-8”);
+}
+
+public static void main(String[] args) {
+        ClientDemo demo = new ClientDemo();
+        try {
+            System.out.println(demo.postData(“test”, “test2”, demo.partnerId, “{}”));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+}
+}

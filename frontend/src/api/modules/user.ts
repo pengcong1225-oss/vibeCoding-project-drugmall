@@ -74,32 +74,32 @@ export function setDefaultPatient(id: string) {
 
 // 获取地址列表
 export function getAddresses() {
-  return http.get<UserAddress[]>('/user/addresses')
+  return http.get<UserAddress[]>('/addresses')
 }
 
 // 获取默认地址
 export function getDefaultAddress() {
-  return http.get<UserAddress | null>('/user/addresses/default')
+  return http.get<UserAddress | null>('/addresses/default')
 }
 
 // 添加地址
 export function addAddress(data: Omit<UserAddress, 'id'>) {
-  return http.post<UserAddress>('/user/addresses', data)
+  return http.post<UserAddress>('/addresses', data)
 }
 
 // 更新地址
 export function updateAddress(id: string, data: Partial<UserAddress>) {
-  return http.put<UserAddress>(`/user/addresses/${id}`, data)
+  return http.put<UserAddress>(`/addresses/${id}`, data)
 }
 
 // 删除地址
 export function deleteAddress(id: string) {
-  return http.delete(`/user/addresses/${id}`)
+  return http.delete(`/addresses/${id}`)
 }
 
 // 设置默认地址
 export function setDefaultAddress(id: string) {
-  return http.put(`/user/addresses/${id}/default`)
+  return http.put(`/addresses/${id}/default`)
 }
 
 // ==================== 优惠券 ====================

@@ -19,7 +19,7 @@
         <div class="patient-info">
           <div class="avatar-section">
             <img
-              :src="patient.avatar || (patient.gender === '男' ? defaultMaleAvatar : defaultFemaleAvatar)"
+              :src="patient.avatar || (patient.gender === 'male' || patient.gender === '男' ? defaultMaleAvatar : defaultFemaleAvatar)"
               class="patient-avatar"
               alt="头像"
             />
@@ -28,7 +28,7 @@
           <div class="info-section">
             <div class="name-row">
               <span class="name">{{ patient.name }}</span>
-              <span class="gender">{{ patient.gender }}</span>
+              <span class="gender">{{ patient.gender === 'male' ? '男' : patient.gender === 'female' ? '女' : patient.gender }}</span>
               <span class="age">{{ patient.age }}岁</span>
             </div>
             <div class="id-card-row">
@@ -88,7 +88,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getPatientList, deletePatient as deletePatientApi, setDefaultPatient } from '@/api/modules/patient'
 import { userMenuIcons, mockPatients } from '@/api/mock'
-import type { Patient } from '@/api/modules/patient'
+import type { PatientInfo as Patient } from '@/api/modules/patient'
 
 const router = useRouter()
 

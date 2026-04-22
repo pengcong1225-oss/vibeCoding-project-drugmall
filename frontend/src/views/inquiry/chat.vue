@@ -297,7 +297,7 @@ const formatDate = (date: Date): string => {
 
 // 返回上一页
 const goBack = () => {
-  router.back()
+  router.push('/inquiry')
 }
 
 // 查看咨询记录

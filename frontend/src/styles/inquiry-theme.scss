@@ -1,32 +1,32 @@
-// 问医生主题样式 - 青绿色系
-// 用于统一问医生相关页面的配色和样式
+// 问医生主题样式 - 已统一为全局青蓝色系
+// 与全局设计系统保持一致
 
 // ==================== 主题色变量 ====================
 :root {
-  // 主色
+  // 主色 - 与首页问医生一致（青绿色系）
   --inquiry-primary: #00C9A7;
   --inquiry-primary-light: #00E5BF;
   --inquiry-primary-dark: #00B894;
   --inquiry-primary-rgb: 0, 201, 167;
 
   // 背景色
-  --inquiry-bg: #F0F9F6;
-  --inquiry-bg-light: #F5FBF9;
+  --inquiry-bg: #F5F5F5;
+  --inquiry-bg-light: #F9FAFB;
   --inquiry-card-bg: #FFFFFF;
 
   // 文字色
-  --inquiry-text-primary: #1A1A1A;
-  --inquiry-text-secondary: #666666;
-  --inquiry-text-tertiary: #999999;
+  --inquiry-text-primary: #1F2937;
+  --inquiry-text-secondary: #6B7280;
+  --inquiry-text-tertiary: #9CA3AF;
 
   // 标签色
-  --inquiry-tag-hot: #FF6B6B;
-  --inquiry-tag-fever: #FF9500;
-  --inquiry-tag-price: #FF4D4F;
+  --inquiry-tag-hot: #EF4444;
+  --inquiry-tag-fever: #F59E0B;
+  --inquiry-tag-price: #EF4444;
 
   // 在线状态
-  --inquiry-online: #00C9A7;
-  --inquiry-offline: #CCCCCC;
+  --inquiry-online: #10B981;
+  --inquiry-offline: #D1D5DB;
 
   // 渐变
   --inquiry-gradient: linear-gradient(135deg, #00C9A7 0%, #00B894 100%);
@@ -36,17 +36,17 @@
 $inquiry-primary: #00C9A7;
 $inquiry-primary-light: #00E5BF;
 $inquiry-primary-dark: #00B894;
-$inquiry-bg: #F0F9F6;
-$inquiry-bg-light: #F5FBF9;
+$inquiry-bg: #F5F5F5;
+$inquiry-bg-light: #F9FAFB;
 $inquiry-card-bg: #FFFFFF;
-$inquiry-text-primary: #1A1A1A;
-$inquiry-text-secondary: #666666;
-$inquiry-text-tertiary: #999999;
-$inquiry-tag-hot: #FF6B6B;
-$inquiry-tag-fever: #FF9500;
-$inquiry-tag-price: #FF4D4F;
-$inquiry-online: #00C9A7;
-$inquiry-offline: #CCCCCC;
+$inquiry-text-primary: #1F2937;
+$inquiry-text-secondary: #6B7280;
+$inquiry-text-tertiary: #9CA3AF;
+$inquiry-tag-hot: #EF4444;
+$inquiry-tag-fever: #F59E0B;
+$inquiry-tag-price: #EF4444;
+$inquiry-online: #10B981;
+$inquiry-offline: #D1D5DB;
 
 // ==================== Mixins ====================
 

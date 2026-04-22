@@ -132,7 +132,8 @@ const viewDetail = (item: Prescription) => {
 }
 
 const buyDrugs = (item: Prescription) => {
-  router.push(`/order/confirm?prescriptionId=${item.id}`)
+  // 跳转到新的结算页，携带处方ID
+  router.push(`/inquiry/checkout/0?prescriptionId=${item.id}`)
 }
 
 const formatTime = (time: string) => {

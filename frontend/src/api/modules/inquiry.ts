@@ -161,7 +161,11 @@ export function getDoctorReviewTags(id: string) {
 
 // 创建问诊（预问诊）
 export function createConsultation(data: CreateConsultationParams) {
-  return http.post<CreateConsultationResult>('/patient/consultations', data)
+  const params = new URLSearchParams()
+  params.append('doctorId', data.doctorId)
+  params.append('type', data.type || 'image')
+  params.append('symptom', data.symptom)
+  return http.post<CreateConsultationResult>(`/patient/consultations?${params.toString()}`)
 }
 
 // 获取患者档案列表

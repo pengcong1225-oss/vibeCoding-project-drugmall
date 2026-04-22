@@ -375,8 +375,8 @@ onMounted(() => {
 
 function handleDeptSelect(dept: Department) {
   router.push({
-    path: '/inquiry',
-    query: { department: dept.code, deptName: dept.name }
+    path: '/inquiry/triage/' + dept.code,
+    query: { deptName: dept.name }
   })
 }
 

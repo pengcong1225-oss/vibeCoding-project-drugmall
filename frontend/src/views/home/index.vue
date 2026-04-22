@@ -1,8 +1,8 @@
 <template>
   <div :class="['home-page', `theme-${activeTab}`]" ref="homePageRef">
     <!-- 头部渐变区域 - 包含搜索栏、Tab导航和各Tab的第一个区域 -->
-    <div class="header-wrapper">
-      <div class="header-gradient">
+    <div class="header-wrapper" :class="{ 'is-sticky': isSticky }">
+      <div class="header-gradient" :class="{ 'sticky': isSticky }">
         <!-- 搜索栏和Tab导航 -->
         <component
           v-for="section in headerSections"
@@ -41,6 +41,21 @@
         <ChronicBannerSection
           v-if="activeTab === 'chronic'"
         />
+
+        <!-- 吸顶时的金刚位区域 - 滋补保健和慢病关怀 -->
+        <div v-if="isSticky && (activeTab === 'tcm' || activeTab === 'chronic')" class="sticky-kingkong">
+          <div class="kingkong-scroll">
+            <div
+              v-for="item in kingkongItems"
+              :key="item.id"
+              class="kingkong-item"
+              @click="handleKingkongClick(item)"
+            >
+              <img :src="item.iconUrl" class="kingkong-img" />
+              <span class="kingkong-name">{{ item.name }}</span>
+            </div>
+          </div>
+        </div>
       </div>
       <!-- 渐变过渡区域 -->
       <div class="header-fade"></div>
@@ -109,7 +124,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Check } from '@element-plus/icons-vue'
+import { Check, Search, ShoppingCart } from '@element-plus/icons-vue'
 import { useHomeStore } from '@/stores/home'
 
 // 导入所有 Section 组件
@@ -153,6 +168,49 @@ const locations = ['葛洲坝·世纪花园', '北京市朝阳区', '北京市�
 
 // Tab状态管理
 const activeTab = ref('recommend')
+
+// Tab数据
+const tabs = [
+  { id: 'recommend', name: '推荐', icon: '' },
+  { id: 'doctor', name: '问医生', icon: '' },
+  { id: 'test', name: '做检测', icon: '' },
+  { id: 'adult', name: '成人情趣', icon: '' },
+  { id: 'tcm', name: '滋补保健', icon: '/images/icons/tonic.png' },
+  { id: 'chronic', name: '慢病关怀', icon: '' }
+]
+
+// 吸顶金刚位数据 - 滋补保健
+const tcmKingkongItems = [
+  { id: 'tcm1', name: '大牌精选', iconUrl: '/images/categories/tonic-selected.png' },
+  { id: 'tcm2', name: '礼赠佳品', iconUrl: '/images/categories/tonic-gift.png' },
+  { id: 'tcm3', name: '益生菌', iconUrl: '/images/categories/tonic-probiotic.png' },
+  { id: 'tcm4', name: '钙铁锌', iconUrl: '/images/categories/tonic-calcium.png' },
+  { id: 'tcm5', name: '维生素', iconUrl: '/images/categories/tonic-vitamin.png' },
+  { id: 'tcm6', name: '滋补养', iconUrl: '/images/categories/tonic-nourish.png' }
+]
+
+// 吸顶金刚位数据 - 慢病关怀
+const chronicKingkongItems = [
+  { id: 'chr1', name: '高血压', iconUrl: '/images/categories/chronic-hypertension.png' },
+  { id: 'chr2', name: '糖尿病', iconUrl: '/images/categories/chronic-diabetes.png' },
+  { id: 'chr3', name: '心脏病', iconUrl: '/images/categories/chronic-heart.png' },
+  { id: 'chr4', name: '哮喘', iconUrl: '/images/categories/chronic-asthma.png' },
+  { id: 'chr5', name: '痛风', iconUrl: '/images/categories/chronic-gout.png' },
+  { id: 'chr6', name: '肝病', iconUrl: '/images/categories/chronic-liver.png' }
+]
+
+// 根据当前Tab获取金刚位数据
+const kingkongItems = computed(() => {
+  if (activeTab.value === 'tcm') return tcmKingkongItems
+  if (activeTab.value === 'chronic') return chronicKingkongItems
+  return []
+})
+
+// 处理金刚位点击
+const handleKingkongClick = (item: { id: string; name: string; iconUrl: string }) => {
+  console.log('Kingkong clicked:', item)
+  // 可以添加跳转逻辑
+}
 
 // 头部区域组件（搜索栏、Tab导航）
 const headerSections = computed(() => {
@@ -217,10 +275,15 @@ function selectLocation(loc: string) {
   ElMessage.success(`已切换到${loc}`)
 }
 
+// 吸顶状态
+const isSticky = ref(false)
+
 const handleScroll = () => {
-  if (homePageRef.value) {
-    const scrollTop = homePageRef.value.scrollTop
-  }
+  // 使用 window 的滚动位置
+  const scrollTop = window.scrollY || window.pageYOffset || document.documentElement.scrollTop
+  // 滚动超过80px时触发吸顶
+  isSticky.value = scrollTop > 80
+  console.log('scrollTop:', scrollTop, 'isSticky:', isSticky.value)
 }
 
 function handleQuickConsult() {
@@ -247,11 +310,13 @@ const handlePromoRightClick = () => {
 
 onMounted(async () => {
   await homeStore.fetchHomePageConfig()
-  homePageRef.value?.addEventListener('scroll', handleScroll)
+  window.addEventListener('scroll', handleScroll, { passive: true })
+  // 初始检查一次
+  handleScroll()
 })
 
 onUnmounted(() => {
-  homePageRef.value?.removeEventListener('scroll', handleScroll)
+  window.removeEventListener('scroll', handleScroll)
 })
 </script>
 
@@ -268,16 +333,130 @@ $bg-warm: #FFF9E6;
   min-height: 100vh;
   background: $bg-gray;
   padding-bottom: 80px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 
   // 头部渐变包装器 - 固定高度结构
   .header-wrapper {
     position: relative;
     overflow: hidden;
 
+    // 吸顶状态 - 使用原有元素
+    &.is-sticky {
+      .header-gradient {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        background: #fff !important;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        padding: 6px 0 0;
+        transition: all 0.3s ease;
+
+        // 隐藏促销横幅等装饰内容
+        :deep(.promo-banner-section),
+        :deep(.quick-consult-card),
+        :deep(.test-banner-section),
+        :deep(.tcm-banner-section),
+        :deep(.chronic-banner-section) {
+          display: none;
+        }
+
+        // 调整搜索栏样式 - 搜索框和购物车并排
+        :deep(.search-section) {
+          padding: 4px 12px;
+        }
+
+        // 隐藏顶部导航栏（返回按钮、标题、地址、购物车）
+        :deep(.search-section .top-nav) {
+          display: none !important;
+        }
+
+        // 搜索框和购物车并排
+        :deep(.search-section .search-box-wrapper) {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+
+        :deep(.search-section .search-box) {
+          flex: 1;
+          background: #f5f5f5;
+          border: 1px solid #e8e8e8;
+          box-shadow: none;
+          border-radius: 16px;
+          padding: 8px 12px;
+        }
+
+        :deep(.search-section .search-box .search-icon) {
+          color: #999;
+        }
+
+        :deep(.search-section .search-box .placeholder) {
+          color: #999;
+        }
+
+        // 隐藏相机和搜索按钮
+        :deep(.search-section .search-box .camera-btn),
+        :deep(.search-section .search-box .search-btn) {
+          display: none !important;
+        }
+
+        // 显示吸顶购物车按钮
+        :deep(.search-section .sticky-cart-btn) {
+          display: flex !important;
+        }
+
+        // 调整Tab导航样式
+        :deep(.tab-navigation-section) {
+          border-bottom: 1px solid #f0f0f0;
+          padding: 0 12px;
+
+          .category-tabs {
+            padding: 4px 2px;
+          }
+
+          .tab-item {
+            background: transparent;
+            backdrop-filter: none;
+            color: #666;
+            padding: 6px 12px;
+            font-size: 14px;
+
+            &.active {
+              background: transparent;
+              color: var(--tab-active-color);
+              box-shadow: none;
+              font-weight: 600;
+
+              // 吸顶后改为下划线指示器
+              &::after {
+                content: '';
+                position: absolute;
+                bottom: -4px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 20px;
+                height: 3px;
+                background: var(--tab-active-color);
+                border-radius: 2px;
+                border: none;
+              }
+            }
+          }
+        }
+      }
+
+      .header-fade {
+        display: none;
+      }
+    }
+
     // 头部渐变区域 - 搜索栏和Tab导航
     .header-gradient {
       padding: 8px 0 12px;
-      transition: background 0.3s ease;
+      transition: all 0.3s ease;
       --tab-active-color: #0891B2;
       // 默认推荐Tab - 青蓝科技感渐变
       background: linear-gradient(180deg, #0891B2 0%, #22D3EE 100%);
@@ -292,6 +471,7 @@ $bg-warm: #FFF9E6;
         transparent 100%
       );
       pointer-events: none;
+      transition: all 0.3s ease;
     }
   }
 
@@ -412,6 +592,99 @@ $bg-warm: #FFF9E6;
       &:last-child {
         border-bottom: none;
       }
+    }
+  }
+}
+
+</style>
+
+<!-- 全局样式 - 用于覆盖 scoped 组件样式 -->
+<style lang="scss">
+// 吸顶时隐藏顶部导航栏
+.home-page .header-wrapper.is-sticky .header-gradient .search-section .top-nav {
+  display: none !important;
+}
+
+// 吸顶时搜索框和购物车并排
+.home-page .header-wrapper.is-sticky .header-gradient .search-section .search-box-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.home-page .header-wrapper.is-sticky .header-gradient .search-section .search-box-wrapper .search-box {
+  flex: 1;
+  background: #f5f5f5;
+  border: 1px solid #e8e8e8;
+  box-shadow: none;
+  border-radius: 16px;
+  padding: 8px 12px;
+}
+
+// 隐藏相机和搜索按钮
+.home-page .header-wrapper.is-sticky .header-gradient .search-section .search-box .camera-btn,
+.home-page .header-wrapper.is-sticky .header-gradient .search-section .search-box .search-btn {
+  display: none !important;
+}
+
+// 显示吸顶购物车按钮
+.home-page .header-wrapper.is-sticky .header-gradient .search-section .sticky-cart-btn {
+  display: flex !important;
+}
+
+// 吸顶时隐藏促销横幅
+.home-page .header-wrapper.is-sticky .header-gradient .promo-banner-section,
+.home-page .header-wrapper.is-sticky .header-gradient .quick-consult-card,
+.home-page .header-wrapper.is-sticky .header-gradient .test-banner-section,
+.home-page .header-wrapper.is-sticky .header-gradient .tcm-banner-section,
+.home-page .header-wrapper.is-sticky .header-gradient .chronic-banner-section {
+  display: none !important;
+}
+
+// 吸顶金刚位样式
+.home-page .header-wrapper.is-sticky .header-gradient .sticky-kingkong {
+  padding: 8px 12px;
+  background: #fff;
+  border-bottom: 1px solid #f0f0f0;
+
+  .kingkong-scroll {
+    display: flex;
+    gap: 16px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
+    padding: 4px 0;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+
+  .kingkong-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+
+    &:active {
+      transform: scale(0.95);
+    }
+
+    .kingkong-img {
+      width: 56px;
+      height: 56px;
+      object-fit: contain;
+      border-radius: 12px;
+    }
+
+    .kingkong-name {
+      font-size: 12px;
+      color: #333;
+      white-space: nowrap;
     }
   }
 }

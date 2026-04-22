@@ -156,11 +156,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped lang="scss">
-$primary-cyan: #0891B2;
-$price-red: #FF4D4F;
-$text-primary: #1A1A1A;
-$text-secondary: #666666;
-$text-tertiary: #999999;
+@use '@/styles/variables' as *;
 
 .banner-subsidy-section {
   display: flex;
@@ -188,7 +184,7 @@ $text-tertiary: #999999;
       }
 
       .subsidy-tag {
-        background: linear-gradient(90deg, #0891B2 0%, #22D3EE 100%);
+        background: linear-gradient(90deg, $primary 0%, $primary-light 100%);
         color: #fff;
         padding: 2px 6px;
         border-radius: 4px;
@@ -333,7 +329,7 @@ $text-tertiary: #999999;
 
             .banner-btn {
               display: inline-block;
-              background: $primary-cyan;
+              background: $primary;
               color: #fff;
               padding: 3px 10px;
               border-radius: 10px;

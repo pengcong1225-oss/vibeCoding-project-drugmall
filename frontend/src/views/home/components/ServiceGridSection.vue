@@ -59,30 +59,30 @@ const router = useRouter()
 const sliderRef = ref<HTMLElement>()
 const currentPage = ref(0)
 
-// 服务数据 - 药品分类真实图片
+// 服务数据 - 药品分类真实图片，使用青绿色系背景
 const services = ref<ServiceItemData[]>([
   // 第一页
-  { id: '1', name: '感冒发烧', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i4/O1CN01Z5paLz1O0zuCC7osS_!!6000000001644-55-tps-83-82.svg', bgColor: '#FFF3E0', category: '感冒发烧' },
-  { id: '2', name: '咳嗽化痰', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i2/O1CN01O0et1z1Jog3zZ1Dgn_!!6000000001069-55-tps-83-82.svg', bgColor: '#E3F2FD', category: '咳嗽化痰' },
-  { id: '3', name: '肠胃用药', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i1/O1CN01XY8X0i1GxPFS0YlFW_!!6000000000683-55-tps-83-82.svg', bgColor: '#E8F5E9', category: '肠胃用药' },
-  { id: '4', name: '皮肤用药', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i3/O1CN01MNj3nA1q3Hq0q0ZqL_!!6000000005438-55-tps-83-82.svg', bgColor: '#FCE4EC', category: '皮肤用药' },
-  { id: '5', name: '维生素钙', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i4/O1CN01Z5paLz1O0zuCC7osS_!!6000000001644-55-tps-83-82.svg', bgColor: '#FFF8E1', category: '维生素钙' },
-  { id: '6', name: '止痛消炎', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i2/O1CN01O0et1z1Jog3zZ1Dgn_!!6000000001069-55-tps-83-82.svg', bgColor: '#FFEBEE', category: '止痛消炎' },
-  { id: '7', name: '五官用药', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i1/O1CN01XY8X0i1GxPFS0YlFW_!!6000000000683-55-tps-83-82.svg', bgColor: '#E0F2F1', category: '五官用药' },
-  { id: '8', name: '儿童用药', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i3/O1CN01MNj3nA1q3Hq0q0ZqL_!!6000000005438-55-tps-83-82.svg', bgColor: '#E8EAF6', category: '儿童用药' },
-  { id: '9', name: '慢病用药', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i4/O1CN01Z5paLz1O0zuCC7osS_!!6000000001644-55-tps-83-82.svg', bgColor: '#F3E5F5', category: '慢病用药' },
-  { id: '10', name: '医疗器械', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i2/O1CN01O0et1z1Jog3zZ1Dgn_!!6000000001069-55-tps-83-82.svg', bgColor: '#E1F5FE', category: '医疗器械' },
+  { id: '1', name: '感冒发烧', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i4/O1CN01Z5paLz1O0zuCC7osS_!!6000000001644-55-tps-83-82.svg', bgColor: 'rgba(0, 201, 167, 0.12)', category: '感冒发烧' },
+  { id: '2', name: '咳嗽化痰', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i2/O1CN01O0et1z1Jog3zZ1Dgn_!!6000000001069-55-tps-83-82.svg', bgColor: 'rgba(0, 229, 191, 0.12)', category: '咳嗽化痰' },
+  { id: '3', name: '肠胃用药', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i1/O1CN01XY8X0i1GxPFS0YlFW_!!6000000000683-55-tps-83-82.svg', bgColor: 'rgba(16, 185, 129, 0.12)', category: '肠胃用药' },
+  { id: '4', name: '皮肤用药', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i3/O1CN01MNj3nA1q3Hq0q0ZqL_!!6000000005438-55-tps-83-82.svg', bgColor: 'rgba(0, 201, 167, 0.08)', category: '皮肤用药' },
+  { id: '5', name: '维生素钙', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i4/O1CN01Z5paLz1O0zuCC7osS_!!6000000001644-55-tps-83-82.svg', bgColor: 'rgba(0, 229, 191, 0.08)', category: '维生素钙' },
+  { id: '6', name: '止痛消炎', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i2/O1CN01O0et1z1Jog3zZ1Dgn_!!6000000001069-55-tps-83-82.svg', bgColor: 'rgba(0, 184, 148, 0.12)', category: '止痛消炎' },
+  { id: '7', name: '五官用药', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i1/O1CN01XY8X0i1GxPFS0YlFW_!!6000000000683-55-tps-83-82.svg', bgColor: 'rgba(0, 201, 167, 0.1)', category: '五官用药' },
+  { id: '8', name: '儿童用药', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i3/O1CN01MNj3nA1q3Hq0q0ZqL_!!6000000005438-55-tps-83-82.svg', bgColor: 'rgba(0, 229, 191, 0.1)', category: '儿童用药' },
+  { id: '9', name: '慢病用药', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i4/O1CN01Z5paLz1O0zuCC7osS_!!6000000001644-55-tps-83-82.svg', bgColor: 'rgba(16, 185, 129, 0.1)', category: '慢病用药' },
+  { id: '10', name: '医疗器械', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i2/O1CN01O0et1z1Jog3zZ1Dgn_!!6000000001069-55-tps-83-82.svg', bgColor: 'rgba(0, 201, 167, 0.08)', category: '医疗器械' },
   // 第二页
-  { id: '11', name: '中药饮片', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i1/O1CN01XY8X0i1GxPFS0YlFW_!!6000000000683-55-tps-83-82.svg', bgColor: '#FFF3E0', category: '中药饮片' },
-  { id: '12', name: '男科用药', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i3/O1CN01MNj3nA1q3Hq0q0ZqL_!!6000000005438-55-tps-83-82.svg', bgColor: '#E3F2FD', category: '男科用药' },
-  { id: '13', name: '妇科用药', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i4/O1CN01Z5paLz1O0zuCC7osS_!!6000000001644-55-tps-83-82.svg', bgColor: '#FCE4EC', category: '妇科用药' },
-  { id: '14', name: '避孕测孕', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i2/O1CN01O0et1z1Jog3zZ1Dgn_!!6000000001069-55-tps-83-82.svg', bgColor: '#FFEBEE', category: '避孕测孕' },
-  { id: '15', name: '过敏用药', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i1/O1CN01XY8X0i1GxPFS0YlFW_!!6000000000683-55-tps-83-82.svg', bgColor: '#E8F5E9', category: '过敏用药' },
-  { id: '16', name: '肝胆用药', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i3/O1CN01MNj3nA1q3Hq0q0ZqL_!!6000000005438-55-tps-83-82.svg', bgColor: '#FFF8E1', category: '肝胆用药' },
-  { id: '17', name: '心脑血管', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i4/O1CN01Z5paLz1O0zuCC7osS_!!6000000001644-55-tps-83-82.svg', bgColor: '#F3E5F5', category: '心脑血管' },
-  { id: '18', name: '滋补养生', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i2/O1CN01O0et1z1Jog3zZ1Dgn_!!6000000001069-55-tps-83-82.svg', bgColor: '#E0F2F1', category: '滋补养生' },
-  { id: '19', name: '口腔护理', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i1/O1CN01XY8X0i1GxPFS0YlFW_!!6000000000683-55-tps-83-82.svg', bgColor: '#E1F5FE', category: '口腔护理' },
-  { id: '20', name: '眼科用药', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i3/O1CN01MNj3nA1q3Hq0q0ZqL_!!6000000005438-55-tps-83-82.svg', bgColor: '#E8EAF6', category: '眼科用药' },
+  { id: '11', name: '中药饮片', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i1/O1CN01XY8X0i1GxPFS0YlFW_!!6000000000683-55-tps-83-82.svg', bgColor: 'rgba(0, 229, 191, 0.12)', category: '中药饮片' },
+  { id: '12', name: '男科用药', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i3/O1CN01MNj3nA1q3Hq0q0ZqL_!!6000000005438-55-tps-83-82.svg', bgColor: 'rgba(0, 184, 148, 0.12)', category: '男科用药' },
+  { id: '13', name: '妇科用药', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i4/O1CN01Z5paLz1O0zuCC7osS_!!6000000001644-55-tps-83-82.svg', bgColor: 'rgba(0, 201, 167, 0.1)', category: '妇科用药' },
+  { id: '14', name: '避孕测孕', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i2/O1CN01O0et1z1Jog3zZ1Dgn_!!6000000001069-55-tps-83-82.svg', bgColor: 'rgba(0, 229, 191, 0.1)', category: '避孕测孕' },
+  { id: '15', name: '过敏用药', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i1/O1CN01XY8X0i1GxPFS0YlFW_!!6000000000683-55-tps-83-82.svg', bgColor: 'rgba(16, 185, 129, 0.12)', category: '过敏用药' },
+  { id: '16', name: '肝胆用药', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i3/O1CN01MNj3nA1q3Hq0q0ZqL_!!6000000005438-55-tps-83-82.svg', bgColor: 'rgba(0, 201, 167, 0.12)', category: '肝胆用药' },
+  { id: '17', name: '心脑血管', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i4/O1CN01Z5paLz1O0zuCC7osS_!!6000000001644-55-tps-83-82.svg', bgColor: 'rgba(0, 229, 191, 0.08)', category: '心脑血管' },
+  { id: '18', name: '滋补养生', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i2/O1CN01O0et1z1Jog3zZ1Dgn_!!6000000001069-55-tps-83-82.svg', bgColor: 'rgba(0, 184, 148, 0.1)', category: '滋补养生' },
+  { id: '19', name: '口腔护理', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i1/O1CN01XY8X0i1GxPFS0YlFW_!!6000000000683-55-tps-83-82.svg', bgColor: 'rgba(0, 201, 167, 0.1)', category: '口腔护理' },
+  { id: '20', name: '眼科用药', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i3/O1CN01MNj3nA1q3Hq0q0ZqL_!!6000000005438-55-tps-83-82.svg', bgColor: 'rgba(0, 229, 191, 0.12)', category: '眼科用药' },
 ])
 
 // 点击全部服务进入分类页
@@ -106,10 +106,7 @@ function handleScroll() {
 </script>
 
 <style scoped lang="scss">
-$primary-cyan: #0891B2;
-$text-primary: #1A1A1A;
-$text-secondary: #666666;
-$text-tertiary: #999999;
+@use '@/styles/variables' as *;
 
 .service-section {
   background: #fff;
@@ -250,7 +247,7 @@ $text-tertiary: #999999;
         &.active {
           width: 12px;
           border-radius: 3px;
-          background: $primary-cyan;
+          background: $primary;
         }
       }
     }
