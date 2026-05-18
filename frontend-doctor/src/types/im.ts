@@ -1,5 +1,6 @@
 /**
  * IM即时通讯类型定义
+ * 字段与后端 MessageVO / IMConversationVO 保持一致
  */
 
 // 用户签名信息
@@ -10,29 +11,39 @@ export interface UserSigVO {
   expireTime: number
 }
 
-// 会话信息
+// 会话信息（与后端 IMConversationVO 对齐）
 export interface IMConversationVO {
   conversationId: string
-  type: 'C2C' | 'GROUP' // 单聊 | 群聊
-  peerAccount?: string // 对方账号
-  peerName?: string // 对方昵称
-  peerAvatar?: string // 对方头像
+  type: 'C2C' | 'GROUP'
+  targetUserId: string       // 对方用户ID
+  targetUserName: string     // 对方昵称
+  targetUserAvatar: string   // 对方头像
   lastMessage?: MessageVO
   unreadCount: number
-  lastTime?: number
+  lastMessageTime: string    // 最后消息时间
+  consultationId?: string    // 关联的问诊ID
 }
 
-// 消息信息
+// 消息信息（与后端 MessageVO 对齐）
 export interface MessageVO {
-  msgId?: string
-  conversationId: string
-  fromAccount: string
-  toAccount: string
-  msgType: 'TIMTextElem' | 'TIMImageElem' | 'TIMCustomElem' | 'TIMSoundElem'
+  id: string                 // 消息ID
+  consultationId?: string    // 问诊ID
+  sender: string             // 发送者 (doctor/patient/system)
+  type: string               // 消息类型: text/image/voice/prescription
+  content: string            // 消息内容
+  time: string               // 发送时间 (HH:mm 或其他格式字符串)
+  status: string             // 状态: sending/sent/read
+}
+
+// TIM SDK 原始消息（convertMessage 的中间格式）
+export interface TIMRawMessage {
+  id: string
+  from: string
+  to: string
+  type: string
   content: string
   time: number
-  isRead?: boolean
-  isSelf?: boolean
+  flow: 'in' | 'out'
 }
 
 // 发送消息参数
@@ -45,14 +56,14 @@ export interface SendMessageParams {
 }
 
 // IM SDK事件类型
-export type IMEventType = 
-  | 'onMessageReceived' // 收到新消息
-  | 'onConversationListUpdate' // 会话列表更新
-  | 'onConversationRead' // 会话已读
-  | 'onGroupListUpdate' // 群组列表更新
-  | 'onSdkReady' // SDK Ready
-  | 'onKickedOut' // 被踢下线
-  | 'onNetStateChange' // 网络状态变化
+export type IMEventType =
+  | 'onMessageReceived'
+  | 'onConversationListUpdate'
+  | 'onConversationRead'
+  | 'onGroupListUpdate'
+  | 'onSdkReady'
+  | 'onKickedOut'
+  | 'onNetStateChange'
 
 // IM事件监听器
 export type IMEventListener = (event: any) => void

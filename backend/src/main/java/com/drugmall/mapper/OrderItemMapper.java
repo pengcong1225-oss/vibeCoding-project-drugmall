@@ -4,17 +4,13 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.drugmall.entity.OrderItem;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
 
-/**
- * 订单商品项Mapper接口
- */
 @Mapper
 public interface OrderItemMapper extends BaseMapper<OrderItem> {
 
-    /**
-     * 根据订单ID查询商品项列表
-     */
+    @Select("SELECT * FROM dm_order_item WHERE order_id = #{orderId}")
     List<OrderItem> selectByOrderId(@Param("orderId") String orderId);
 }

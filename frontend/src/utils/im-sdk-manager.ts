@@ -175,8 +175,24 @@ class IMSDKManager {
     }
 
     try {
+      // Wait for SDK to be ready
+      if (!this.sdkReady) {
+        console.log('[IM SDK] 等待SDK就绪...');
+        await new Promise<void>((resolve) => {
+          const checkReady = () => {
+            if (this.sdkReady) {
+              resolve();
+            } else {
+              setTimeout(checkReady, 100);
+            }
+          };
+          checkReady();
+        });
+      }
+
       const res = await this.tim.getConversationList();
-      const convList = res.data.conversationList || [];
+      
+      const convList = res.data?.conversationList || [];
 
       return convList.map((conv: any) => ({
         conversationId: conv.conversationID,
@@ -197,9 +213,11 @@ class IMSDKManager {
         lastMessageTime: conv.lastMessage ? this.formatTimestamp(conv.lastMessage.lastTime) : '',
         consultationId: ''
       })) as IMConversation[];
-    } catch (error) {
+    } catch (error: any) {
       console.error('[IM SDK] 获取会话列表失败:', error);
-      throw error;
+      // If real mode fails, return empty list instead of throwing
+      console.warn('[IM SDK] 返回空会话列表作为降级处理');
+      return [];
     }
   }
 
@@ -248,18 +266,33 @@ class IMSDKManager {
    * 发送文本消息（真实模式通过TIM SDK）
    */
   public async sendTextMessage(conversationId: string, text: string): Promise<IMMessage> {
+    console.log('[IM SDK] 准备发送消息:', { conversationId, text, mode: this.mode, sdkReady: this.sdkReady });
+    
     if (this.mode !== 'real' || !this.tim) {
+      console.error('[IM SDK] 发送失败：模式错误或TIM未初始化');
       throw new Error('仅支持真实模式');
     }
 
+    if (!this.sdkReady) {
+      console.error('[IM SDK] 发送失败：SDK未就绪');
+      throw new Error('SDK未就绪，无法发送消息');
+    }
+
     try {
+      const isC2C = conversationId.startsWith('C2C');
+      const targetId = this.extractTargetId(conversationId);
+      console.log('[IM SDK] 创建消息:', { to: targetId, conversationType: isC2C ? 'C2C' : 'GROUP' });
+      
       const message = this.tim.createTextMessage({
-        to: this.extractTargetId(conversationId),
-        conversationType: conversationId.startsWith('C2C') ? TIM.TYPES.CONV_C2C : TIM.TYPES.CONV_GROUP,
+        to: targetId,
+        conversationType: isC2C ? TIM.TYPES.CONV_C2C : TIM.TYPES.CONV_GROUP,
         payload: { text }
       });
 
+      console.log('[IM SDK] 调用sendMessage...');
       const res = await this.tim.sendMessage(message);
+      console.log('[IM SDK] sendMessage返回:', res);
+      
       const sentMsg = res.data.message;
 
       return {

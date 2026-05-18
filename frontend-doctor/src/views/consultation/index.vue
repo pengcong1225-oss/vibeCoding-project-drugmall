@@ -41,10 +41,10 @@ const getStatusClass = (status: string) => {
   }
 }
 
-const getStatusText = (status: string) => {
+const getStatusText = (status: string, isRx?: boolean) => {
   switch (status) {
     case 'pending':
-      return '待接诊'
+      return isRx ? '待审核' : '待接诊'
     case 'processing':
       return '进行中'
     case 'completed':
@@ -58,7 +58,8 @@ const goToChat = (id: string) => {
   router.push(`/consultation/chat/${id}`)
 }
 
-const goToDetail = (id: string) => {
+const goToDetail = (id: string, event?: Event) => {
+  if (event) event.stopPropagation()
   router.push(`/consultation/detail/${id}`)
 }
 
@@ -123,7 +124,7 @@ onMounted(() => {
             </div>
           </div>
           <div class="status-tag" :class="getStatusClass(item.status)">
-            {{ getStatusText(item.status) }}
+            {{ getStatusText(item.status, item.isRx) }}
           </div>
         </div>
 
@@ -147,8 +148,15 @@ onMounted(() => {
             </span>
           </div>
           <div class="card-actions">
-            <button 
-              v-if="item.status === 'pending'" 
+            <button
+              v-if="item.status === 'pending' && item.isRx"
+              class="btn-primary btn-rx"
+              @click="startConsultation(item.id, $event)"
+            >
+              审核处方
+            </button>
+            <button
+              v-else-if="item.status === 'pending'"
               class="btn-primary"
               @click="startConsultation(item.id, $event)"
             >
@@ -436,12 +444,21 @@ onMounted(() => {
     &.btn-primary {
       background: $primary;
       color: #fff;
-      
+
       &:active {
         background: $primary-dark;
       }
     }
-    
+
+    &.btn-rx {
+      background: #FF9800;
+      color: #fff;
+
+      &:active {
+        background: #F57C00;
+      }
+    }
+
     &.btn-default {
       background: #F5F5F5;
       color: $text-secondary;

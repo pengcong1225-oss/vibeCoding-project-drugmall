@@ -81,7 +81,7 @@
               {{ formatTime(item.createTime) }}
             </span>
             <div class="actions">
-              <span v-if="item.status === 'active'" class="action-btn buy-btn" @click.stop="buyDrugs(item)">
+              <span v-if="item.status === 'approved'" class="action-btn buy-btn" @click.stop="buyDrugs(item)">
                 立即购买
               </span>
               <span class="action-btn detail-btn" @click.stop="viewDetail(item)">
@@ -102,6 +102,8 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft, Document, Clock, ArrowRight } from '@element-plus/icons-vue'
 import { getPrescriptionList, type Prescription } from '@/api/modules/prescription'
+import { PrescriptionStatus } from '@/constants'
+import { getInquiryCheckoutRoute } from '@/constants/routes'
 
 const router = useRouter()
 const loading = ref(false)
@@ -109,9 +111,9 @@ const currentStatus = ref('all')
 
 const statusTabs = [
   { label: '全部', value: 'all' },
-  { label: '待审核', value: 'pending' },
-  { label: '已生效', value: 'active' },
-  { label: '已失效', value: 'expired' }
+  { label: '待审核', value: PrescriptionStatus.PENDING },
+  { label: '已生效', value: PrescriptionStatus.APPROVED },
+  { label: '已失效', value: PrescriptionStatus.EXPIRED }
 ]
 
 const prescriptionList = ref<Prescription[]>([])
@@ -132,8 +134,7 @@ const viewDetail = (item: Prescription) => {
 }
 
 const buyDrugs = (item: Prescription) => {
-  // 跳转到新的结算页，携带处方ID
-  router.push(`/inquiry/checkout/0?prescriptionId=${item.id}`)
+  router.push(`${getInquiryCheckoutRoute(0)}?prescriptionId=${item.id}`)
 }
 
 const formatTime = (time: string) => {
@@ -156,7 +157,7 @@ onMounted(async () => {
         hospital: '北京协和医院',
         department: '心内科',
         diagnosis: '上呼吸道感染',
-        status: 'active',
+        status: 'approved',
         statusText: '已生效',
         createTime: '2024-04-07 14:30:00',
         drugs: [

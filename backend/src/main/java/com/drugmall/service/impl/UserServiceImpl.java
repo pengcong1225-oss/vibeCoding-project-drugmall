@@ -1,20 +1,29 @@
 package com.drugmall.service.impl;
 
-import com.drugmall.config.MockDataService;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.drugmall.dto.*;
+import com.drugmall.entity.User;
+import com.drugmall.entity.Patient;
+import com.drugmall.entity.Address;
+import com.drugmall.entity.Coupon;
+import com.drugmall.entity.BrowseHistory;
+import com.drugmall.mapper.UserMapper;
+import com.drugmall.mapper.PatientMapper;
+import com.drugmall.mapper.AddressMapper;
+import com.drugmall.mapper.CouponMapper;
+import com.drugmall.mapper.BrowseHistoryMapper;
 import com.drugmall.service.UserService;
 import com.drugmall.vo.*;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -27,39 +36,42 @@ import java.util.stream.Collectors;
 public class UserServiceImpl implements UserService {
 
     @Autowired
-    private MockDataService mockDataService;
+    private UserMapper userMapper;
 
     @Autowired
-    private ObjectMapper objectMapper;
+    private PatientMapper patientMapper;
+
+    @Autowired
+    private AddressMapper addressMapper;
+
+    @Autowired
+    private CouponMapper couponMapper;
+
+    @Autowired
+    private BrowseHistoryMapper browseHistoryMapper;
 
     private static final String CURRENT_USER_ID = "1";
-    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     @Override
     public LoginResultVO login(LoginDTO loginDTO) {
         log.info("用户登录: {}", loginDTO.getPhone());
 
-        // 查找用户
-        JsonNode rootData = mockDataService.getUsers();
-        if (rootData != null && rootData.has("users")) {
-            JsonNode usersData = rootData.get("users");
-            if (usersData.isArray()) {
-                for (JsonNode user : usersData) {
-                    if (user.get("phone").asText().equals(loginDTO.getPhone())) {
-                        LoginResultVO result = new LoginResultVO();
-                        result.setToken("mock_token_" + UUID.randomUUID().toString().replace("-", ""));
-                        result.setUserInfo(convertToUserInfoVO(user));
-                        result.setExpiresIn(7200L);
-                        return result;
-                    }
-                }
-            }
+        // 根据手机号查找用户
+        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(User::getPhone, loginDTO.getPhone());
+        User user = userMapper.selectOne(wrapper);
+
+        if (user == null) {
+            LoginResultVO result = new LoginResultVO();
+            result.setToken(null);
+            result.setUserInfo(null);
+            result.setExpiresIn(0L);
+            return result;
         }
 
-        // 默认返回
         LoginResultVO result = new LoginResultVO();
-        result.setToken("mock_token_" + UUID.randomUUID().toString().replace("-", ""));
-        result.setUserInfo(getUserInfo(CURRENT_USER_ID));
+        result.setToken("token_" + UUID.randomUUID().toString().replace("-", ""));
+        result.setUserInfo(convertToUserInfoVO(user));
         result.setExpiresIn(7200L);
         return result;
     }
@@ -76,127 +88,168 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserInfoVO getUserInfo(String userId) {
-        JsonNode rootData = mockDataService.getUsers();
-        if (rootData != null && rootData.has("users")) {
-            JsonNode usersData = rootData.get("users");
-            if (usersData.isArray()) {
-                for (JsonNode user : usersData) {
-                    if (user.get("id").asText().equals(userId)) {
-                        return convertToUserInfoVO(user);
-                    }
-                }
-            }
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            return createDefaultUserInfo();
         }
-        return createDefaultUserInfo();
+        return convertToUserInfoVO(user);
     }
 
     @Override
     public UserInfoVO updateUserInfo(String userId, UpdateUserInfoDTO updateDTO) {
-        log.info("更新用户信息: {}", userId);
-        UserInfoVO userInfo = getUserInfo(userId);
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            return createDefaultUserInfo();
+        }
+
         if (updateDTO.getNickname() != null) {
-            userInfo.setNickname(updateDTO.getNickname());
+            user.setNickname(updateDTO.getNickname());
         }
         if (updateDTO.getAvatar() != null) {
-            userInfo.setAvatar(updateDTO.getAvatar());
+            user.setAvatar(updateDTO.getAvatar());
         }
         if (updateDTO.getEmail() != null) {
-            userInfo.setEmail(updateDTO.getEmail());
+            user.setEmail(updateDTO.getEmail());
         }
-        if (updateDTO.getBirthday() != null) {
-            userInfo.setBirthday(updateDTO.getBirthday());
+        if (updateDTO.getBirthday() != null && !updateDTO.getBirthday().isEmpty()) {
+            try {
+                user.setBirthday(LocalDate.parse(updateDTO.getBirthday()));
+            } catch (Exception e) {
+                log.warn("解析生日失败: {}", updateDTO.getBirthday(), e);
+            }
         }
         if (updateDTO.getGender() != null) {
-            userInfo.setGender(updateDTO.getGender());
+            user.setGender(updateDTO.getGender());
         }
-        return userInfo;
+
+        userMapper.updateById(user);
+        return convertToUserInfoVO(user);
     }
 
     @Override
-    public String uploadAvatar(String userId, String avatarBase64) {
-        log.info("上传头像: {}", userId);
+    public String uploadAvatar(String userId, org.springframework.web.multipart.MultipartFile file) {
+        log.info("上传头像: {}, 文件名: {}, 大小: {}bytes", userId, file.getOriginalFilename(), file.getSize());
         return "https://example.com/avatar/" + userId + ".jpg";
     }
 
     @Override
     public void realNameAuth(String userId, RealNameAuthDTO authDTO) {
+        User user = userMapper.selectById(userId);
+        if (user != null) {
+            user.setRealName(authDTO.getRealName());
+            user.setIdCard(authDTO.getIdCard());
+            user.setIsRealNameAuth(true);
+            userMapper.updateById(user);
+        }
         log.info("实名认证: {}, 姓名: {}", userId, authDTO.getRealName());
     }
 
     @Override
     public Boolean checkPhone(String phone) {
-        JsonNode rootData = mockDataService.getUsers();
-        if (rootData != null && rootData.has("users")) {
-            JsonNode usersData = rootData.get("users");
-            if (usersData.isArray()) {
-                for (JsonNode user : usersData) {
-                    if (user.get("phone").asText().equals(phone)) {
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
+        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(User::getPhone, phone);
+        Long count = userMapper.selectCount(wrapper);
+        return count > 0;
     }
 
     // ============== 就诊人管理 ==============
 
     @Override
     public List<PatientVO> getPatientList(String userId) {
-        JsonNode patientsData = mockDataService.getPatients();
-        List<PatientVO> patients = new ArrayList<>();
-        if (patientsData != null && patientsData.isArray()) {
-            for (JsonNode patient : patientsData) {
-                if (patient.get("userId").asText().equals(userId)) {
-                    patients.add(convertToPatientVO(patient));
-                }
-            }
-        }
-        return patients;
+        LambdaQueryWrapper<Patient> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Patient::getUserId, Long.parseLong(userId))
+               .orderByDesc(Patient::getIsDefault)
+               .orderByDesc(Patient::getCreateTime);
+        
+        List<Patient> patients = patientMapper.selectList(wrapper);
+        return patients.stream()
+                .map(this::convertToPatientVO)
+                .collect(Collectors.toList());
     }
 
     @Override
     public PatientVO getDefaultPatient(String userId) {
-        return getPatientList(userId).stream()
-                .filter(PatientVO::getIsDefault)
-                .findFirst()
-                .orElse(null);
+        LambdaQueryWrapper<Patient> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Patient::getUserId, Long.parseLong(userId))
+               .eq(Patient::getIsDefault, true);
+        
+        Patient patient = patientMapper.selectOne(wrapper);
+        return patient != null ? convertToPatientVO(patient) : null;
     }
 
     @Override
     public PatientVO addPatient(String userId, PatientDTO patientDTO) {
-        log.info("添加就诊人: {}", patientDTO.getName());
-        PatientVO patient = new PatientVO();
-        patient.setId(UUID.randomUUID().toString().replace("-", ""));
-        patient.setName(patientDTO.getName());
-        patient.setGender(patientDTO.getGender());
-        patient.setAge(patientDTO.getAge());
-        patient.setIdCard(patientDTO.getIdCard());
-        patient.setPhone(patientDTO.getPhone());
-        patient.setRelationship(patientDTO.getRelationship());
-        patient.setBirthday(patientDTO.getBirthday());
-        patient.setAddress(patientDTO.getAddress());
-        patient.setAllergyHistory(patientDTO.getAllergyHistory());
-        patient.setMedicalHistory(patientDTO.getMedicalHistory());
-        patient.setIsDefault(patientDTO.getIsDefault() != null ? patientDTO.getIsDefault() : false);
-        return patient;
+        Patient patient = new Patient();
+        BeanUtils.copyProperties(patientDTO, patient);
+        patient.setUserId(Long.parseLong(userId));
+        
+        // 如果设置为默认，先取消其他默认就诊人
+        if (patientDTO.getIsDefault() != null && patientDTO.getIsDefault()) {
+            LambdaQueryWrapper<Patient> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(Patient::getUserId, Long.parseLong(userId))
+                   .eq(Patient::getIsDefault, true);
+            List<Patient> existingDefaults = patientMapper.selectList(wrapper);
+            for (Patient p : existingDefaults) {
+                p.setIsDefault(false);
+                patientMapper.updateById(p);
+            }
+        }
+        
+        patientMapper.insert(patient);
+        return convertToPatientVO(patient);
     }
 
     @Override
     public PatientVO updatePatient(String userId, String patientId, PatientDTO patientDTO) {
-        log.info("更新就诊人: {}", patientId);
-        PatientVO patient = addPatient(userId, patientDTO);
-        patient.setId(patientId);
-        return patient;
+        Patient patient = patientMapper.selectById(patientId);
+        if (patient == null) {
+            return null;
+        }
+
+        BeanUtils.copyProperties(patientDTO, patient);
+        
+        // 如果设置为默认，先取消其他默认就诊人
+        if (patientDTO.getIsDefault() != null && patientDTO.getIsDefault()) {
+            LambdaQueryWrapper<Patient> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(Patient::getUserId, Long.parseLong(userId))
+                   .eq(Patient::getIsDefault, true)
+                   .ne(Patient::getId, patientId);
+            List<Patient> existingDefaults = patientMapper.selectList(wrapper);
+            for (Patient p : existingDefaults) {
+                p.setIsDefault(false);
+                patientMapper.updateById(p);
+            }
+        }
+        
+        patientMapper.updateById(patient);
+        return convertToPatientVO(patient);
     }
 
     @Override
     public void deletePatient(String userId, String patientId) {
+        patientMapper.deleteById(patientId);
         log.info("删除就诊人: {}", patientId);
     }
 
     @Override
     public void setDefaultPatient(String userId, String patientId) {
+        // 先取消所有默认
+        LambdaQueryWrapper<Patient> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Patient::getUserId, Long.parseLong(userId))
+               .eq(Patient::getIsDefault, true);
+        List<Patient> existingDefaults = patientMapper.selectList(wrapper);
+        for (Patient p : existingDefaults) {
+            p.setIsDefault(false);
+            patientMapper.updateById(p);
+        }
+        
+        // 设置新的默认就诊人
+        Patient patient = patientMapper.selectById(patientId);
+        if (patient != null) {
+            patient.setIsDefault(true);
+            patientMapper.updateById(patient);
+        }
+        
         log.info("设置默认就诊人: {}", patientId);
     }
 
@@ -204,68 +257,106 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public List<AddressVO> getAddressList(String userId) {
-        JsonNode addressesData = mockDataService.getAddresses();
-        List<AddressVO> addresses = new ArrayList<>();
-        if (addressesData != null && addressesData.isArray()) {
-            for (JsonNode address : addressesData) {
-                if (address.get("userId").asText().equals(userId)) {
-                    addresses.add(convertToAddressVO(address));
-                }
-            }
-        }
-        return addresses;
+        LambdaQueryWrapper<Address> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Address::getUserId, Long.parseLong(userId))
+               .orderByDesc(Address::getIsDefault)
+               .orderByDesc(Address::getCreateTime);
+        
+        List<Address> addresses = addressMapper.selectList(wrapper);
+        return addresses.stream()
+                .map(this::convertToAddressVO)
+                .collect(Collectors.toList());
     }
 
     @Override
     public AddressVO getAddressDetail(String userId, String addressId) {
-        return getAddressList(userId).stream()
-                .filter(a -> a.getId().equals(addressId))
-                .findFirst()
-                .orElse(null);
+        Address address = addressMapper.selectById(addressId);
+        return address != null ? convertToAddressVO(address) : null;
     }
 
     @Override
     public AddressVO getDefaultAddress(String userId) {
-        return getAddressList(userId).stream()
-                .filter(AddressVO::getIsDefault)
-                .findFirst()
-                .orElse(null);
+        LambdaQueryWrapper<Address> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Address::getUserId, Long.parseLong(userId))
+               .eq(Address::getIsDefault, true);
+        
+        Address address = addressMapper.selectOne(wrapper);
+        return address != null ? convertToAddressVO(address) : null;
     }
 
     @Override
     public AddressVO addAddress(String userId, AddressDTO addressDTO) {
-        log.info("添加地址: {}", addressDTO.getDetail());
-        AddressVO address = new AddressVO();
-        address.setId(UUID.randomUUID().toString().replace("-", ""));
-        address.setName(addressDTO.getName());
-        address.setPhone(addressDTO.getPhone());
-        address.setProvince(addressDTO.getProvince());
-        address.setCity(addressDTO.getCity());
-        address.setDistrict(addressDTO.getDistrict());
-        address.setDetail(addressDTO.getDetail());
-        address.setFullAddress(addressDTO.getProvince() + addressDTO.getCity() +
-                addressDTO.getDistrict() + addressDTO.getDetail());
-        address.setPostalCode(addressDTO.getPostalCode());
-        address.setTag(addressDTO.getTag());
-        address.setIsDefault(addressDTO.getIsDefault() != null ? addressDTO.getIsDefault() : false);
-        return address;
+        Address address = new Address();
+        BeanUtils.copyProperties(addressDTO, address);
+        address.setUserId(Long.parseLong(userId));
+        
+        // 如果设置为默认，先取消其他默认地址
+        if (addressDTO.getIsDefault() != null && addressDTO.getIsDefault()) {
+            LambdaQueryWrapper<Address> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(Address::getUserId, Long.parseLong(userId))
+                   .eq(Address::getIsDefault, true);
+            List<Address> existingDefaults = addressMapper.selectList(wrapper);
+            for (Address a : existingDefaults) {
+                a.setIsDefault(false);
+                addressMapper.updateById(a);
+            }
+        }
+        
+        addressMapper.insert(address);
+        return convertToAddressVO(address);
     }
 
     @Override
     public AddressVO updateAddress(String userId, String addressId, AddressDTO addressDTO) {
-        log.info("更新地址: {}", addressId);
-        AddressVO address = addAddress(userId, addressDTO);
-        address.setId(addressId);
-        return address;
+        Address address = addressMapper.selectById(addressId);
+        if (address == null) {
+            return null;
+        }
+
+        BeanUtils.copyProperties(addressDTO, address);
+        
+        // 如果设置为默认，先取消其他默认地址
+        if (addressDTO.getIsDefault() != null && addressDTO.getIsDefault()) {
+            LambdaQueryWrapper<Address> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(Address::getUserId, Long.parseLong(userId))
+                   .eq(Address::getIsDefault, true)
+                   .ne(Address::getId, addressId);
+            List<Address> existingDefaults = addressMapper.selectList(wrapper);
+            for (Address a : existingDefaults) {
+                a.setIsDefault(false);
+                addressMapper.updateById(a);
+            }
+        }
+        
+        addressMapper.updateById(address);
+        return convertToAddressVO(address);
     }
 
     @Override
     public void deleteAddress(String userId, String addressId) {
+        addressMapper.deleteById(addressId);
         log.info("删除地址: {}", addressId);
     }
 
     @Override
     public void setDefaultAddress(String userId, String addressId) {
+        // 先取消所有默认
+        LambdaQueryWrapper<Address> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Address::getUserId, Long.parseLong(userId))
+               .eq(Address::getIsDefault, true);
+        List<Address> existingDefaults = addressMapper.selectList(wrapper);
+        for (Address a : existingDefaults) {
+            a.setIsDefault(false);
+            addressMapper.updateById(a);
+        }
+        
+        // 设置新的默认地址
+        Address address = addressMapper.selectById(addressId);
+        if (address != null) {
+            address.setIsDefault(true);
+            addressMapper.updateById(address);
+        }
+        
         log.info("设置默认地址: {}", addressId);
     }
 
@@ -287,19 +378,17 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public List<CouponVO> getCouponList(String userId, String status) {
-        JsonNode couponsData = mockDataService.getCoupons();
-        List<CouponVO> coupons = new ArrayList<>();
-        if (couponsData != null && couponsData.isArray()) {
-            for (JsonNode coupon : couponsData) {
-                if (coupon.get("userId").asText().equals(userId)) {
-                    CouponVO vo = convertToCouponVO(coupon);
-                    if (status == null || vo.getStatus().equals(status)) {
-                        coupons.add(vo);
-                    }
-                }
-            }
+        List<Coupon> coupons;
+        
+        if (StringUtils.hasText(status)) {
+            coupons = couponMapper.selectByUserIdAndStatus(userId, status);
+        } else {
+            coupons = couponMapper.selectByUserId(userId);
         }
-        return coupons;
+        
+        return coupons.stream()
+                .map(this::convertToCouponVO)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -318,87 +407,57 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public List<BrowseHistoryVO> getBrowseHistory(String userId, Integer page, Integer size) {
-        List<BrowseHistoryVO> history = new ArrayList<>();
-        // 模拟浏览历史数据
-        BrowseHistoryVO item1 = new BrowseHistoryVO();
-        item1.setId("1");
-        item1.setDrugId("1");
-        item1.setName("阿莫西林胶囊");
-        item1.setImage("");
-        item1.setPrice(new BigDecimal("12.50"));
-        item1.setBrowseTime(LocalDateTime.now().minusHours(2));
-        history.add(item1);
+        int p = page != null ? page : 1;
+        int s = size != null ? size : 10;
 
-        BrowseHistoryVO item2 = new BrowseHistoryVO();
-        item2.setId("2");
-        item2.setDrugId("2");
-        item2.setName("布洛芬缓释胶囊");
-        item2.setImage("");
-        item2.setPrice(new BigDecimal("15.80"));
-        item2.setBrowseTime(LocalDateTime.now().minusDays(1));
-        history.add(item2);
+        LambdaQueryWrapper<BrowseHistory> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(BrowseHistory::getUserId, Long.parseLong(userId))
+               .orderByDesc(BrowseHistory::getBrowseTime);
 
-        return history;
+        com.baomidou.mybatisplus.extension.plugins.pagination.Page<BrowseHistory> historyPage =
+                new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(p, s);
+        com.baomidou.mybatisplus.extension.plugins.pagination.Page<BrowseHistory> resultPage =
+                browseHistoryMapper.selectPage(historyPage, wrapper);
+
+        return resultPage.getRecords().stream()
+                .map(this::convertToBrowseHistoryVO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public Long getBrowseHistoryCount(String userId) {
+        LambdaQueryWrapper<BrowseHistory> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(BrowseHistory::getUserId, Long.parseLong(userId));
+        return browseHistoryMapper.selectCount(wrapper);
     }
 
     @Override
     public void addBrowseHistory(String userId, BrowseHistoryDTO historyDTO) {
-        log.info("添加浏览历史: {}", historyDTO.getDrugId());
+        BrowseHistory history = new BrowseHistory();
+        history.setUserId(Long.parseLong(userId));
+        history.setProductId(Long.parseLong(historyDTO.getProductId()));
+        history.setBrowseTime(LocalDateTime.now());
+        browseHistoryMapper.insert(history);
+        log.info("添加浏览历史: {}", historyDTO.getProductId());
     }
 
     @Override
     public void clearBrowseHistory(String userId) {
+        LambdaQueryWrapper<BrowseHistory> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(BrowseHistory::getUserId, userId);
+        browseHistoryMapper.delete(wrapper);
         log.info("清空浏览历史: {}", userId);
     }
 
     // ============== 转换方法 ==============
 
-    private UserInfoVO convertToUserInfoVO(JsonNode user) {
+    private UserInfoVO convertToUserInfoVO(User user) {
         if (user == null) {
             return createDefaultUserInfo();
         }
         UserInfoVO vo = new UserInfoVO();
-        vo.setId(getTextValue(user, "id", CURRENT_USER_ID));
-        vo.setPhone(getTextValue(user, "phone", ""));
-        vo.setNickname(getTextValue(user, "nickname", "用户" + CURRENT_USER_ID));
-        vo.setAvatar(getTextValue(user, "avatar", ""));
-        vo.setEmail(getTextValue(user, "email", null));
-        vo.setBirthday(getTextValue(user, "birthday", null));
-        vo.setGender(getIntValue(user, "gender", 0));
-        vo.setRealName(getTextValue(user, "realName", null));
-        vo.setIdCard(getTextValue(user, "idCard", null));
-        vo.setIsRealNameAuth(getBooleanValue(user, "isRealNameAuth", false));
-        vo.setBalance(getDecimalValue(user, "balance", BigDecimal.ZERO));
-        vo.setPoints(getIntValue(user, "points", 0));
+        BeanUtils.copyProperties(user, vo);
         return vo;
-    }
-
-    private String getTextValue(JsonNode node, String field, String defaultValue) {
-        if (node.has(field) && !node.get(field).isNull()) {
-            return node.get(field).asText();
-        }
-        return defaultValue;
-    }
-
-    private Integer getIntValue(JsonNode node, String field, Integer defaultValue) {
-        if (node.has(field) && !node.get(field).isNull()) {
-            return node.get(field).asInt();
-        }
-        return defaultValue;
-    }
-
-    private Boolean getBooleanValue(JsonNode node, String field, Boolean defaultValue) {
-        if (node.has(field) && !node.get(field).isNull()) {
-            return node.get(field).asBoolean();
-        }
-        return defaultValue;
-    }
-
-    private BigDecimal getDecimalValue(JsonNode node, String field, BigDecimal defaultValue) {
-        if (node.has(field) && !node.get(field).isNull()) {
-            return new BigDecimal(node.get(field).asText());
-        }
-        return defaultValue;
     }
 
     private UserInfoVO createDefaultUserInfo() {
@@ -413,78 +472,44 @@ public class UserServiceImpl implements UserService {
         return vo;
     }
 
-    private PatientVO convertToPatientVO(JsonNode patient) {
+    private PatientVO convertToPatientVO(Patient patient) {
         if (patient == null) {
             return null;
         }
         PatientVO vo = new PatientVO();
-        vo.setId(getTextValue(patient, "id", ""));
-        vo.setName(getTextValue(patient, "name", ""));
-        vo.setGender(getIntValue(patient, "gender", 1));
-        vo.setAge(getIntValue(patient, "age", 30));
-        vo.setBirthday(getTextValue(patient, "birthday", null));
-        vo.setIdCard(getTextValue(patient, "idCard", ""));
-        vo.setPhone(getTextValue(patient, "phone", ""));
-        vo.setRelationship(getTextValue(patient, "relationship", "本人"));
-        vo.setAddress(getTextValue(patient, "address", null));
-        vo.setAllergyHistory(getTextValue(patient, "allergyHistory", null));
-        vo.setMedicalHistory(getTextValue(patient, "medicalHistory", null));
-        vo.setIsDefault(getBooleanValue(patient, "isDefault", false));
+        BeanUtils.copyProperties(patient, vo);
+        // 手动设置ID（Long转String）
+        vo.setId(patient.getId() != null ? String.valueOf(patient.getId()) : null);
         return vo;
     }
 
-    private AddressVO convertToAddressVO(JsonNode address) {
+    private AddressVO convertToAddressVO(Address address) {
         if (address == null) {
             return null;
         }
         AddressVO vo = new AddressVO();
-        vo.setId(getTextValue(address, "id", ""));
-        vo.setName(getTextValue(address, "name", ""));
-        vo.setPhone(getTextValue(address, "phone", ""));
-        vo.setProvince(getTextValue(address, "province", ""));
-        vo.setCity(getTextValue(address, "city", ""));
-        vo.setDistrict(getTextValue(address, "district", ""));
-        vo.setDetail(getTextValue(address, "detail", ""));
-        String province = getTextValue(address, "province", "");
-        String city = getTextValue(address, "city", "");
-        String district = getTextValue(address, "district", "");
-        String detail = getTextValue(address, "detail", "");
-        vo.setFullAddress(province + city + district + detail);
-        vo.setPostalCode(getTextValue(address, "postalCode", null));
-        vo.setTag(getTextValue(address, "tag", null));
-        vo.setIsDefault(getBooleanValue(address, "isDefault", false));
+        BeanUtils.copyProperties(address, vo);
+        // 拼接完整地址
+        vo.setFullAddress(address.getProvince() + address.getCity() + 
+                address.getDistrict() + address.getDetail());
         return vo;
     }
 
-    private CouponVO convertToCouponVO(JsonNode coupon) {
+    private CouponVO convertToCouponVO(Coupon coupon) {
         if (coupon == null) {
             return null;
         }
         CouponVO vo = new CouponVO();
-        vo.setId(getTextValue(coupon, "id", ""));
-        vo.setName(getTextValue(coupon, "name", ""));
-        vo.setType(getTextValue(coupon, "type", ""));
-        vo.setValue(getDecimalValue(coupon, "value", BigDecimal.ZERO));
-        vo.setMinAmount(coupon.has("minAmount") && !coupon.get("minAmount").isNull() ?
-                new BigDecimal(coupon.get("minAmount").asText()) : BigDecimal.ZERO);
-        vo.setStatus(getTextValue(coupon, "status", ""));
-        vo.setDescription(getTextValue(coupon, "description", ""));
-        vo.setScope(getTextValue(coupon, "scope", "all"));
+        BeanUtils.copyProperties(coupon, vo);
+        return vo;
+    }
 
-        if (coupon.has("startTime") && !coupon.get("startTime").isNull()) {
-            try {
-                vo.setStartTime(LocalDateTime.parse(coupon.get("startTime").asText(), DATE_TIME_FORMATTER));
-            } catch (Exception e) {
-                vo.setStartTime(LocalDateTime.now());
-            }
+    private BrowseHistoryVO convertToBrowseHistoryVO(BrowseHistory history) {
+        if (history == null) {
+            return null;
         }
-        if (coupon.has("endTime") && !coupon.get("endTime").isNull()) {
-            try {
-                vo.setEndTime(LocalDateTime.parse(coupon.get("endTime").asText(), DATE_TIME_FORMATTER));
-            } catch (Exception e) {
-                vo.setEndTime(LocalDateTime.now().plusDays(30));
-            }
-        }
+        BrowseHistoryVO vo = new BrowseHistoryVO();
+        BeanUtils.copyProperties(history, vo);
         return vo;
     }
 }

@@ -289,7 +289,7 @@ onMounted(() => {
               link 
               type="primary" 
               size="small" 
-              @click="$event.target.previousElementSibling.textContent = row.idCard"
+              @click="($event.target as HTMLElement).previousElementSibling!.textContent = row.idCard"
             >
               显示
             </el-button>
@@ -298,7 +298,7 @@ onMounted(() => {
         <el-table-column prop="phone" label="手机号" width="130" />
         <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)" size="small">
+            <el-tag :type="getStatusType(row.status) as any" size="small">
               {{ getStatusText(row.status) }}
             </el-tag>
           </template>
@@ -344,7 +344,7 @@ onMounted(() => {
         <el-descriptions-item label="手机号">{{ currentRecord.phone }}</el-descriptions-item>
         <el-descriptions-item label="提交时间">{{ currentRecord.submitTime }}</el-descriptions-item>
         <el-descriptions-item label="审核状态">
-          <el-tag :type="getStatusType(currentRecord.status)">
+          <el-tag :type="getStatusType(currentRecord.status) as any">
             {{ getStatusText(currentRecord.status) }}
           </el-tag>
         </el-descriptions-item>
@@ -410,7 +410,7 @@ onMounted(() => {
           <el-input
             v-model="auditForm.reason"
             type="textarea"
-            rows="3"
+            :rows="3"
             placeholder="请输入拒绝原因，将告知用户"
           />
         </el-form-item>

@@ -1,21 +1,21 @@
 package com.drugmall.service.impl;
 
-import com.drugmall.config.MockDataService;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.drugmall.dto.*;
+import com.drugmall.entity.CartItem;
+import com.drugmall.entity.Drug;
+import com.drugmall.mapper.CartItemMapper;
+import com.drugmall.mapper.DrugMapper;
 import com.drugmall.service.CartService;
 import com.drugmall.vo.*;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -26,92 +26,140 @@ import java.util.stream.Collectors;
 public class CartServiceImpl implements CartService {
 
     @Autowired
-    private MockDataService mockDataService;
+    private CartItemMapper cartItemMapper;
 
     @Autowired
-    private ObjectMapper objectMapper;
-
-    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private DrugMapper drugMapper;
 
     @Override
     public List<CartItemVO> getCartList(String userId) {
-        JsonNode cartsData = mockDataService.getCarts();
-        List<CartItemVO> carts = new ArrayList<>();
-        if (cartsData != null && cartsData.isArray()) {
-            for (JsonNode item : cartsData) {
-                if (item.get("userId").asText().equals(userId)) {
-                    carts.add(convertToCartItemVO(item));
-                }
-            }
+        LambdaQueryWrapper<CartItem> wrapper = new LambdaQueryWrapper<>();
+        try {
+            wrapper.eq(CartItem::getUserId, Long.parseLong(userId))
+                   .orderByDesc(CartItem::getCreateTime);
+        } catch (NumberFormatException e) {
+            log.warn("无效的用户ID: {}", userId);
+            return new ArrayList<>();
         }
-        return carts;
+        
+        List<CartItem> cartItems = cartItemMapper.selectList(wrapper);
+        return cartItems.stream()
+                .map(this::convertToCartItemVO)
+                .collect(Collectors.toList());
     }
 
     @Override
     public CartItemVO addToCart(String userId, AddToCartDTO addDTO) {
         log.info("添加商品到购物车: userId={}, drugId={}", userId, addDTO.getDrugId());
 
-        // 从药品数据中获取药品信息
-        CartItemVO item = new CartItemVO();
-        item.setId(UUID.randomUUID().toString().replace("-", ""));
-        item.setDrugId(addDTO.getDrugId());
-        item.setName("模拟药品");
-        item.setSpecification("0.25g*24粒");
-        item.setManufacturer("模拟厂家");
-        item.setPrice(new BigDecimal("12.50"));
-        item.setOriginalPrice(new BigDecimal("18.00"));
-        item.setQuantity(addDTO.getQuantity());
-        item.setImage("");
-        item.setImageColor("#00b578");
-        item.setImageText("药品");
-        item.setDisease(addDTO.getDisease());
-        item.setUsage(addDTO.getUsage());
-        item.setIsRx(false);
-        item.setIsSelected(true);
-        item.setStock(100);
-        item.setWarningStock(10);
-        item.setCategoryId("1");
-        item.setCategoryName("感冒药");
-        return item;
+        Long userIdLong;
+        Long productIdLong;
+        try {
+            userIdLong = Long.parseLong(userId);
+            productIdLong = Long.parseLong(addDTO.getDrugId());
+        } catch (NumberFormatException e) {
+            throw new RuntimeException("无效的ID格式");
+        }
+
+        // 检查是否已存在该商品
+        LambdaQueryWrapper<CartItem> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(CartItem::getUserId, userIdLong)
+               .eq(CartItem::getProductId, productIdLong);
+        CartItem existingItem = cartItemMapper.selectOne(wrapper);
+
+        if (existingItem != null) {
+            // 已存在，更新数量
+            existingItem.setQuantity(existingItem.getQuantity() + addDTO.getQuantity());
+            cartItemMapper.updateById(existingItem);
+            return convertToCartItemVO(existingItem);
+        }
+
+        // 从数据库获取药品信息
+        Drug drug = drugMapper.selectById(productIdLong);
+        if (drug == null) {
+            throw new RuntimeException("药品不存在");
+        }
+
+        // 创建新的购物车项
+        CartItem cartItem = new CartItem();
+        cartItem.setUserId(userIdLong);
+        cartItem.setProductId(productIdLong);
+        cartItem.setQuantity(addDTO.getQuantity());
+        cartItem.setSelected(true);
+        cartItem.setCreateTime(LocalDateTime.now());
+
+        cartItemMapper.insert(cartItem);
+        return convertToCartItemVOWithDrug(cartItem, drug);
     }
 
     @Override
     public CartItemVO updateCartItem(String userId, String itemId, UpdateCartDTO updateDTO) {
-        log.info("更新购物车项: {}", itemId);
-        List<CartItemVO> carts = getCartList(userId);
-        CartItemVO item = carts.stream()
-                .filter(c -> c.getId().equals(itemId))
-                .findFirst()
-                .orElse(null);
-        if (item != null) {
-            if (updateDTO.getQuantity() != null) {
-                item.setQuantity(updateDTO.getQuantity());
-            }
-            if (updateDTO.getIsSelected() != null) {
-                item.setIsSelected(updateDTO.getIsSelected());
-            }
-            if (updateDTO.getDisease() != null) {
-                item.setDisease(updateDTO.getDisease());
-            }
-            if (updateDTO.getUsage() != null) {
-                item.setUsage(updateDTO.getUsage());
-            }
+        Long itemIdLong;
+        try {
+            itemIdLong = Long.parseLong(itemId);
+        } catch (NumberFormatException e) {
+            log.warn("无效的购物车ID: {}", itemId);
+            return null;
         }
-        return item;
+
+        CartItem cartItem = cartItemMapper.selectById(itemIdLong);
+        if (cartItem == null) {
+            return null;
+        }
+
+        if (updateDTO.getQuantity() != null) {
+            cartItem.setQuantity(updateDTO.getQuantity());
+        }
+        if (updateDTO.getIsSelected() != null) {
+            cartItem.setSelected(updateDTO.getIsSelected());
+        }
+
+        cartItemMapper.updateById(cartItem);
+        return convertToCartItemVO(cartItem);
     }
 
     @Override
     public void deleteCartItem(String userId, String itemId) {
+        try {
+            cartItemMapper.deleteById(Long.parseLong(itemId));
+        } catch (NumberFormatException e) {
+            log.warn("无效的购物车ID: {}", itemId);
+        }
         log.info("删除购物车项: {}", itemId);
     }
 
     @Override
     public void batchRemoveCartItems(String userId, List<String> itemIds) {
+        List<Long> ids = itemIds.stream()
+                .map(id -> {
+                    try {
+                        return Long.parseLong(id);
+                    } catch (NumberFormatException e) {
+                        return null;
+                    }
+                })
+                .filter(id -> id != null)
+                .collect(Collectors.toList());
+        
+        if (!ids.isEmpty()) {
+            cartItemMapper.deleteBatchIds(ids);
+        }
         log.info("批量删除购物车项: {}", itemIds);
     }
 
     @Override
     public void clearCart(String userId) {
+        Long userIdLong;
+        try {
+            userIdLong = Long.parseLong(userId);
+        } catch (NumberFormatException e) {
+            log.warn("无效的用户ID: {}", userId);
+            return;
+        }
+        
+        LambdaQueryWrapper<CartItem> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(CartItem::getUserId, userIdLong);
+        cartItemMapper.delete(wrapper);
         log.info("清空购物车: {}", userId);
     }
 
@@ -161,25 +209,63 @@ public class CartServiceImpl implements CartService {
 
     @Override
     public void selectCartItem(String userId, String itemId, Boolean isSelected) {
+        try {
+            CartItem cartItem = cartItemMapper.selectById(Long.parseLong(itemId));
+            if (cartItem != null) {
+                cartItem.setSelected(isSelected);
+                cartItemMapper.updateById(cartItem);
+            }
+        } catch (NumberFormatException e) {
+            log.warn("无效的购物车ID: {}", itemId);
+        }
         log.info("选择购物车项: {}, isSelected={}", itemId, isSelected);
     }
 
     @Override
     public void selectAllCartItems(String userId, Boolean isSelected) {
+        Long userIdLong;
+        try {
+            userIdLong = Long.parseLong(userId);
+        } catch (NumberFormatException e) {
+            log.warn("无效的用户ID: {}", userId);
+            return;
+        }
+
+        LambdaQueryWrapper<CartItem> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(CartItem::getUserId, userIdLong);
+        List<CartItem> cartItems = cartItemMapper.selectList(wrapper);
+        
+        for (CartItem item : cartItems) {
+            item.setSelected(isSelected);
+            cartItemMapper.updateById(item);
+        }
         log.info("全选购物车: isSelected={}", isSelected);
     }
 
     @Override
     public CartItemVO updateCartItemQuantity(String userId, String itemId, Integer quantity) {
+        Long itemIdLong;
+        try {
+            itemIdLong = Long.parseLong(itemId);
+        } catch (NumberFormatException e) {
+            log.warn("无效的购物车ID: {}", itemId);
+            return null;
+        }
+
+        CartItem cartItem = cartItemMapper.selectById(itemIdLong);
+        if (cartItem == null) {
+            return null;
+        }
+        
+        cartItem.setQuantity(quantity);
+        cartItemMapper.updateById(cartItem);
+        
         log.info("更新购物车数量: {}, quantity={}", itemId, quantity);
-        UpdateCartDTO dto = new UpdateCartDTO();
-        dto.setQuantity(quantity);
-        return updateCartItem(userId, itemId, dto);
+        return convertToCartItemVO(cartItem);
     }
 
     @Override
     public CartValidationResultVO validateCart(String userId) {
-        log.info("验证购物车: {}", userId);
         List<CartItemVO> carts = getCartList(userId);
         CartValidationResultVO result = new CartValidationResultVO();
 
@@ -207,6 +293,7 @@ public class CartServiceImpl implements CartService {
     @Override
     public CartCheckoutInfoVO getCheckoutInfo(String userId, List<String> cartItemIds) {
         log.info("获取结算信息: {}", cartItemIds);
+        
         List<CartItemVO> allCarts = getCartList(userId);
         List<CartItemVO> selectedCarts = allCarts.stream()
                 .filter(c -> cartItemIds.contains(c.getId()))
@@ -267,59 +354,42 @@ public class CartServiceImpl implements CartService {
         log.info("合并购物车: {} 项", mergeDTO.getItems().size());
     }
 
-    private CartItemVO convertToCartItemVO(JsonNode item) {
+    private CartItemVO convertToCartItemVO(CartItem item) {
         if (item == null) {
             return null;
         }
+        
+        // 获取药品信息
+        Drug drug = drugMapper.selectById(item.getProductId());
+        if (drug != null) {
+            return convertToCartItemVOWithDrug(item, drug);
+        }
+        
+        // 如果没有找到药品，返回基本信息
         CartItemVO vo = new CartItemVO();
-        vo.setId(getTextValue(item, "id", ""));
-        vo.setDrugId(getTextValue(item, "drugId", ""));
-        vo.setName(getTextValue(item, "drugName", ""));
-        vo.setSpecification(getTextValue(item, "specification", ""));
-        vo.setManufacturer(getTextValue(item, "manufacturer", ""));
-        vo.setPrice(getDecimalValue(item, "price", BigDecimal.ZERO));
-        vo.setOriginalPrice(item.has("originalPrice") && !item.get("originalPrice").isNull() ? 
-                new BigDecimal(item.get("originalPrice").asText()) : null);
-        vo.setQuantity(getIntValue(item, "quantity", 1));
-        vo.setImage(getTextValue(item, "image", ""));
-        vo.setImageColor(getTextValue(item, "imageColor", ""));
-        vo.setImageText(getTextValue(item, "imageText", ""));
-        vo.setIsSelected(getBooleanValue(item, "selected", true));
-        vo.setStock(getIntValue(item, "stock", 100));
-        vo.setWarningStock(getIntValue(item, "warningStock", 10));
-        vo.setIsRx(getBooleanValue(item, "isRx", false));
-        vo.setCategoryId(getTextValue(item, "categoryId", null));
-        vo.setCategoryName(getTextValue(item, "categoryName", null));
-        vo.setDisease(getTextValue(item, "disease", null));
-        vo.setUsage(getTextValue(item, "usage", null));
+        vo.setId(String.valueOf(item.getId()));
+        vo.setDrugId(String.valueOf(item.getProductId()));
+        vo.setQuantity(item.getQuantity());
+        vo.setIsSelected(item.getSelected());
         return vo;
     }
 
-    private String getTextValue(JsonNode node, String field, String defaultValue) {
-        if (node.has(field) && !node.get(field).isNull()) {
-            return node.get(field).asText();
-        }
-        return defaultValue;
-    }
-
-    private Integer getIntValue(JsonNode node, String field, Integer defaultValue) {
-        if (node.has(field) && !node.get(field).isNull()) {
-            return node.get(field).asInt();
-        }
-        return defaultValue;
-    }
-
-    private Boolean getBooleanValue(JsonNode node, String field, Boolean defaultValue) {
-        if (node.has(field) && !node.get(field).isNull()) {
-            return node.get(field).asBoolean();
-        }
-        return defaultValue;
-    }
-
-    private BigDecimal getDecimalValue(JsonNode node, String field, BigDecimal defaultValue) {
-        if (node.has(field) && !node.get(field).isNull()) {
-            return new BigDecimal(node.get(field).asText());
-        }
-        return defaultValue;
+    private CartItemVO convertToCartItemVOWithDrug(CartItem item, Drug drug) {
+        CartItemVO vo = new CartItemVO();
+        vo.setId(String.valueOf(item.getId()));
+        vo.setDrugId(String.valueOf(item.getProductId()));
+        vo.setName(drug.getProductName());
+        vo.setSpecification(drug.getSpecification());
+        vo.setManufacturer(drug.getManufacturer());
+        vo.setPrice(drug.getPrice());
+        vo.setOriginalPrice(drug.getOriginalPrice());
+        vo.setQuantity(item.getQuantity());
+        vo.setImage(drug.getMainImage());
+        vo.setIsRx(drug.getIsRx());
+        vo.setIsSelected(item.getSelected());
+        vo.setStock(drug.getStock());
+        vo.setCategoryId(drug.getCategoryId() != null ? String.valueOf(drug.getCategoryId()) : null);
+        vo.setCategoryName("");
+        return vo;
     }
 }

@@ -18,8 +18,14 @@ public class ConsultationDetailVO implements Serializable {
     @Schema(description = "问诊ID")
     private String id;
 
+    @Schema(description = "医生ID")
+    private String doctorId;
+
     @Schema(description = "患者ID")
     private String patientId;
+
+    @Schema(description = "患者用户ID（用于IM通讯）")
+    private String patientUserId;
 
     @Schema(description = "患者姓名")
     private String patientName;

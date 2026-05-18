@@ -24,7 +24,10 @@
     <div class="search-box-wrapper">
       <div class="search-box" @click="$emit('searchClick')">
         <el-icon class="search-icon"><Search /></el-icon>
-        <span class="placeholder">百蕊颗粒</span>
+        <span class="placeholder">搜索药品、症状或品牌</span>
+        <div class="voice-btn" @click.stop="$emit('voiceSearch')">
+          <el-icon><Microphone /></el-icon>
+        </div>
         <div class="camera-btn" @click.stop="$emit('scanCode')">
           <el-icon><Camera /></el-icon>
         </div>
@@ -41,7 +44,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ArrowLeft, Location, ArrowRight, ShoppingCart, Search, Camera } from '@element-plus/icons-vue'
+import { ArrowLeft, Location, ArrowRight, ShoppingCart, Search, Camera, Microphone } from '@element-plus/icons-vue'
+import { ROUTES } from '@/constants/routes'
 import type { HomeSection } from '@/types/home'
 
 const props = defineProps<{
@@ -54,13 +58,14 @@ const emit = defineEmits<{
   (e: 'cartClick'): void
   (e: 'searchClick'): void
   (e: 'scanCode'): void
+  (e: 'voiceSearch'): void
 }>()
 
 const router = useRouter()
 const currentLocation = ref('星光天地')
 
 const goToAddress = () => {
-  router.push('/address')
+  router.push(ROUTES.ADDRESS)
 }
 </script>
 
@@ -174,6 +179,20 @@ $text-tertiary: #999999;
         flex: 1;
         color: $text-tertiary;
         font-size: 14px;
+      }
+
+      .voice-btn {
+        padding: 0 8px;
+        color: $text-secondary;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        font-size: 18px;
+        transition: color 0.2s ease;
+
+        &:active {
+          color: $primary-teal;
+        }
       }
 
       .camera-btn {

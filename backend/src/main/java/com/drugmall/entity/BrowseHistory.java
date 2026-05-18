@@ -3,6 +3,7 @@ package com.drugmall.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.TableField;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -18,18 +19,23 @@ public class BrowseHistory implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    @TableId(type = IdType.ASSIGN_ID)
-    private String id;
+    @TableId(type = IdType.AUTO)
+    private Long id;
 
-    private String userId;
+    @TableField("user_id")
+    private Long userId;
 
-    private String drugId;
+    @TableField("product_id")
+    private Long productId;
 
-    private String name;
+    @TableField("product_name")
+    private String productName;
 
-    private String image;
+    @TableField("product_image")
+    private String productImage;
 
     private BigDecimal price;
 
+    @TableField("browse_time")
     private LocalDateTime browseTime;
 }

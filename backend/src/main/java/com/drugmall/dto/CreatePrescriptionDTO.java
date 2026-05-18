@@ -42,8 +42,11 @@ public class CreatePrescriptionDTO {
     @Data
     @Schema(description = "处方药品")
     public static class PrescriptionDrugDTO {
-        @Schema(description = "药品ID")
+        @Schema(description = "药品ID（前端行ID）")
         private String id;
+
+        @Schema(description = "药品数据库ID（用于关联产品表）")
+        private Long drugId;
 
         @NotBlank(message = "药品名称不能为空")
         @Schema(description = "药品名称", required = true)

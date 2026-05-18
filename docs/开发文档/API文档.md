@@ -1514,7 +1514,183 @@
 
 ---
 
-## 五、错误码说明
+## 二、患者端 API - 门店模块
+
+### 基础路径：`/v1`
+
+### 2.1 门店列表
+
+#### 2.1.1 获取门店列表
+- **接口路径**：`GET /v1/stores`
+- **接口描述**：获取所有可用门店列表，包含基本信息、评分、距离等
+- **请求参数**：无
+- **返回示例**：
+  ```json
+  {
+    "code": 200,
+    "message": "success",
+    "data": [
+      {
+        "id": "1",
+        "name": "海王星辰健康药房(朝阳店)",
+        "logo": "",
+        "logoText": "海王",
+        "logoColor": "#FFD700",
+        "rating": 4.8,
+        "monthlySales": 1200,
+        "distance": 0.8,
+        "deliveryTime": 25,
+        "tags": [
+          {"text": "医保定点", "type": "primary"},
+          {"text": "24小时", "type": "success"},
+          {"text": "连锁品牌", "type": "info"}
+        ],
+        "address": "北京市朝阳区建国路88号SOHO现代城底商",
+        "phone": "010-85861234",
+        "isOpen": true,
+        "businessHours": "08:00-22:00",
+        "products": [
+          {"id": "p1", "name": "阿莫西林", "price": 15.80, "bgColor": "#E3F2FD"},
+          {"id": "p2", "name": "布洛芬", "price": 12.50, "bgColor": "#FFF3E0"},
+          {"id": "p3", "name": "维生素C", "price": 8.90, "bgColor": "#E8F5E9"}
+        ]
+      }
+    ]
+  }
+  ```
+
+### 2.2 门店详情
+
+#### 2.2.1 获取门店详情
+- **接口路径**：`GET /v1/stores/{id}`
+- **接口描述**：根据门店ID获取详细信息，包含在售商品列表、资质认证等
+- **路径参数**：
+  - `id`: 门店ID
+- **返回示例**：
+  ```json
+  {
+    "code": 200,
+    "message": "success",
+    "data": {
+      "id": "1",
+      "name": "海王星辰健康药房(朝阳店)",
+      "logo": "",
+      "logoText": "海王",
+      "logoColor": "#FFD700",
+      "rating": 4.8,
+      "monthlySales": 1200,
+      "distance": 0.8,
+      "deliveryTime": 25,
+      "tags": [
+        {"text": "医保定点", "type": "primary"},
+        {"text": "24小时", "type": "success"},
+        {"text": "连锁品牌", "type": "info"}
+      ],
+      "address": "北京市朝阳区建国路88号SOHO现代城底商",
+      "phone": "010-85861234",
+      "isOpen": true,
+      "businessHours": "08:00-22:00",
+      "products": [
+        {"id": "p1", "name": "阿莫西林", "price": 15.80, "bgColor": "#E3F2FD"}
+      ],
+      "description": "专业药品零售连锁企业，提供处方药、非处方药、医疗器械、保健品等全品类商品。拥有执业药师团队，提供专业的用药咨询服务。",
+      "businessScope": "中成药、化学药制剂、抗生素、生化药品、生物制品（除疫苗）、医疗器械、保健食品",
+      "certifications": [
+        "药品经营许可证",
+        "GSP认证证书",
+        "医保定点零售药店",
+        "互联网药品信息服务资格证"
+      ],
+      "servicePromises": [
+        "正品保证 假一赔十",
+        "药师咨询 专业指导",
+        "隐私保护 安全配送",
+        "7天无理由退换"
+      ],
+      "totalProducts": 8,
+      "drugs": [
+        {
+          "id": "d001",
+          "name": "阿莫西林胶囊",
+          "specification": "0.25g*20粒",
+          "manufacturer": "珠海联邦制药股份有限公司",
+          "price": 15.80,
+          "originalPrice": 22.00,
+          "stock": 256,
+          "isRx": true,
+          "approvalNumber": "国药准字H20067454",
+          "image": "",
+          "imageColor": "#E3F2FD",
+          "imageText": "阿莫",
+          "sales": 520,
+          "discount": 28,
+          "deliveryTime": 25,
+          "category": "抗感染",
+          "tags": ["热销", "处方药"]
+        }
+      ]
+    }
+  }
+  ```
+
+### 2.3 门店药品
+
+#### 2.3.1 获取门店药品列表
+- **接口路径**：`GET /v1/stores/{id}/drugs`
+- **接口描述**：获取指定门店的在售药品列表
+- **路径参数**：
+  - `id`: 门店ID
+- **返回示例**：
+  ```json
+  {
+    "code": 200,
+    "message": "success",
+    "data": [
+      {
+        "id": "d001",
+        "name": "阿莫西林胶囊",
+        "specification": "0.25g*20粒",
+        "manufacturer": "珠海联邦制药股份有限公司",
+        "price": 15.80,
+        "originalPrice": 22.00,
+        "stock": 256,
+        "isRx": true,
+        "approvalNumber": "国药准字H20067454",
+        "image": "",
+        "imageColor": "#E3F2FD",
+        "imageText": "阿莫",
+        "sales": 520,
+        "discount": 28,
+        "deliveryTime": 25,
+        "category": "抗感染",
+        "tags": ["热销", "处方药"]
+      },
+      {
+        "id": "d002",
+        "name": "布洛芬缓释胶囊",
+        "specification": "0.3g*12粒",
+        "manufacturer": "中美天津史克制药有限公司",
+        "price": 12.50,
+        "originalPrice": 18.00,
+        "stock": 189,
+        "isRx": false,
+        "approvalNumber": "国药准字H10900089",
+        "image": "",
+        "imageColor": "#FFF3E0",
+        "imageText": "布洛",
+        "sales": 380,
+        "discount": 30,
+        "deliveryTime": 25,
+        "category": "解热镇痛",
+        "tags": ["畅销", "OTC"]
+      }
+    ]
+  }
+  ```
+
+---
+
+## 三、错误码说明
 
 | 错误码 | 说明 |
 |--------|------|
@@ -1538,9 +1714,9 @@
 
 ---
 
-## 六、数据字典
+## 四、数据字典
 
-### 6.1 订单状态
+### 4.1 订单状态
 | 值 | 说明 |
 |----|------|
 | 0 | 待付款 |
@@ -1552,7 +1728,7 @@
 | -2 | 退款中 |
 | -3 | 已退款 |
 
-### 6.2 问诊状态
+### 4.2 问诊状态
 | 值 | 说明 |
 |----|------|
 | pending | 待接诊 |
@@ -1560,28 +1736,43 @@
 | completed | 已完成 |
 | closed | 已关闭 |
 
-### 6.3 处方状态
+### 4.3 处方状态
 | 值 | 说明 |
 |----|------|
 | pending | 待审核 |
 | approved | 已通过 |
 | rejected | 已拒绝 |
 
-### 6.4 用户性别
+### 4.4 用户性别
 | 值 | 说明 |
 |----|------|
 | 1 | 男 |
 | 2 | 女 |
 
-### 6.5 支付方式
+### 4.5 支付方式
 | 值 | 说明 |
 |----|------|
 | 1 | 微信支付 |
 | 2 | 支付宝 |
 
+### 4.6 门店标签类型
+| 值 | 说明 |
+|----|------|
+| primary | 主要标签（蓝色） |
+| success | 成功标签（绿色） |
+| warning | 警告标签（橙色） |
+| danger | 危险标签（红色） |
+| info | 信息标签（灰色） |
+
+### 4.7 门店状态
+| 值 | 说明 |
+|----|------|
+| 0 | 休息中 |
+| 1 | 营业中 |
+
 ---
 
-## 七、版本历史
+## 五、版本历史
 
 | 版本 | 日期 | 说明 |
 |------|------|------|

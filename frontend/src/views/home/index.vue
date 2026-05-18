@@ -1,11 +1,25 @@
 <template>
-  <div :class="['home-page', `theme-${activeTab}`]" ref="homePageRef">
+  <div :class="['home-page', `theme-${activeTab}`]" ref="homePageRef"
+    @touchstart="handleTouchStart"
+    @touchmove="handleTouchMove"
+    @touchend="handleTouchEnd"
+  >
+    <!-- 下拉刷新指示器 -->
+    <div v-if="isPulling || isRefreshing" class="pull-refresh-indicator" :style="{ transform: `translateY(${refreshProgress * 60}px)` }">
+      <div class="refresh-spinner" :class="{ spinning: isRefreshing }">
+        <el-icon><Refresh /></el-icon>
+      </div>
+      <span class="refresh-text">{{ isRefreshing ? '刷新中...' : '下拉刷新' }}</span>
+    </div>
     <!-- 头部渐变区域 - 包含搜索栏、Tab导航和各Tab的第一个区域 -->
     <div class="header-wrapper" :class="{ 'is-sticky': isSticky }">
+      <!-- 吸顶时的占位元素，保持文档流稳定 -->
+      <div v-if="isSticky" class="sticky-spacer"></div>
       <div class="header-gradient" :class="{ 'sticky': isSticky }">
         <!-- 搜索栏和Tab导航 -->
         <component
           v-for="section in headerSections"
+          v-show="getSectionComponent(section.sectionType)"
           :key="section.sectionId"
           :is="getSectionComponent(section.sectionType)"
           :section="section"
@@ -15,6 +29,7 @@
           @cart-click="goToCart"
           @search-click="goToSearch"
           @scan-code="handleScanCode"
+          @voice-search="handleVoiceSearch"
         />
         <!-- 各Tab的第一个区域 - 统一包含在渐变区域内 -->
         <!-- 推荐页促销横幅 -->
@@ -73,6 +88,7 @@
       <template v-else>
         <component
           v-for="section in contentSections"
+          v-show="getSectionComponent(section.sectionType)"
           :key="section.sectionId"
           :is="getSectionComponent(section.sectionType)"
           :section="section"
@@ -96,6 +112,9 @@
     <div v-if="homeStore.error && !homeStore.loading" class="error-container">
       <Empty description="加载失败，点击重试" @click="homeStore.fetchHomePageConfig()" />
     </div>
+
+    <!-- 回到顶部按钮 -->
+    <ScrollToTop />
 
     <!-- 位置选择弹窗 -->
     <el-dialog
@@ -122,9 +141,10 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ROUTES } from '@/constants/routes'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Check, Search, ShoppingCart } from '@element-plus/icons-vue'
+import { Check, Search, ShoppingCart, Refresh } from '@element-plus/icons-vue'
 import { useHomeStore } from '@/stores/home'
 
 // 导入所有 Section 组件
@@ -153,6 +173,7 @@ import QuickConsultCard from '@/components/consultation/QuickConsultCard.vue'
 // 导入公共组件
 import Loading from '@/components/Loading/index.vue'
 import Empty from '@/components/Empty/index.vue'
+import ScrollToTop from '@/components/ScrollToTop/index.vue'
 
 // 类型导入
 import type { SectionType } from '@/types/home'
@@ -221,23 +242,7 @@ const headerSections = computed(() => {
 
 // 内容区域组件（根据Tab过滤）
 const contentSections = computed(() => {
-  const sections = homeStore.sections
-
-  switch (activeTab.value) {
-    case 'recommend':
-      const recommendTypes = ['service_grid', 'banner_subsidy', 'doctor_banner', 'nearby_pharmacy', 'waterfall_layout']
-      return sections.filter(s => recommendTypes.includes(s.sectionType))
-    case 'doctor':
-      return sections.filter(s => s.sectionType === 'doctor_department')
-    case 'test':
-      return sections.filter(s => s.sectionType === 'test_items')
-    case 'chronic':
-      return sections.filter(s => s.sectionType === 'chronic_category')
-    case 'tcm':
-      return sections.filter(s => s.sectionType === 'tcm_category')
-    default:
-      return []
-  }
+  return homeStore.getSectionsByTab(activeTab.value)
 })
 
 // 组件映射表
@@ -265,9 +270,40 @@ function handleTabChange(tabId: string) {
   console.log('Tab switched to:', tabId)
 }
 
-const goToSearch = () => router.push('/search')
-const goToCart = () => router.push('/cart')
+const goToSearch = () => router.push(ROUTES.SEARCH)
+const goToCart = () => router.push(ROUTES.CART)
 const handleScanCode = () => ElMessage.info('扫码功能开发中')
+const handleVoiceSearch = () => {
+  // 检查浏览器是否支持语音识别
+  const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+  if (!SpeechRecognition) {
+    ElMessage.warning('您的浏览器不支持语音搜索，请使用文字搜索')
+    return
+  }
+  
+  const recognition = new SpeechRecognition()
+  recognition.lang = 'zh-CN'
+  recognition.continuous = false
+  recognition.interimResults = false
+  
+  recognition.onstart = () => {
+    ElMessage.info('请说出您要搜索的药品、症状或品牌')
+  }
+  
+  recognition.onresult = (event: any) => {
+    const transcript = event.results[0][0].transcript
+    router.push({
+      path: ROUTES.SEARCH,
+      query: { keyword: transcript }
+    })
+  }
+  
+  recognition.onerror = () => {
+    ElMessage.error('语音识别失败，请重试')
+  }
+  
+  recognition.start()
+}
 
 function selectLocation(loc: string) {
   currentLocation.value = loc
@@ -283,29 +319,61 @@ const handleScroll = () => {
   const scrollTop = window.scrollY || window.pageYOffset || document.documentElement.scrollTop
   // 滚动超过80px时触发吸顶
   isSticky.value = scrollTop > 80
-  console.log('scrollTop:', scrollTop, 'isSticky:', isSticky.value)
 }
 
 function handleQuickConsult() {
-  router.push('/inquiry/ai-triage')
+  router.push(ROUTES.INQUIRY_AI_TRIAGE)
 }
 
-// 处理区块点击
 const handleSectionClick = (sectionType: string) => {
   if (sectionType === 'doctor_banner') {
-    router.push('/inquiry/pre')
+    router.push(ROUTES.INQUIRY_PRE)
   }
 }
 
-// 促销横幅点击处理
 const handlePromoLeftClick = () => {
   ElMessage.info('过敏报告功能开发中')
 }
 const handlePromoCenterClick = () => {
-  router.push('/promotion/slimming')
+  router.push(ROUTES.PROMOTION_SLIMMING)
 }
 const handlePromoRightClick = () => {
-  router.push('/category/allergy')
+  router.push(ROUTES.CATEGORY_ALLERGY)
+}
+
+// 下拉刷新状态
+const isRefreshing = ref(false)
+const refreshProgress = ref(0)
+let refreshStartY = 0
+let isPulling = false
+
+const handleTouchStart = (e: TouchEvent) => {
+  if (window.scrollY === 0) {
+    refreshStartY = e.touches[0].clientY
+    isPulling = true
+  }
+}
+
+const handleTouchMove = (e: TouchEvent) => {
+  if (!isPulling || isRefreshing.value) return
+  const diff = e.touches[0].clientY - refreshStartY
+  if (diff > 0 && diff < 150) {
+    refreshProgress.value = diff / 150
+  }
+}
+
+const handleTouchEnd = () => {
+  if (!isPulling) return
+  isPulling = false
+  if (refreshProgress.value >= 1) {
+    isRefreshing.value = true
+    homeStore.fetchHomePageConfig().finally(() => {
+      isRefreshing.value = false
+      refreshProgress.value = 0
+    })
+  } else {
+    refreshProgress.value = 0
+  }
 }
 
 onMounted(async () => {
@@ -340,6 +408,12 @@ $bg-warm: #FFF9E6;
   .header-wrapper {
     position: relative;
     overflow: hidden;
+    
+    // 吸顶时的占位元素 - 保持文档流稳定
+    .sticky-spacer {
+      height: 180px;  // 足够容纳所有tab的第一个区域
+      width: 100%;
+    }
 
     // 吸顶状态 - 使用原有元素
     &.is-sticky {
@@ -351,10 +425,10 @@ $bg-warm: #FFF9E6;
         z-index: 1000;
         background: #fff !important;
         box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-        padding: 6px 0 0;
+        padding: 8px 0 12px;
         transition: all 0.3s ease;
 
-        // 隐藏促销横幅等装饰内容
+        // 隐藏所有第一个区域组件 - 使用display none，由sticky-spacer保持空间
         :deep(.promo-banner-section),
         :deep(.quick-consult-card),
         :deep(.test-banner-section),
@@ -687,5 +761,45 @@ $bg-warm: #FFF9E6;
       white-space: nowrap;
     }
   }
+}
+
+// 下拉刷新指示器
+.pull-refresh-indicator {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  z-index: 100;
+  transition: transform 0.2s ease;
+
+  .refresh-spinner {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: $primary;
+    font-size: 20px;
+
+    &.spinning {
+      animation: spin 1s linear infinite;
+    }
+  }
+
+  .refresh-text {
+    font-size: 12px;
+    color: $text-tertiary;
+    margin-top: 4px;
+  }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 </style>

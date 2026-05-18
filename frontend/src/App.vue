@@ -1,13 +1,17 @@
 <template>
+  <NetworkStatus />
   <router-view v-slot="{ Component }">
     <keep-alive :include="cachedViews">
       <component :is="Component" />
     </keep-alive>
   </router-view>
+  <ScrollToTop />
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import NetworkStatus from '@/components/NetworkStatus/index.vue'
+import ScrollToTop from '@/components/ScrollToTop/index.vue'
 
 // 需要缓存的页面
 const cachedViews = ref(['Home', 'Category', 'Cart', 'User'])

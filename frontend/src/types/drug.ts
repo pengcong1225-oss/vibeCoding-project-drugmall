@@ -4,6 +4,8 @@
 export interface Drug {
   id: string
   name: string
+  genericName?: string
+  brand?: string
   specification: string
   manufacturer: string
   price: number
@@ -13,6 +15,7 @@ export interface Drug {
   imageText?: string
   images?: string[]
   isRx: boolean
+  isNationalEssential?: boolean
   categoryId: string
   categoryName?: string
   category?: string
@@ -23,8 +26,17 @@ export interface Drug {
   contraindications?: string
   precautions?: string
   storage?: string
+  validity?: string
+  ingredients?: string
+  appearance?: string
+  drugInteractions?: string
   approvalNumber?: string
   barCode?: string
+  medicalInsuranceCode?: string  // 医保编码
+  traceabilityCode?: string      // 追溯码
+  isLongPrescription?: boolean   // 是否长处方用药
+  insuranceCategory?: string     // 医保类别: 甲类/乙类/丙类
+  specifications?: DrugSpecification[]  // 规格列表
   stock: number
   sales: number
   rating?: number
@@ -107,6 +119,18 @@ export interface DrugFAQ {
   question: string
   answer: string
   sort: number
+}
+
+// 药品规格
+export interface DrugSpecification {
+  id: string | number
+  specName: string
+  specCode?: string
+  price: number
+  originalPrice?: number
+  stock: number
+  barCode?: string
+  isDefault: boolean
 }
 
 // 药品品牌

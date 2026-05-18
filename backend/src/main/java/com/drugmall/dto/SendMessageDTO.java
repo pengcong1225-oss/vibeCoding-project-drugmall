@@ -12,6 +12,9 @@ import jakarta.validation.constraints.NotBlank;
 @Schema(description = "发送消息请求参数")
 public class SendMessageDTO {
 
+    @Schema(description = "发送者类型: patient/doctor/system", example = "patient")
+    private String senderType;
+
     @NotBlank(message = "消息类型不能为空")
     @Schema(description = "消息类型: text/image/voice/prescription", required = true, example = "text")
     private String type;

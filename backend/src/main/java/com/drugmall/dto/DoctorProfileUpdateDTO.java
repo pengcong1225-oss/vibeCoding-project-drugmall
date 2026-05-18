@@ -25,6 +25,9 @@ public class DoctorProfileUpdateDTO {
     @Schema(description = "个人简介")
     private String introduction;
 
+    @Schema(description = "擅长领域")
+    private String specialties;
+
     @Schema(description = "头像URL")
     private String avatar;
 }

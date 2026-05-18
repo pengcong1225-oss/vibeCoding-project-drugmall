@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Edit, Delete, View, Rank, Search, RefreshRight, TrendCharts, Device } from '@element-plus/icons-vue'
-import { getBannerList, createBanner, updateBanner, deleteBanner, updateBannerStatus, updateBannerSort } from '@/api/content'
+import { Plus, Edit, Delete, View, Rank, TrendCharts, Monitor } from '@element-plus/icons-vue'
+import { getBannerList, updateBannerSort } from '@/api/content'
 import Sortable from 'sortablejs'
-import VueCropper from 'vue-cropper/lib/vue-cropper.vue'
-import 'vue-cropper/dist/index.css'
+
+const _cropperImage = ref('')
 
 const loading = ref(false)
 
@@ -293,7 +293,7 @@ const submitForm = () => {
         <el-table-column label="操作" width="180" align="center" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" size="small" :icon="Edit" @click="handleEdit(row)">编辑</el-button>
-            <el-button link type="primary" size="small" :icon="Device" @click="handlePreview(row, 'mobile')">预览</el-button>
+            <el-button link type="primary" size="small" :icon="Monitor" @click="handlePreview(row, 'mobile')">预览</el-button>
             <el-button link type="danger" size="small" :icon="Delete" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>

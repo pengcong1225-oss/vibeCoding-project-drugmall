@@ -60,19 +60,21 @@
             v-for="tab in timeTabs" 
             :key="tab.value"
             :class="['tab', { active: currentTab === tab.value }]"
-            @click="currentTab = tab.value"
+            @click="handleTabChange(tab.value)"
           >
             {{ tab.label }}
           </span>
         </div>
       </div>
       <div class="chart-placeholder">
-        <div class="chart-mock">
-          <div v-for="(bar, index) in mockChartData" :key="index" class="bar-item">
-            <div class="bar" :style="{ height: bar.height + '%' }"></div>
-            <span class="bar-label">{{ bar.label }}</span>
+        <div v-if="loading" class="chart-loading">加载中...</div>
+        <div v-else-if="chartData.length > 0" class="chart-mock">
+          <div v-for="(item, index) in chartData" :key="index" class="bar-item">
+            <div class="bar" :style="{ height: (item.amount / Math.max(...chartData.map(d => d.amount)) * 100) + '%' }"></div>
+            <span class="bar-label">{{ item.date }}</span>
           </div>
         </div>
+        <div v-else class="chart-empty">暂无数据</div>
       </div>
     </div>
 
@@ -146,13 +148,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { getIncomeOverview, getIncomeTrend, getIncomeList, getWithdrawList, type IncomeOverview, type IncomeTrend, type IncomeRecord, type WithdrawRecord } from '@/api/income'
 
 const router = useRouter()
 const activeTab = ref('income')
 const currentTab = ref('week')
 const showHelp = ref(false)
+const loading = ref(false)
 
 const timeTabs = [
   { label: '本周', value: 'week' },
@@ -160,42 +164,84 @@ const timeTabs = [
   { label: '本年', value: 'year' }
 ]
 
-const overview = reactive({
-  balance: 5000.00,
-  monthIncome: 8500.00,
-  monthIncomeRatio: 15.2,
-  totalIncome: 128000.00,
-  todayIncome: 1200.00,
-  weekIncome: 5600.00,
-  pendingSettlement: 3000.00,
-  totalWithdraw: 85000.00
+// 收入概览数据
+const overview = reactive<IncomeOverview>({
+  totalIncome: 0,
+  availableBalance: 0,
+  pendingSettlement: 0,
+  totalWithdraw: 0
 })
 
-const mockChartData = [
-  { label: '周一', height: 40 },
-  { label: '周二', height: 65 },
-  { label: '周三', height: 80 },
-  { label: '周四', height: 55 },
-  { label: '周五', height: 90 },
-  { label: '周六', height: 70 },
-  { label: '周日', height: 45 }
-]
+// 图表数据
+const chartData = ref<IncomeTrend[]>([])
 
-const incomeList = ref([
-  { id: 'INC001', type: '图文问诊', patientName: '李*', amount: 80.00, time: '04-07 14:30' },
-  { id: 'INC002', type: '复诊开方', patientName: '王*', amount: 60.00, time: '04-07 10:15' },
-  { id: 'INC003', type: '图文问诊', patientName: '张*', amount: 80.00, time: '04-06 16:45' },
-  { id: 'INC004', type: '图文问诊', patientName: '刘*', amount: 80.00, time: '04-06 09:20' },
-  { id: 'INC005', type: '复诊开方', patientName: '陈*', amount: 60.00, time: '04-05 14:00' }
-])
+// 收入明细列表
+const incomeList = ref<IncomeRecord[]>([])
 
-const withdrawList = ref([
-  { withdrawId: 'WIT001', amount: 5000.00, method: 'bank', methodName: '工商银行', status: 'success', statusText: '已到账', applyTime: '2024-04-01 15:30' },
-  { withdrawId: 'WIT002', amount: 3000.00, method: 'bank', methodName: '建设银行', status: 'processing', statusText: '处理中', applyTime: '2024-04-05 10:00' }
-])
+// 提现记录列表
+const withdrawList = ref<WithdrawRecord[]>([])
 
 const formatMoney = (amount: number) => {
   return '¥' + amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+}
+
+// 加载收入概览
+const loadOverview = async () => {
+  try {
+    const res = await getIncomeOverview()
+    if (res.data) {
+      overview.totalIncome = res.data.totalIncome || 0
+      overview.availableBalance = res.data.availableBalance || 0
+      overview.pendingSettlement = res.data.pendingSettlement || 0
+      overview.totalWithdraw = res.data.totalWithdraw || 0
+    }
+  } catch (error) {
+    console.error('获取收入概览失败:', error)
+  }
+}
+
+// 加载图表数据
+const loadChartData = async () => {
+  try {
+    const res = await getIncomeTrend(currentTab.value)
+    if (res.data) {
+      chartData.value = res.data
+    }
+  } catch (error) {
+    console.error('获取收入趋势失败:', error)
+  }
+}
+
+// 加载收入明细
+const loadIncomeList = async () => {
+  try {
+    const res = await getIncomeList({ page: 1, size: 20 })
+    if (res.data) {
+      incomeList.value = res.data
+    }
+  } catch (error) {
+    console.error('获取收入明细失败:', error)
+  }
+}
+
+// 加载提现记录
+const loadWithdrawList = async () => {
+  try {
+    const res = await getWithdrawList({ page: 1, size: 20 })
+    if (res.data) {
+      withdrawList.value = res.data
+    }
+  } catch (error) {
+    console.error('获取提现记录失败:', error)
+  }
+}
+
+// 切换时间维度
+const handleTabChange = async (tab: string) => {
+  currentTab.value = tab
+  loading.value = true
+  await loadChartData()
+  loading.value = false
 }
 
 const goBack = () => {
@@ -205,6 +251,18 @@ const goBack = () => {
 const goWithdraw = () => {
   router.push('/income/withdraw')
 }
+
+// 页面加载时获取数据
+onMounted(async () => {
+  loading.value = true
+  await Promise.all([
+    loadOverview(),
+    loadChartData(),
+    loadIncomeList(),
+    loadWithdrawList()
+  ])
+  loading.value = false
+})
 </script>
 
 <style scoped lang="scss">

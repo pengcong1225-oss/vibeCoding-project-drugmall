@@ -3,6 +3,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useDebounceFn } from '@vueuse/core'
+import { ArrowLeft, Search, CircleClose, FullScreen, Delete, ArrowDown, Microphone, Clock, FirstAidKit, Pill, Apple, User } from '@element-plus/icons-vue'
 import DrugCard from '@/components/DrugCard/index.vue'
 import Empty from '@/components/Empty/index.vue'
 import Loading from '@/components/Loading/index.vue'
@@ -15,6 +16,33 @@ const route = useRoute()
 // 搜索关键词
 const keyword = ref('')
 const searchInputRef = ref<HTMLInputElement | null>(null)
+
+// 占位符轮播
+const placeholderList = ref([
+  '搜索药品、症状或品牌',
+  '感冒发烧吃什么药',
+  '维生素C泡腾片',
+  '降压药哪种好',
+  '儿童退烧药'
+])
+const currentPlaceholderIndex = ref(0)
+const currentPlaceholder = computed(() => placeholderList.value[currentPlaceholderIndex.value])
+let placeholderTimer: ReturnType<typeof setInterval> | null = null
+
+// 启动占位符轮播
+const startPlaceholderRotation = () => {
+  placeholderTimer = setInterval(() => {
+    currentPlaceholderIndex.value = (currentPlaceholderIndex.value + 1) % placeholderList.value.length
+  }, 3000)
+}
+
+// 停止占位符轮播
+const stopPlaceholderRotation = () => {
+  if (placeholderTimer) {
+    clearInterval(placeholderTimer)
+    placeholderTimer = null
+  }
+}
 
 // 搜索状态
 const isSearching = ref(false)
@@ -84,6 +112,9 @@ onMounted(() => {
 
   // 加载热门搜索
   loadHotSearches()
+
+  // 启动占位符轮播
+  startPlaceholderRotation()
 
   // 聚焦搜索框
   setTimeout(() => {
@@ -216,9 +247,54 @@ const handleAddToCart = (drug: any) => {
   ElMessage.success(`已将 ${drug.name} 加入购物车`)
 }
 
+// 常见分类
+const commonCategories = ref([
+  { value: 'cold', label: '感冒发烧', icon: 'FirstAidKit', color: '#FF6B6B' },
+  { value: 'vitamin', label: '维生素', icon: 'Apple', color: '#4ECDC4' },
+  { value: 'chronic', label: '慢病用药', icon: 'Pill', color: '#45B7D1' },
+  { value: 'children', label: '儿童用药', icon: 'User', color: '#96CEB4' },
+])
+
 // 扫码
 const handleScan = () => {
   ElMessage.info('扫码功能开发中')
+}
+
+// 语音搜索
+const isListening = ref(false)
+const handleVoiceSearch = () => {
+  const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+  if (!SpeechRecognition) {
+    ElMessage.warning('您的浏览器不支持语音搜索')
+    return
+  }
+
+  const recognition = new SpeechRecognition()
+  recognition.lang = 'zh-CN'
+  recognition.continuous = false
+  recognition.interimResults = false
+
+  recognition.onstart = () => {
+    isListening.value = true
+    ElMessage.info('请说出您要搜索的内容')
+  }
+
+  recognition.onresult = (event: any) => {
+    const transcript = event.results[0][0].transcript
+    keyword.value = transcript
+    handleSearch()
+  }
+
+  recognition.onerror = () => {
+    isListening.value = false
+    ElMessage.error('语音识别失败，请重试')
+  }
+
+  recognition.onend = () => {
+    isListening.value = false
+  }
+
+  recognition.start()
 }
 </script>
 
@@ -236,10 +312,15 @@ const handleScan = () => {
           v-model="keyword"
           type="text"
           class="search-input"
-          placeholder="搜索药品、症状"
+          :placeholder="currentPlaceholder"
           @keyup.enter="handleSearch"
+          @focus="stopPlaceholderRotation"
+          @blur="startPlaceholderRotation"
         />
         <el-icon v-if="keyword" class="clear-icon" @click="clearSearch"><CircleClose /></el-icon>
+        <div class="voice-btn" :class="{ listening: isListening }" @click="handleVoiceSearch">
+          <el-icon><Microphone /></el-icon>
+        </div>
         <div class="scan-btn" @click="handleScan">
           <el-icon><FullScreen /></el-icon>
         </div>
@@ -259,9 +340,10 @@ const handleScan = () => {
           <span
             v-for="word in searchHistory"
             :key="word"
-            class="tag"
+            class="tag history-tag"
             @click="handleQuickSearch(word)"
           >
+            <el-icon class="history-icon"><Clock /></el-icon>
             {{ word }}
           </span>
         </div>
@@ -272,17 +354,38 @@ const handleScan = () => {
         <div class="section-header">
           <h3>热门搜索</h3>
         </div>
-        <div class="tag-list hot">
-          <span
+        <div class="hot-search-list">
+          <div
             v-for="(item, index) in hotSearches"
             :key="item.keyword"
-            class="tag"
+            class="hot-search-item"
             :class="{ top: index < 3 }"
             @click="handleQuickSearch(item.keyword)"
           >
             <span class="rank">{{ index + 1 }}</span>
-            {{ item.keyword }}
-          </span>
+            <span class="keyword">{{ item.keyword }}</span>
+            <span class="heat">{{ item.heat }}万热度</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 常见分类 -->
+      <div class="section">
+        <div class="section-header">
+          <h3>常见分类</h3>
+        </div>
+        <div class="category-grid">
+          <div
+            v-for="cat in commonCategories"
+            :key="cat.value"
+            class="category-item"
+            @click="handleQuickSearch(cat.label)"
+          >
+            <div class="category-icon" :style="{ background: cat.color }">
+              <el-icon><component :is="cat.icon" /></el-icon>
+            </div>
+            <span class="category-name">{{ cat.label }}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -437,6 +540,23 @@ const handleScan = () => {
       }
     }
 
+    .voice-btn {
+      padding-left: $spacing-sm;
+      border-left: 1px solid $border-light;
+      color: $text-tertiary;
+      cursor: pointer;
+      transition: all 0.3s ease;
+
+      &:hover {
+        color: $primary;
+      }
+
+      &.listening {
+        color: $error;
+        animation: pulse 1.5s infinite;
+      }
+    }
+
     .scan-btn {
       padding-left: $spacing-sm;
       border-left: 1px solid $border-light;
@@ -446,6 +566,17 @@ const handleScan = () => {
       &:hover {
         color: $primary;
       }
+    }
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.7;
+      transform: scale(1.1);
     }
   }
 
@@ -515,27 +646,117 @@ const handleScan = () => {
           color: $primary;
         }
 
-        &.top {
-          .rank {
-            color: $error;
-            font-weight: bold;
-          }
-        }
-
-        .rank {
-          margin-right: $spacing-xs;
-          color: $text-tertiary;
-        }
-      }
-
-      &.hot {
-        .tag {
-          background: rgba($primary, 0.05);
+        &.history-tag {
+          display: flex;
+          align-items: center;
+          gap: $spacing-xs;
+          background: $bg-gray;
           border-color: transparent;
+
+          .history-icon {
+            font-size: 14px;
+            color: $text-tertiary;
+          }
 
           &:hover {
             background: rgba($primary, 0.1);
           }
+        }
+      }
+    }
+
+    .hot-search-list {
+      display: flex;
+      flex-direction: column;
+      gap: $spacing-sm;
+
+      .hot-search-item {
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
+        padding: $spacing-sm $spacing-md;
+        background: $bg-white;
+        border-radius: $radius-lg;
+        cursor: pointer;
+        transition: all 0.2s;
+
+        &:hover {
+          background: rgba($primary, 0.05);
+          transform: translateX(4px);
+        }
+
+        .rank {
+          width: 24px;
+          height: 24px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          background: $bg-gray;
+          font-size: 12px;
+          font-weight: 600;
+          color: $text-tertiary;
+        }
+
+        .keyword {
+          flex: 1;
+          font-size: $font-sm;
+          color: $text-primary;
+        }
+
+        .heat {
+          font-size: 12px;
+          color: $text-tertiary;
+        }
+
+        &.top {
+          .rank {
+            background: rgba($error, 0.1);
+            color: $error;
+          }
+
+          .keyword {
+            font-weight: 500;
+          }
+        }
+      }
+    }
+
+    .category-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: $spacing-md;
+
+      .category-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: $spacing-sm;
+        padding: $spacing-md;
+        background: $bg-white;
+        border-radius: $radius-lg;
+        cursor: pointer;
+        transition: all 0.2s;
+
+        &:hover {
+          transform: translateY(-2px);
+          box-shadow: $shadow-sm;
+        }
+
+        .category-icon {
+          width: 48px;
+          height: 48px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          color: $text-white;
+          font-size: 24px;
+        }
+
+        .category-name {
+          font-size: $font-sm;
+          color: $text-secondary;
         }
       }
     }

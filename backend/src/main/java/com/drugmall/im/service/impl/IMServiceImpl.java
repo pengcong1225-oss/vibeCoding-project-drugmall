@@ -26,7 +26,7 @@ import java.util.List;
 @Service
 public class IMServiceImpl implements IMService {
 
-    @Autowired
+    @Autowired(required = false)
     private MockDataService mockDataService;
 
     @Autowired
@@ -46,9 +46,9 @@ public class IMServiceImpl implements IMService {
     }
 
     @Override
-    public List<MessageVO> getMessages(String userId, String conversationId) {
+    public List<MessageVO> getMessages(String userId, String userType, String conversationId) {
         if (!imConfig.getMockMode()) {
-            return getRealMessages(userId, conversationId);
+            return getRealMessages(userId, userType, conversationId);
         }
         return getMockMessages(userId, conversationId);
     }
@@ -135,7 +135,7 @@ public class IMServiceImpl implements IMService {
     /**
      * 真实模式：通过REST API获取漫游消息
      */
-    private List<MessageVO> getRealMessages(String userId, String conversationId) {
+    private List<MessageVO> getRealMessages(String userId, String userType, String conversationId) {
         List<MessageVO> messages = new ArrayList<>();
 
         try {
@@ -145,11 +145,13 @@ public class IMServiceImpl implements IMService {
                 targetUserId = conversationId.substring(4);
             }
 
+            String imUserId = userType.toLowerCase() + "_" + userId;
+
             // 查询最近7天的消息
             long maxTime = System.currentTimeMillis() / 1000;
             long minTime = maxTime - 7 * 24 * 3600;
 
-            JsonNode result = tencentIMRestService.getRoamMsg(userId, targetUserId, 50, minTime, maxTime);
+            JsonNode result = tencentIMRestService.getRoamMsg(imUserId, targetUserId, 50, minTime, maxTime);
             int errorCode = result.path("ErrorCode").asInt(-1);
 
             if (errorCode != 0) {

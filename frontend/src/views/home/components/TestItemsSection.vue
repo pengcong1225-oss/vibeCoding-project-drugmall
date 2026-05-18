@@ -192,6 +192,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { ROUTES, getDrugDetailRoute } from '@/constants/routes'
 import type { HomeSection } from '@/types/home'
 
 const props = defineProps<{
@@ -222,7 +223,7 @@ const getBgColor = (index: number) => {
 
 const handleBannerClickFn = () => {
   emit('bannerClick', {})
-  router.push('/test/home')
+  router.push(ROUTES.TEST_HOME)
 }
 
 // 话题列表数据
@@ -351,7 +352,7 @@ const otherTopics = computed(() => topicList.value.slice(1))
 
 const handleProductClick = (product: any) => {
   emit('productClick', product)
-  router.push(`/drug/${product.id}`)
+  router.push(getDrugDetailRoute(product.id))
 }
 </script>
 

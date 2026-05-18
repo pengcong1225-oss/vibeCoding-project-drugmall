@@ -38,7 +38,7 @@ public interface UserService {
     /**
      * 上传头像
      */
-    String uploadAvatar(String userId, String avatarBase64);
+    String uploadAvatar(String userId, org.springframework.web.multipart.MultipartFile file);
 
     /**
      * 实名认证
@@ -139,6 +139,11 @@ public interface UserService {
      * 获取浏览历史
      */
     List<BrowseHistoryVO> getBrowseHistory(String userId, Integer page, Integer size);
+
+    /**
+     * 获取浏览历史总数
+     */
+    Long getBrowseHistoryCount(String userId);
 
     /**
      * 添加到浏览历史

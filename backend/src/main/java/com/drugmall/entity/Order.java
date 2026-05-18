@@ -3,6 +3,7 @@ package com.drugmall.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.TableField;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -18,74 +19,64 @@ public class Order implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    @TableId(type = IdType.ASSIGN_ID)
-    private String id;
+    @TableId(type = IdType.AUTO)
+    private Long id;
 
+    @TableField("order_no")
     private String orderNo;
 
-    private String userId;
+    @TableField("user_id")
+    private Long userId;
 
-    private String status;
+    @TableField("address_id")
+    private Long addressId;
 
-    private String statusText;
-
-    private Integer totalQuantity;
-
+    @TableField("total_amount")
     private BigDecimal totalAmount;
 
-    private BigDecimal drugAmount;
-
-    private BigDecimal deliveryFee;
-
+    @TableField("discount_amount")
     private BigDecimal discountAmount;
 
-    private BigDecimal couponAmount;
+    @TableField("freight_amount")
+    private BigDecimal freightAmount;
 
-    private BigDecimal payableAmount;
+    @TableField("pay_amount")
+    private BigDecimal payAmount;
 
-    private BigDecimal paidAmount;
+    @TableField("pay_type")
+    private Integer payType;
 
-    private String deliveryType;
-
-    private String addressId;
-
-    private String receiverName;
-
-    private String receiverPhone;
-
-    private String receiverAddress;
-
-    private String pickupStoreId;
-
-    private String pickupStoreName;
-
-    private String pickupCode;
-
-    private String payType;
-
+    @TableField("pay_time")
     private LocalDateTime payTime;
 
-    private String logisticsNo;
+    private Integer status;
 
-    private String logisticsCompany;
+    @TableField("delivery_company")
+    private String deliveryCompany;
 
-    private LocalDateTime createTime;
+    @TableField("delivery_no")
+    private String deliveryNo;
 
-    private LocalDateTime expireTime;
-
-    private LocalDateTime confirmTime;
-
+    @TableField("delivery_time")
     private LocalDateTime deliveryTime;
 
-    private LocalDateTime completeTime;
+    @TableField("receive_time")
+    private LocalDateTime receiveTime;
 
+    @TableField("cancel_reason")
+    private String cancelReason;
+
+    @TableField("cancel_time")
     private LocalDateTime cancelTime;
 
     private String remark;
 
-    private String prescriptionId;
+    @TableField("create_time")
+    private LocalDateTime createTime;
 
-    private Boolean needRxReview;
+    @TableField("update_time")
+    private LocalDateTime updateTime;
 
-    private String rxReviewStatus;
+    @TableField("is_deleted")
+    private Boolean isDeleted;
 }

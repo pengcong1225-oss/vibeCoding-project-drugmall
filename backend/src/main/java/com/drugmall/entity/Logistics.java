@@ -3,6 +3,7 @@ package com.drugmall.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.TableField;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -17,10 +18,17 @@ public class Logistics implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    @TableId(type = IdType.ASSIGN_ID)
-    private String id;
+    @TableId(type = IdType.AUTO)
+    private Long id;
 
-    private String orderId;
+    @TableField("order_id")
+    private Long orderId;
+
+    @TableField("logistics_no")
+    private String logisticsNo;
+
+    @TableField("logistics_company")
+    private String logisticsCompany;
 
     private LocalDateTime time;
 
@@ -29,4 +37,7 @@ public class Logistics implements Serializable {
     private String status;
 
     private Integer sort;
+
+    @TableField("create_time")
+    private LocalDateTime createTime;
 }

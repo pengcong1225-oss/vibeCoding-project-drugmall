@@ -1,126 +1,79 @@
-// 订单相关类型定义
-
-// 订单状态枚举
-export enum OrderStatus {
-  PENDING_PAYMENT = 0,      // 待付款
-  PENDING_SHIPMENT = 1,     // 待发货
-  PENDING_RECEIPT = 2,      // 待收货
-  PENDING_REVIEW = 3,       // 待评价
-  COMPLETED = 4,            // 已完成
-  CANCELLED = -1,           // 已取消
-  REFUNDING = -2,           // 退款中
-  REFUNDED = -3             // 已退款
-}
-
-// 订单信息
 export interface Order {
   id: string
   orderNo: string
   userId: string
-  username?: string
-  nickname?: string
-  phone?: string
-  totalAmount: number
-  discountAmount: number
-  freightAmount: number
-  payAmount: number
-  status: number
-  statusName?: string
-  payType?: number
-  payTime?: string
-  shipTime?: string
-  receiveTime?: string
-  remark?: string
-  address?: OrderAddress
-  items: OrderItem[]
-  logistics?: LogisticsInfo
+  userName: string
+  amount: number
+  status: 'pending' | 'paid' | 'shipped' | 'completed' | 'cancelled' | 'refunding' | 'refunded'
+  paymentMethod: string
   createTime: string
-  updateTime: string
+  items: Array<{
+    drugId: string
+    drugName: string
+    quantity: number
+    price: number
+  }>
 }
 
-// 订单地址
-export interface OrderAddress {
-  id: string
-  orderId: string
-  name: string
-  phone: string
-  province: string
-  city: string
-  district: string
-  address: string
-  zipCode?: string
-}
-
-// 订单商品项
-export interface OrderItem {
-  id: string
-  orderId: string
-  productId: string
-  productName: string
-  productImage: string
-  spec: string
-  price: number
-  quantity: number
-  totalAmount: number
-  isRx: number
-}
-
-// 物流信息
-export interface LogisticsInfo {
-  id: string
-  orderId: string
-  company: string
-  companyName?: string
-  trackingNo: string
-  status: number
-  traces?: LogisticsTrace[]
-  shipTime: string
-  receiveTime?: string
-}
-
-// 物流轨迹
-export interface LogisticsTrace {
-  time: string
-  status: string
-  location?: string
-}
-
-// 订单查询参数
 export interface OrderQueryParams {
   pageNum: number
   pageSize: number
-  keyword?: string
   orderNo?: string
-  username?: string
-  phone?: string
-  status?: number
-  startTime?: string
-  endTime?: string
-  minAmount?: number
-  maxAmount?: number
+  status?: string
+  startDate?: string
+  endDate?: string
 }
 
-// 订单列表响应
-export interface OrderListResult {
-  list: Order[]
-  total: number
+export interface Refund {
+  id: string
+  refundNo: string
+  orderNo: string
+  userId: string
+  userName: string
+  amount: number
+  reason: string
+  images: string[]
+  status: 'pending' | 'approved' | 'rejected' | 'processing' | 'completed'
+  type: 'refund_only' | 'return_and_refund'
+  createTime: string
+  auditTime?: string
+  auditor?: string
+  rejectReason?: string
+  trackingNo?: string
+}
+
+export interface AbnormalOrder {
+  id: string
+  orderNo: string
+  userId: string
+  userName: string
+  amount: number
+  abnormalType: 'timeout_pay' | 'timeout_ship' | 'cancel' | 'fraud' | 'other'
+  status: 'pending' | 'processing' | 'resolved'
+  description: string
+  createTime: string
+  handler?: string
+  handleTime?: string
+  handleResult?: string
+}
+
+export interface RefundQuery {
   pageNum: number
   pageSize: number
-  pages: number
+  refundNo?: string
+  orderNo?: string
+  status?: string
+  type?: string
+  startDate?: string
+  endDate?: string
 }
 
-// 发货表单数据
-export interface ShipFormData {
-  orderId: string
-  company: string
-  trackingNo: string
-  remark?: string
-}
-
-// 退款处理表单
-export interface RefundFormData {
-  orderId: string
-  agree: boolean
-  amount?: number
-  reason?: string
+export interface AbnormalOrderQuery {
+  pageNum: number
+  pageSize: number
+  orderNo?: string
+  abnormalType?: string
+  status?: string
+  startDate?: string
+  endDate?: string
 }

@@ -3,6 +3,7 @@ package com.drugmall.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.TableField;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -18,12 +19,17 @@ public class Refund implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    @TableId(type = IdType.ASSIGN_ID)
-    private String id;
+    @TableId(type = IdType.AUTO)
+    private Long id;
 
-    private String orderId;
+    @TableField("order_id")
+    private Long orderId;
 
-    private String userId;
+    @TableField("user_id")
+    private Long userId;
+
+    @TableField("refund_no")
+    private String refundNo;
 
     private String status;
 
@@ -33,13 +39,24 @@ public class Refund implements Serializable {
 
     private String images;
 
+    @TableField("refund_amount")
     private BigDecimal refundAmount;
 
+    @TableField("actual_refund_amount")
     private BigDecimal actualRefundAmount;
 
-    private LocalDateTime createTime;
+    @TableField("reject_reason")
+    private String rejectReason;
 
+    @TableField("audit_time")
+    private LocalDateTime auditTime;
+
+    @TableField("complete_time")
     private LocalDateTime completeTime;
 
-    private String rejectReason;
+    @TableField("create_time")
+    private LocalDateTime createTime;
+
+    @TableField("update_time")
+    private LocalDateTime updateTime;
 }

@@ -84,9 +84,10 @@ public class IMController {
     @PostMapping("/conversations/{id}/enter")
     @Operation(summary = "进入会话", description = "进入指定会话并标记为已读")
     public Result<IMConversationVO> enterConversation(
-            @Parameter(description = "用户ID") @RequestParam String userId,
-            @Parameter(description = "用户类型: patient/doctor") @RequestParam String userType,
+            @RequestBody java.util.Map<String, String> body,
             @Parameter(description = "会话ID") @PathVariable("id") String conversationId) {
+        String userId = body.get("userId");
+        String userType = body.get("userType");
         try {
             // 标记为已读
             imService.markRead(userId, userType, conversationId);
@@ -110,9 +111,10 @@ public class IMController {
     @Operation(summary = "获取消息历史", description = "获取指定会话的消息历史")
     public Result<List<MessageVO>> getMessages(
             @Parameter(description = "用户ID") @RequestParam String userId,
+            @Parameter(description = "用户类型") @RequestParam String userType,
             @Parameter(description = "会话ID") @PathVariable String conversationId) {
         try {
-            List<MessageVO> messages = imService.getMessages(userId, conversationId);
+            List<MessageVO> messages = imService.getMessages(userId, userType, conversationId);
             return Result.success(messages);
         } catch (Exception e) {
             log.error("获取消息历史失败", e);
@@ -126,11 +128,12 @@ public class IMController {
     @PostMapping("/messages/send")
     @Operation(summary = "发送消息", description = "发送IM消息")
     public Result<MessageVO> sendMessage(
-            @Parameter(description = "用户ID") @RequestParam String userId,
-            @Parameter(description = "用户类型: patient/doctor") @RequestParam String userType,
-            @Parameter(description = "会话ID") @RequestParam String conversationId,
-            @Parameter(description = "消息类型") @RequestParam String type,
-            @Parameter(description = "消息内容") @RequestParam String content) {
+            @RequestBody java.util.Map<String, String> body) {
+        String userId = body.get("userId");
+        String userType = body.get("userType");
+        String conversationId = body.get("conversationId");
+        String type = body.get("type");
+        String content = body.get("content");
         try {
             MessageVO message = imService.sendMessage(userId, userType, conversationId, type, content);
             return Result.success(message);

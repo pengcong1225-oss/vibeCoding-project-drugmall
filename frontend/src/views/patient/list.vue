@@ -19,7 +19,7 @@
         <div class="patient-info">
           <div class="avatar-section">
             <img
-              :src="patient.avatar || (patient.gender === 'male' || patient.gender === '男' ? defaultMaleAvatar : defaultFemaleAvatar)"
+              :src="patient.avatar || (patient.gender === 1 ? defaultMaleAvatar : defaultFemaleAvatar)"
               class="patient-avatar"
               alt="头像"
             />
@@ -28,7 +28,7 @@
           <div class="info-section">
             <div class="name-row">
               <span class="name">{{ patient.name }}</span>
-              <span class="gender">{{ patient.gender === 'male' ? '男' : patient.gender === 'female' ? '女' : patient.gender }}</span>
+              <span class="gender">{{ patient.gender === 1 ? '男' : patient.gender === 2 ? '女' : String(patient.gender) }}</span>
               <span class="age">{{ patient.age }}岁</span>
             </div>
             <div class="id-card-row">
@@ -88,13 +88,14 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getPatientList, deletePatient as deletePatientApi, setDefaultPatient } from '@/api/modules/patient'
 import { userMenuIcons, mockPatients } from '@/api/mock'
+import { ROUTES } from '@/constants/routes'
+import { IMAGES } from '@/constants/images'
 import type { PatientInfo as Patient } from '@/api/modules/patient'
 
 const router = useRouter()
 
-// 默认头像 - 写实风格
-const defaultMaleAvatar = 'https://img.icons8.com/color/96/user-male.png'
-const defaultFemaleAvatar = 'https://img.icons8.com/color/96/user-female.png'
+const defaultMaleAvatar = IMAGES.AVATAR_MALE
+const defaultFemaleAvatar = IMAGES.AVATAR_FEMALE
 
 // 就诊人列表
 const patientList = ref<Patient[]>([])
@@ -106,13 +107,11 @@ const loadPatientList = async () => {
     if (Array.isArray(res)) {
       patientList.value = res
     } else {
-      // 使用模拟数据
-      patientList.value = mockPatients
+      ElMessage.error('获取就诊人列表失败')
     }
   } catch (error) {
     console.error('获取就诊人列表失败:', error)
-    // 使用模拟数据
-    patientList.value = mockPatients
+    ElMessage.error('获取就诊人列表失败，请稍后重试')
   }
 }
 
@@ -127,13 +126,12 @@ const addPatient = () => {
     ElMessage.warning('最多可添加5位就诊人')
     return
   }
-  router.push('/patient/add')
+  router.push(ROUTES.PATIENT_ADD)
 }
 
-// 编辑就诊人
 const editPatient = (patient: Patient) => {
   router.push({
-    path: '/patient/edit',
+    path: ROUTES.PATIENT_EDIT,
     query: { id: patient.id }
   })
 }

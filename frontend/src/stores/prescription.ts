@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Drug } from '@/types/drug'
 import type { Patient } from '@/types/user'
+import { applyPrescription as apiApplyPrescription } from '@/api/consultation'
 
 // 处方流程步骤
 export type PrescriptionStep = 'apply' | 'chat' | 'success' | 'pay'
@@ -222,11 +223,51 @@ export const usePrescriptionStore = defineStore('prescription', () => {
 
   // 提交处方申请
   const submitPrescriptionApply = async (): Promise<string> => {
-    // 这里应该调用API提交申请
-    // 模拟返回consultationId
-    const mockConsultationId = 'CONS' + Date.now()
-    setConsultationId(mockConsultationId)
-    return mockConsultationId
+    if (!applyState.value.selectedPatient) {
+      throw new Error('未选择用药人')
+    }
+    
+    if (!applyState.value.selectedPatient.id) {
+      throw new Error('患者ID无效')
+    }
+    
+    if (applyState.value.selectedDiseases.length === 0) {
+      throw new Error('未选择疾病症状')
+    }
+    
+    if (applyState.value.selectedDrugs.length === 0) {
+      throw new Error('未选择药品')
+    }
+    
+    try {
+      const selectedDrug = applyState.value.selectedDrugs[0]
+      
+      // 获取当前选中的规格ID（如果有）
+      let specificationId: number | undefined
+      if (selectedDrug.specifications && selectedDrug.specifications.length > 0) {
+        // 优先使用apply页面保存的选中规格ID
+        specificationId = Number((selectedDrug as any).selectedSpecificationId || selectedDrug.specifications[0].id)
+      }
+      
+      // 调用真实API创建问诊记录
+      const result = await apiApplyPrescription({
+        drugId: selectedDrug.id,
+        specificationId: specificationId,
+        patientId: parseInt(applyState.value.selectedPatient.id),
+        diseases: applyState.value.selectedDiseases.join(','),
+        symptoms: applyState.value.symptoms
+      })
+      
+      // http拦截器已经提取了data字段，result就是ConsultationApplyResponse
+      const consultationId = result.consultationId
+      setConsultationId(consultationId)
+      
+      console.log('处方申请成功，问诊ID:', consultationId)
+      return consultationId
+    } catch (error) {
+      console.error('提交处方申请失败:', error)
+      throw error
+    }
   }
 
   // 发送聊天消息

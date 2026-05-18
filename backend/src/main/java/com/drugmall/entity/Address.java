@@ -3,6 +3,7 @@ package com.drugmall.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.TableField;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -12,15 +13,16 @@ import java.time.LocalDateTime;
  * 收货地址实体
  */
 @Data
-@TableName("dm_address")
+@TableName("dm_user_address")
 public class Address implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    @TableId(type = IdType.ASSIGN_ID)
-    private String id;
+    @TableId(type = IdType.AUTO)
+    private Long id;
 
-    private String userId;
+    @TableField("user_id")
+    private Long userId;
 
     private String name;
 
@@ -34,13 +36,17 @@ public class Address implements Serializable {
 
     private String detail;
 
-    private String postalCode;
-
     private String tag;
 
+    @TableField("is_default")
     private Boolean isDefault;
 
+    @TableField("create_time")
     private LocalDateTime createTime;
 
+    @TableField("update_time")
     private LocalDateTime updateTime;
+
+    @TableField("is_deleted")
+    private Boolean isDeleted;
 }

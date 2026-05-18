@@ -61,6 +61,15 @@ public class DoctorPrescriptionVO implements Serializable {
     @Schema(description = "拒绝原因")
     private String rejectReason;
 
+    @Schema(description = "问诊状态")
+    private String consultationStatus;
+
+    @Schema(description = "问诊症状描述")
+    private String consultationSymptom;
+
+    @Schema(description = "问诊类型")
+    private String consultationType;
+
     @Data
     @Schema(description = "处方药品")
     public static class DrugItemVO implements Serializable {

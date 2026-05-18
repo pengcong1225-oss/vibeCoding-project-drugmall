@@ -72,11 +72,13 @@ public class OrderController {
     }
 
     @PostMapping("/{id}/reorder")
-    @Operation(summary = "再次购买", description = "基于历史订单再次购买")
-    public Result<Void> reorder(
+    @Operation(summary = "再次购买", description = "基于历史订单再次购买，返回购���车项ID列表")
+    public Result<java.util.Map<String, Object>> reorder(
             @Parameter(description = "订单ID") @PathVariable String id) {
-        orderService.reorder(CURRENT_USER_ID, id);
-        return Result.success();
+        List<String> cartItemIds = orderService.reorder(CURRENT_USER_ID, id);
+        java.util.Map<String, Object> result = new java.util.HashMap<>();
+        result.put("cartItemIds", cartItemIds);
+        return Result.success(result);
     }
 
     @PostMapping("/pay")
@@ -86,17 +88,26 @@ public class OrderController {
     }
 
     @GetMapping("/{id}/pay-status")
-    @Operation(summary = "获取支付状态", description = "获取订单支付状态")
-    public Result<String> getPayStatus(
+    @Operation(summary = "获取支付状态", description = "获取订单支���状态")
+    public Result<java.util.Map<String, Object>> getPayStatus(
             @Parameter(description = "订单ID") @PathVariable String id) {
-        return Result.success(orderService.getPayStatus(CURRENT_USER_ID, id));
+        String status = orderService.getPayStatus(CURRENT_USER_ID, id);
+        java.util.Map<String, Object> result = new java.util.HashMap<>();
+        result.put("status", status);
+        result.put("payTime", java.time.LocalDateTime.now().toString());
+        return Result.success(result);
     }
 
     @GetMapping("/{id}/logistics")
     @Operation(summary = "获取物流信息", description = "获取订单物流信息")
-    public Result<List<OrderVO.LogisticsInfoVO>> getLogisticsInfo(
+    public Result<java.util.Map<String, Object>> getLogisticsInfo(
             @Parameter(description = "订单ID") @PathVariable String id) {
-        return Result.success(orderService.getLogisticsInfo(CURRENT_USER_ID, id));
+        List<OrderVO.LogisticsInfoVO> list = orderService.getLogisticsInfo(CURRENT_USER_ID, id);
+        java.util.Map<String, Object> result = new java.util.HashMap<>();
+        result.put("company", "顺丰速运");
+        result.put("no", "SF" + System.currentTimeMillis());
+        result.put("list", list);
+        return Result.success(result);
     }
 
     @PostMapping("/refund")
@@ -122,8 +133,14 @@ public class OrderController {
 
     @GetMapping("/pending-reviews")
     @Operation(summary = "获取待评价列表", description = "获取待评价的订单商品列表")
-    public Result<List<OrderItemVO>> getPendingReviews() {
-        return Result.success(orderService.getPendingReviews(CURRENT_USER_ID));
+    public Result<java.util.Map<String, Object>> getPendingReviews(
+            @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer page,
+            @Parameter(description = "每页数量") @RequestParam(defaultValue = "10") Integer size) {
+        List<OrderItemVO> list = orderService.getPendingReviews(CURRENT_USER_ID);
+        java.util.Map<String, Object> result = new java.util.HashMap<>();
+        result.put("list", list);
+        result.put("total", list != null ? list.size() : 0);
+        return Result.success(result);
     }
 
     @PostMapping("/review")

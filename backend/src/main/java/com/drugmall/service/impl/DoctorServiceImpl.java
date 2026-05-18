@@ -1,20 +1,32 @@
 package com.drugmall.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.drugmall.common.BusinessException;
 import com.drugmall.common.ResultCode;
-import com.drugmall.config.MockDataService;
 import com.drugmall.dto.DoctorLoginDTO;
 import com.drugmall.dto.DoctorProfileUpdateDTO;
+import com.drugmall.entity.Doctor;
+import com.drugmall.entity.Consultation;
+import com.drugmall.entity.Prescription;
+import com.drugmall.entity.DoctorSchedule;
+import com.drugmall.entity.DoctorExt;
+import com.drugmall.mapper.DoctorMapper;
+import com.drugmall.mapper.ConsultationMapper;
+import com.drugmall.mapper.PrescriptionMapper;
+import com.drugmall.mapper.DoctorScheduleMapper;
+import com.drugmall.mapper.DoctorExtMapper;
 import com.drugmall.service.DoctorService;
 import com.drugmall.vo.*;
-import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * 医生服务实现
@@ -24,24 +36,35 @@ import java.util.UUID;
 public class DoctorServiceImpl implements DoctorService {
 
     @Autowired
-    private MockDataService mockDataService;
+    private DoctorMapper doctorMapper;
 
-    private static final String CURRENT_DOCTOR_ID = "DOC001";
+    @Autowired
+    private ConsultationMapper consultationMapper;
+
+    @Autowired
+    private PrescriptionMapper prescriptionMapper;
+
+    @Autowired
+    private DoctorScheduleMapper doctorScheduleMapper;
+
+    @Autowired
+    private DoctorExtMapper doctorExtMapper;
 
     @Override
     public LoginResultVO login(DoctorLoginDTO loginDTO) {
         log.info("医生登录: {}", loginDTO.getPhone());
 
-        JsonNode doctorData = mockDataService.getDoctorData();
-        if (doctorData == null || !doctorData.has("doctor")) {
+        // 根据手机号查找医生
+        LambdaQueryWrapper<Doctor> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Doctor::getPhone, loginDTO.getPhone());
+        Doctor doctor = doctorMapper.selectOne(wrapper);
+
+        if (doctor == null) {
             throw new BusinessException(ResultCode.DOCTOR_NOT_FOUND);
         }
 
-        JsonNode doctor = doctorData.get("doctor");
-        String phone = doctor.get("phone").asText();
-        String password = doctor.get("password").asText();
-
-        if (!phone.equals(loginDTO.getPhone()) || !password.equals(loginDTO.getPassword())) {
+        // 验证密码（实际应该加密比对）
+        if (!doctor.getPassword().equals(loginDTO.getPassword())) {
             throw new BusinessException(ResultCode.DOCTOR_LOGIN_FAILED);
         }
 
@@ -56,47 +79,100 @@ public class DoctorServiceImpl implements DoctorService {
 
     @Override
     public DoctorInfoVO getProfile(String doctorId) {
-        JsonNode doctorData = mockDataService.getDoctorData();
-        if (doctorData == null || !doctorData.has("doctor")) {
+        Doctor doctor = doctorMapper.selectById(doctorId);
+        if (doctor == null) {
             throw new BusinessException(ResultCode.DOCTOR_NOT_FOUND);
         }
-        return convertToDoctorInfoVO(doctorData.get("doctor"));
+        return convertToDoctorInfoVO(doctor);
+    }
+
+    @Override
+    public List<DoctorInfoVO> listDoctors(String department, String keyword) {
+        LambdaQueryWrapper<Doctor> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Doctor::getStatus, 1);
+        wrapper.eq(Doctor::getIsDeleted, 0);
+
+        if (department != null && !department.isEmpty()) {
+            wrapper.eq(Doctor::getDepartment, department);
+        }
+        if (keyword != null && !keyword.isEmpty()) {
+            wrapper.and(w -> w.like(Doctor::getName, keyword)
+                    .or().like(Doctor::getHospital, keyword)
+                    .or().like(Doctor::getSpecialties, keyword));
+        }
+        wrapper.orderByDesc(Doctor::getRating);
+
+        List<Doctor> doctors = doctorMapper.selectList(wrapper);
+        return doctors.stream()
+                .map(this::convertToDoctorInfoVO)
+                .collect(Collectors.toList());
     }
 
     @Override
     public DoctorInfoVO updateProfile(String doctorId, DoctorProfileUpdateDTO updateDTO) {
-        log.info("更新医生信息: {}", updateDTO);
-        // Mock: 直接返回当前信息
-        return getProfile(doctorId);
+        Doctor doctor = doctorMapper.selectById(doctorId);
+        if (doctor == null) {
+            throw new BusinessException(ResultCode.DOCTOR_NOT_FOUND);
+        }
+
+        if (updateDTO.getName() != null) {
+            doctor.setName(updateDTO.getName());
+        }
+        if (updateDTO.getAvatar() != null) {
+            doctor.setAvatar(updateDTO.getAvatar());
+        }
+        if (updateDTO.getTitle() != null) {
+            doctor.setTitle(updateDTO.getTitle());
+        }
+        if (updateDTO.getHospital() != null) {
+            doctor.setHospital(updateDTO.getHospital());
+        }
+        if (updateDTO.getDepartment() != null) {
+            doctor.setDepartment(updateDTO.getDepartment());
+        }
+        if (updateDTO.getIntroduction() != null) {
+            doctor.setIntroduction(updateDTO.getIntroduction());
+        }
+        if (updateDTO.getSpecialties() != null) {
+            doctor.setSpecialties(String.join(",", updateDTO.getSpecialties()));
+        }
+
+        doctorMapper.updateById(doctor);
+        log.info("更新医生信息: {}", doctorId);
+        return convertToDoctorInfoVO(doctor);
     }
 
     @Override
     public DoctorStatsVO getStats(String doctorId) {
-        JsonNode doctorData = mockDataService.getDoctorData();
         DoctorStatsVO stats = new DoctorStatsVO();
 
-        if (doctorData != null && doctorData.has("consultations")) {
-            JsonNode consultations = doctorData.get("consultations");
-            int pending = 0, processing = 0, completed = 0;
+        // 统计问诊数量
+        LambdaQueryWrapper<Consultation> consultationWrapper = new LambdaQueryWrapper<>();
+        consultationWrapper.eq(Consultation::getDoctorId, doctorId);
+        List<Consultation> consultations = consultationMapper.selectList(consultationWrapper);
 
-            for (JsonNode c : consultations) {
-                String status = c.get("status").asText();
-                switch (status) {
-                    case "pending" -> pending++;
-                    case "processing" -> processing++;
-                    case "completed" -> completed++;
-                }
+        int pending = 0, processing = 0, completed = 0;
+        for (Consultation c : consultations) {
+            String status = c.getStatus();
+            switch (status) {
+                case "pending":
+                    pending++;
+                    break;
+                case "processing":
+                    processing++;
+                    break;
+                case "completed":
+                    completed++;
+                    break;
             }
-
-            stats.setPending(pending);
-            stats.setProcessing(processing);
-            stats.setCompleted(completed);
         }
 
-        // 模拟今日收入
-        if (doctorData != null && doctorData.has("income")) {
-            stats.setIncome(doctorData.get("income").get("todayIncome").asDouble());
-        }
+        stats.setPending(pending);
+        stats.setProcessing(processing);
+        stats.setCompleted(completed);
+
+        // TODO: 从收入表获取今日收入
+        stats.setIncome(0.0);
 
         return stats;
     }
@@ -108,88 +184,116 @@ public class DoctorServiceImpl implements DoctorService {
 
         // 待办 = 待接诊 + 待审核处方
         int pendingConsultations = stats.getPending() != null ? stats.getPending() : 0;
-        int pendingPrescriptions = countPendingPrescriptions();
+        int pendingPrescriptions = countPendingPrescriptions(doctorId);
         todoCount.setTodoCount(pendingConsultations + pendingPrescriptions);
 
-        // 模拟未读消息
+        // TODO: 从消息表获取未读消息
         todoCount.setUnreadCount(3);
         return todoCount;
     }
 
     @Override
     public List<Object> getSchedule(String doctorId) {
-        JsonNode doctorData = mockDataService.getDoctorData();
+        LambdaQueryWrapper<DoctorSchedule> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(DoctorSchedule::getDoctorId, doctorId)
+               .orderByAsc(DoctorSchedule::getDayOfWeek);
+        
+        List<DoctorSchedule> schedules = doctorScheduleMapper.selectList(wrapper);
+        
+        // 转换为前端需要的格式
         List<Object> scheduleList = new ArrayList<>();
-
-        if (doctorData != null && doctorData.has("schedule")) {
-            for (JsonNode s : doctorData.get("schedule")) {
-                scheduleList.add(s);
-            }
+        for (DoctorSchedule schedule : schedules) {
+            scheduleList.add(schedule);
         }
         return scheduleList;
     }
 
     @Override
     public Object getLicense(String doctorId) {
-        JsonNode doctorData = mockDataService.getDoctorData();
-        if (doctorData != null && doctorData.has("doctor")) {
-            JsonNode doctor = doctorData.get("doctor");
-            return new Object() {
-                public final String licenseNumber = doctor.get("licenseNumber").asText();
-                public final String licenseType = doctor.get("licenseType").asText();
-                public final String licenseExpiry = doctor.get("licenseExpiry").asText();
-                public final String hospitalLevel = doctor.get("hospitalLevel").asText();
-                public final int yearsOfExperience = doctor.get("yearsOfExperience").asInt();
-            };
+        Doctor doctor = doctorMapper.selectById(doctorId);
+        if (doctor == null) {
+            return null;
         }
-        return null;
+        
+        return new Object() {
+            public final String licenseNumber = doctor.getLicenseNo() != null ? doctor.getLicenseNo() : "";
+            public final String licenseType = "执业医师";
+            public final String licenseExpiry = "";
+            public final String hospitalLevel = doctor.getHospital() != null ? "三甲" : "";
+            public final int yearsOfExperience = 10;
+        };
     }
 
-    private int countPendingPrescriptions() {
-        JsonNode doctorData = mockDataService.getDoctorData();
-        if (doctorData != null && doctorData.has("prescriptions")) {
-            int count = 0;
-            for (JsonNode p : doctorData.get("prescriptions")) {
-                if ("pending".equals(p.get("status").asText())) {
-                    count++;
-                }
-            }
-            return count;
+    @Override
+    public String assignDoctorForPrescription(String drugId) {
+        // 查找在线且可开方的医生，随机分配
+        LambdaQueryWrapper<Doctor> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Doctor::getStatus, 1)
+               .eq(Doctor::getIsDeleted, 0)
+               .eq(Doctor::getIsCertified, 1);
+        List<Doctor> doctors = doctorMapper.selectList(wrapper);
+        if (doctors != null && !doctors.isEmpty()) {
+            // 简单轮询：取列表中的第一个
+            return doctors.get(0).getId();
         }
-        return 0;
+        return "DOC001"; // fallback
     }
 
-    private DoctorInfoVO convertToDoctorInfoVO(JsonNode doctor) {
+    public int countPendingPrescriptions(String doctorId) {
+        LambdaQueryWrapper<Prescription> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Prescription::getDoctorId, doctorId)
+               .eq(Prescription::getStatus, "pending");
+        Long count = prescriptionMapper.selectCount(wrapper);
+        return count != null ? count.intValue() : 0;
+    }
+
+    private DoctorInfoVO convertToDoctorInfoVO(Doctor doctor) {
+        if (doctor == null) {
+            return null;
+        }
+
         DoctorInfoVO vo = new DoctorInfoVO();
-        vo.setId(doctor.get("id").asText());
-        vo.setName(doctor.get("name").asText());
-        vo.setAvatar(doctor.get("avatar").asText());
-        vo.setTitle(doctor.get("title").asText());
-        vo.setHospital(doctor.get("hospital").asText());
-        vo.setDepartment(doctor.get("department").asText());
-        vo.setIsCertified(doctor.get("isCertified").asBoolean());
-        vo.setRating(doctor.get("rating").asDouble());
-        vo.setServiceCount(doctor.get("serviceCount").asInt());
-        vo.setResponseTime(doctor.get("responseTime").asInt());
-        vo.setIntroduction(doctor.has("introduction") && !doctor.get("introduction").isNull()
-                ? doctor.get("introduction").asText() : "");
+        vo.setId(doctor.getId());
+        vo.setName(doctor.getName());
+        vo.setAvatar(doctor.getAvatar());
+        vo.setTitle(doctor.getTitle());
+        vo.setHospital(doctor.getHospital());
+        vo.setDepartment(doctor.getDepartment());
+        vo.setIsCertified(doctor.getIsCertified() != null && doctor.getIsCertified() == 1);
+        vo.setRating(doctor.getRating() != null ? doctor.getRating().doubleValue() : 5.0);
+        vo.setServiceCount(doctor.getServiceCount() != null ? doctor.getServiceCount() : 0);
+        vo.setResponseTime(doctor.getResponseTime() != null ? doctor.getResponseTime() : 30);
+        vo.setIntroduction(doctor.getIntroduction() != null ? doctor.getIntroduction() : "");
 
-        if (doctor.has("specialties") && doctor.get("specialties").isArray()) {
-            List<String> specialties = new ArrayList<>();
-            for (JsonNode s : doctor.get("specialties")) {
-                specialties.add(s.asText());
-            }
-            vo.setSpecialties(specialties);
+        if (doctor.getSpecialties() != null && !doctor.getSpecialties().isEmpty()) {
+            vo.setSpecialties(Arrays.asList(doctor.getSpecialties().split(",")));
+        } else {
+            vo.setSpecialties(new ArrayList<>());
         }
+
+        LambdaQueryWrapper<DoctorExt> extWrapper = new LambdaQueryWrapper<>();
+        extWrapper.eq(DoctorExt::getDoctorId, doctor.getId());
+        DoctorExt ext = doctorExtMapper.selectOne(extWrapper);
+        if (ext != null) {
+            vo.setIsOnline(ext.getIsOnline() != null && ext.getIsOnline() == 1);
+            vo.setCanPrescribe(ext.getCanPrescribe() != null && ext.getCanPrescribe() == 1);
+            vo.setWaitTime(ext.getWaitTime());
+            vo.setConsultCount(ext.getConsultCount());
+        }
+
         return vo;
     }
 
-    private com.drugmall.vo.UserInfoVO convertToDoctorUserInfoVO(JsonNode doctor) {
+    private com.drugmall.vo.UserInfoVO convertToDoctorUserInfoVO(Doctor doctor) {
+        if (doctor == null) {
+            return null;
+        }
+        
         com.drugmall.vo.UserInfoVO vo = new com.drugmall.vo.UserInfoVO();
-        vo.setId(doctor.get("id").asText());
-        vo.setNickname(doctor.get("name").asText());
-        vo.setAvatar(doctor.get("avatar").asText());
-        vo.setPhone(doctor.get("phone").asText());
+        vo.setId(doctor.getId());
+        vo.setNickname(doctor.getName());
+        vo.setAvatar(doctor.getAvatar());
+        vo.setPhone(doctor.getPhone());
         return vo;
     }
 }

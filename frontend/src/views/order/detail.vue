@@ -5,6 +5,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useOrderStore } from '@/stores/order'
 import { getOrderDetail, cancelOrder, confirmReceipt, deleteOrder, getLogisticsInfo } from '@/api/modules/order'
 import { formatPrice, formatDateTime } from '@/utils'
+import { OrderStatus, SHIPPING_ORDER_STATUSES, CANCELLED_ORDER_STATUSES, ORDER_PROGRESS_STEPS } from '@/constants'
+import { ROUTES, getDrugDetailRoute } from '@/constants/routes'
 import type { Order, LogisticsInfo } from '@/types'
 
 const router = useRouter()
@@ -45,7 +47,7 @@ const loadOrderDetail = async () => {
       orderStore.setCurrentOrder(res)
 
       // 如果订单已发货，加载物流信息
-      if (['shipped', 'delivered', 'completed'].includes(res.status)) {
+      if (res && SHIPPING_ORDER_STATUSES.includes(res.status as OrderStatus)) {
         loadLogistics()
       }
     }
@@ -88,17 +90,16 @@ const statusConfig = computed(() => {
 // 进度条步骤
 const progressSteps = computed(() => {
   if (!order.value) return []
-  const status = order.value.status
+  const status = order.value.status as OrderStatus
 
   const steps = [
     { label: '提交订单', time: order.value.createTime, done: true },
-    { label: '支付成功', time: order.value.payTime, done: ['paid', 'confirmed', 'shipped', 'delivered', 'completed'].includes(status) },
-    { label: '商家发货', time: order.value.deliveryTime, done: ['shipped', 'delivered', 'completed'].includes(status) },
-    { label: '确认收货', time: order.value.confirmTime, done: ['completed'].includes(status) }
+    { label: '支付成功', time: order.value.payTime, done: [OrderStatus.PAID, 'confirmed', OrderStatus.SHIPPED, OrderStatus.DELIVERED, OrderStatus.COMPLETED].includes(status) },
+    { label: '商家发货', time: order.value.deliveryTime, done: SHIPPING_ORDER_STATUSES.includes(status) },
+    { label: '确认收货', time: order.value.confirmTime, done: [OrderStatus.COMPLETED].includes(status) }
   ]
 
-  // 处理取消和退款订单
-  if (['cancelled', 'refunding', 'refunded'].includes(status)) {
+  if (CANCELLED_ORDER_STATUSES.includes(status)) {
     return steps.slice(0, 2)
   }
 
@@ -113,7 +114,7 @@ const goBack = () => {
 // 操作按钮
 const handlePay = () => {
   if (order.value) {
-    router.push(`/order/pay?id=${order.value.id}`)
+    router.push(`${ROUTES.ORDER_PAY}?id=${order.value.id}`)
   }
 }
 
@@ -221,7 +222,7 @@ const handleCopyOrderNo = () => {
     </div>
 
     <!-- 进度条（仅非取消/退款订单） -->
-    <div v-if="!['cancelled', 'refunding', 'refunded'].includes(order.status)" class="progress-section">
+    <div v-if="!CANCELLED_ORDER_STATUSES.includes(order.status as OrderStatus)" class="progress-section">
       <div class="progress-line">
         <div
           class="progress-fill"
@@ -265,7 +266,7 @@ const handleCopyOrderNo = () => {
           v-for="item in order.items"
           :key="item.id"
           class="goods-item"
-          @click="$router.push(`/drug/${item.drugId}`)"
+          @click="$router.push(getDrugDetailRoute(item.drugId))"
         >
           <img :src="item.image" :alt="item.name" class="goods-image" />
           <div class="goods-info">
@@ -360,32 +361,28 @@ const handleCopyOrderNo = () => {
     <!-- 底部操作栏 -->
     <div class="action-bar">
       <!-- 待支付 -->
-      <template v-if="order.status === 'pending'">
+      <template v-if="order.status === OrderStatus.PENDING">
         <el-button type="primary" size="large" @click="handlePay">立即支付</el-button>
         <el-button size="large" @click="handleCancel">取消订单</el-button>
       </template>
 
-      <!-- 待发货 -->
-      <template v-if="order.status === 'paid'">
+      <template v-if="order.status === OrderStatus.PAID">
         <el-button size="large" @click="handleRefund">申请退款</el-button>
         <el-button size="large" @click="handleContactService">联系客服</el-button>
       </template>
 
-      <!-- 待收货 -->
-      <template v-if="order.status === 'shipped'">
+      <template v-if="order.status === OrderStatus.SHIPPED">
         <el-button type="primary" size="large" @click="handleViewLogistics">查看物流</el-button>
         <el-button type="success" size="large" @click="handleConfirm">确认收货</el-button>
       </template>
 
-      <!-- 已完成 -->
-      <template v-if="order.status === 'completed'">
+      <template v-if="order.status === OrderStatus.COMPLETED">
         <el-button type="primary" size="large" @click="handleReview">评价</el-button>
         <el-button size="large" @click="handleRebuy">再次购买</el-button>
         <el-button size="large" @click="handleDelete">删除订单</el-button>
       </template>
 
-      <!-- 已取消 -->
-      <template v-if="order.status === 'cancelled'">
+      <template v-if="order.status === OrderStatus.CANCELLED">
         <el-button size="large" @click="handleRebuy">再次购买</el-button>
         <el-button size="large" @click="handleDelete">删除订单</el-button>
       </template>

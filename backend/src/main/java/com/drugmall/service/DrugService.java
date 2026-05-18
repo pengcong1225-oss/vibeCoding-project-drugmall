@@ -56,6 +56,11 @@ public interface DrugService {
     List<DrugFAQVO> getDrugFAQs(String drugId);
 
     /**
+     * 获取药品在售门店列表
+     */
+    List<DrugStoreVO> getDrugStores(String drugId);
+
+    /**
      * 获取搜索建议
      */
     List<SearchSuggestionVO> getSearchSuggestions(String keyword);

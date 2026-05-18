@@ -71,6 +71,7 @@ const handleLogin = async () => {
     // 模拟登录
     localStorage.setItem('token', 'doctor_token_' + Date.now())
     localStorage.setItem('doctorInfo', JSON.stringify({
+      id: '001',
       name: '张医生',
       hospital: '北京协和医院',
       department: '心内科'

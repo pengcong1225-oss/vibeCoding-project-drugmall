@@ -123,7 +123,7 @@ export function getAvailableCoupons(orderAmount: number) {
 
 // 获取订单统计
 export function getOrderStats() {
-  return http.get<UserOrderStats>('/user/order-stats')
+  return http.get<UserOrderStats>('/orders/statistics')
 }
 
 // ==================== 其他 ====================

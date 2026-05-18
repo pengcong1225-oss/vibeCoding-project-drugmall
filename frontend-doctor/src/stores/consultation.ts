@@ -1,31 +1,18 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { 
+  getDoctorConsultations, 
+  getDoctorConsultationDetail,
+  acceptConsultation as apiAcceptConsultation,
+  completeConsultation as apiCompleteConsultation,
+  getConsultationMessages,
+  sendConsultationMessage as apiSendMessage,
+  type DoctorConsultation,
+  type ConsultationMessage
+} from '@/api/consultation'
 
-export interface Consultation {
-  id: string
-  patientId: string
-  patientName: string
-  patientAge: number
-  patientGender: '男' | '女'
-  patientAvatar: string
-  type: '图文问诊' | '视频问诊' | '复诊'
-  status: 'pending' | 'processing' | 'completed' | 'closed'
-  symptom: string
-  waitTime: string
-  remainingTime: string
-  isUrgent: boolean
-  isRx: boolean
-  createTime: string
-  messages?: Message[]
-}
-
-export interface Message {
-  id: string
-  sender: 'doctor' | 'patient' | 'system'
-  type: 'text' | 'image' | 'voice' | 'prescription'
-  content: string
-  time: string
-  status?: 'sending' | 'sent' | 'read'
+export interface Consultation extends DoctorConsultation {
+  messages?: ConsultationMessage[]
 }
 
 export const useConsultationStore = defineStore('consultation', () => {
@@ -51,60 +38,19 @@ export const useConsultationStore = defineStore('consultation', () => {
   const fetchConsultations = async (status?: string) => {
     loading.value = true
     try {
-      // 模拟API调用
-      await new Promise(resolve => setTimeout(resolve, 500))
+      // 调用真实API获取问诊列表
+      const response = await getDoctorConsultations(status || 'all')
       
-      // 模拟数据
-      consultations.value = [
-        {
-          id: 'C001',
-          patientId: 'P001',
-          patientName: '李*',
-          patientAge: 35,
-          patientGender: '女',
-          patientAvatar: '',
-          type: '图文问诊',
-          status: 'pending',
-          symptom: '头疼、发烧三天，伴有咳嗽症状...',
-          waitTime: '15分钟',
-          remainingTime: '8分钟',
-          isUrgent: true,
-          isRx: true,
-          createTime: '2024-12-07 10:30:00'
-        },
-        {
-          id: 'C002',
-          patientId: 'P002',
-          patientName: '王*',
-          patientAge: 28,
-          patientGender: '男',
-          patientAvatar: '',
-          type: '复诊',
-          status: 'processing',
-          symptom: '慢性胃炎复诊，咨询用药...',
-          waitTime: '8分钟',
-          remainingTime: '22分钟',
-          isUrgent: false,
-          isRx: false,
-          createTime: '2024-12-07 09:45:00'
-        },
-        {
-          id: 'C003',
-          patientId: 'P003',
-          patientName: '张*',
-          patientAge: 42,
-          patientGender: '女',
-          patientAvatar: '',
-          type: '图文问诊',
-          status: 'completed',
-          symptom: '皮肤过敏，瘙痒...',
-          waitTime: '-',
-          remainingTime: '-',
-          isUrgent: false,
-          isRx: true,
-          createTime: '2024-12-06 14:20:00'
-        }
-      ]
+      // 响应拦截器已解包data字段，response直接是数组
+      if (response && Array.isArray(response)) {
+        consultations.value = response.map(item => ({
+          ...item,
+          messages: []
+        }))
+      }
+    } catch (error) {
+      console.error('获取问诊列表失败:', error)
+      throw error
     } finally {
       loading.value = false
     }
@@ -113,69 +59,96 @@ export const useConsultationStore = defineStore('consultation', () => {
   const fetchConsultationDetail = async (id: string) => {
     loading.value = true
     try {
-      await new Promise(resolve => setTimeout(resolve, 300))
+      // 调用真实API获取问诊详情
+      const [detailResponse, messagesResponse] = await Promise.all([
+        getDoctorConsultationDetail(id),
+        getConsultationMessages(id)
+      ])
       
-      const consultation = consultations.value.find(c => c.id === id)
-      if (consultation) {
+      if (detailResponse.data) {
         currentConsultation.value = {
-          ...consultation,
-          messages: [
-            {
-              id: 'M001',
-              sender: 'system',
-              type: 'text',
-              content: '问诊已开始，请医生尽快接诊',
-              time: '10:30'
-            },
-            {
-              id: 'M002',
-              sender: 'patient',
-              type: 'text',
-              content: '医生您好，我头疼发烧三天了，请问应该吃什么药？',
-              time: '10:31'
-            },
-            {
-              id: 'M003',
-              sender: 'doctor',
-              type: 'text',
-              content: '您好，请问您除了头疼发烧，还有其他症状吗？比如咳嗽、咽痛？',
-              time: '10:32',
-              status: 'read'
-            }
-          ]
+          ...detailResponse.data,
+          messages: messagesResponse.data || []
+        }
+        
+        // 更新列表中的对应项
+        const index = consultations.value.findIndex(c => c.id === id)
+        if (index !== -1) {
+          consultations.value[index] = {
+            ...consultations.value[index],
+            ...detailResponse.data
+          }
         }
       }
+    } catch (error) {
+      console.error('获取问诊详情失败:', error)
+      throw error
     } finally {
       loading.value = false
     }
   }
 
   const startConsultation = async (id: string) => {
-    const index = consultations.value.findIndex(c => c.id === id)
-    if (index !== -1) {
-      consultations.value[index].status = 'processing'
+    try {
+      // 调用真实API接诊
+      await apiAcceptConsultation(id)
+      
+      // 更新本地状态
+      const index = consultations.value.findIndex(c => c.id === id)
+      if (index !== -1) {
+        consultations.value[index].status = 'processing'
+      }
+      
+      // 如果当前正在查看该问诊，也更新
+      if (currentConsultation.value?.id === id) {
+        currentConsultation.value.status = 'processing'
+      }
+    } catch (error) {
+      console.error('接诊失败:', error)
+      throw error
     }
   }
 
   const endConsultation = async (id: string) => {
-    const index = consultations.value.findIndex(c => c.id === id)
-    if (index !== -1) {
-      consultations.value[index].status = 'completed'
+    try {
+      // 调用真实API完成问诊
+      await apiCompleteConsultation(id)
+      
+      // 更新本地状态
+      const index = consultations.value.findIndex(c => c.id === id)
+      if (index !== -1) {
+        consultations.value[index].status = 'completed'
+      }
+      
+      if (currentConsultation.value?.id === id) {
+        currentConsultation.value.status = 'completed'
+      }
+    } catch (error) {
+      console.error('结束问诊失败:', error)
+      throw error
     }
   }
 
-  const sendMessage = async (consultationId: string, message: Partial<Message>) => {
-    const consultation = currentConsultation.value
-    if (consultation && consultation.id === consultationId) {
-      const newMessage: Message = {
-        id: `M${Date.now()}`,
-        sender: 'doctor',
+  const sendMessage = async (consultationId: string, message: Partial<ConsultationMessage>) => {
+    try {
+      // 调用真实API发送消息
+      const response = await apiSendMessage(consultationId, {
         type: message.type || 'text',
-        content: message.content || '',
-        time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-        status: 'sent'
+        content: message.content || ''
+      })
+      
+      // 响应拦截器已解包data字段，response直接是消息对象
+      if (response && currentConsultation.value?.id === consultationId) {
+        currentConsultation.value.messages = [
+          ...(currentConsultation.value.messages || []),
+          response
+        ]
       }
-      consultation.messages = [...(consultation.messages || []), newMessage]
+      
+      return response
+    } catch (error) {
+      console.error('发送消息失败:', error)
+      throw error
     }
   }
 

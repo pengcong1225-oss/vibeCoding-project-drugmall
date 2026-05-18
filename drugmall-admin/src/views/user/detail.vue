@@ -213,7 +213,7 @@ onMounted(() => {
             </el-table-column>
             <el-table-column label="状态" width="100">
               <template #default="{ row }">
-                <el-tag :type="getOrderStatusType(row.status)" size="small">
+                <el-tag :type="getOrderStatusType(row.status) as any" size="small">
                   {{ getOrderStatusText(row.status) }}
                 </el-tag>
               </template>

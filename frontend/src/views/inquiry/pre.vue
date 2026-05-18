@@ -321,6 +321,7 @@ import {
   Refresh,
   Present
 } from '@element-plus/icons-vue'
+import { ROUTES, getInquiryPayRoute } from '@/constants/routes'
 import { createConsultation } from '@/api/modules/inquiry'
 import { getPatients } from '@/api/modules/user'
 import type { Patient } from '@/types'
@@ -549,7 +550,6 @@ const completeConsultation = async () => {
   }
 }
 
-// 跳转到支付
 const goToPayment = () => {
   if (!consultationId.value) {
     ElMessage.error('问诊信息不存在')
@@ -557,7 +557,7 @@ const goToPayment = () => {
   }
 
   router.push({
-    path: `/inquiry/pay/${consultationId.value}`,
+    path: getInquiryPayRoute(consultationId.value),
     query: {
       doctorId: doctorInfo.value?.id,
       doctorName: doctorInfo.value?.name,
@@ -574,31 +574,26 @@ const goToPayment = () => {
   })
 }
 
-// 滚动到底部
 const scrollToBottom = () => {
   if (chatSectionRef.value) {
     chatSectionRef.value.scrollTop = chatSectionRef.value.scrollHeight
   }
 }
 
-// 返回
 const goBack = () => {
   router.back()
 }
 
-// 咨询记录
 const goToRecords = () => {
-  router.push('/inquiry/list')
+  router.push(ROUTES.INQUIRY_LIST)
 }
 
-// 添加就诊人
 const goToAddPatient = () => {
-  router.push('/patient')
+  router.push(ROUTES.PATIENT)
 }
 
-// 管理档案
 const goToManagePatients = () => {
-  router.push('/patient')
+  router.push(ROUTES.PATIENT)
 }
 
 onMounted(() => {

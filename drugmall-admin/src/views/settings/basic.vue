@@ -79,15 +79,19 @@ const beforeLogoUpload = (file: File) => {
 }
 
 // Logo上传成功
-const handleLogoSuccess = (response: any) => {
-  formData.value.siteLogo = response.url || URL.createObjectURL(response.raw)
+const handleLogoSuccess = async (options: any) => {
+  const { file } = options
+  formData.value.siteLogo = URL.createObjectURL(file)
   ElMessage.success('Logo上传成功')
+  return Promise.resolve()
 }
 
 // Icon上传成功
-const handleIconSuccess = (response: any) => {
-  formData.value.siteIcon = response.url || URL.createObjectURL(response.raw)
+const handleIconSuccess = async (options: any) => {
+  const { file } = options
+  formData.value.siteIcon = URL.createObjectURL(file)
   ElMessage.success('Icon上传成功')
+  return Promise.resolve()
 }
 </script>
 

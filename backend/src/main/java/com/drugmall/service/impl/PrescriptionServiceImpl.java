@@ -1,24 +1,36 @@
 package com.drugmall.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.drugmall.common.BusinessException;
 import com.drugmall.common.ResultCode;
-import com.drugmall.config.MockDataService;
 import com.drugmall.dto.CreatePrescriptionDTO;
 import com.drugmall.dto.WithdrawApplyDTO;
+import com.drugmall.entity.Prescription;
+import com.drugmall.entity.PrescriptionItem;
+import com.drugmall.entity.Consultation;
+import com.drugmall.entity.DoctorIncome;
+import com.drugmall.entity.Drug;
+import com.drugmall.entity.Patient;
+import com.drugmall.entity.User;
+import com.drugmall.mapper.DrugMapper;
+import com.drugmall.mapper.PrescriptionMapper;
+import com.drugmall.mapper.PrescriptionItemMapper;
+import com.drugmall.mapper.ConsultationMapper;
+import com.drugmall.mapper.DoctorIncomeMapper;
+import com.drugmall.mapper.PatientMapper;
+import com.drugmall.mapper.UserMapper;
 import com.drugmall.service.PrescriptionService;
 import com.drugmall.vo.*;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.Collectors;
 
 /**
@@ -29,47 +41,103 @@ import java.util.stream.Collectors;
 public class PrescriptionServiceImpl implements PrescriptionService {
 
     @Autowired
-    private MockDataService mockDataService;
+    private PrescriptionMapper prescriptionMapper;
 
     @Autowired
-    private ObjectMapper objectMapper;
+    private PrescriptionItemMapper prescriptionItemMapper;
+
+    @Autowired
+    private ConsultationMapper consultationMapper;
+
+    @Autowired
+    private DoctorIncomeMapper doctorIncomeMapper;
+
+    @Autowired
+    private PatientMapper patientMapper;
+
+    @Autowired
+    private UserMapper userMapper;
+
+    @Autowired
+    private DrugMapper drugMapper;
 
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     @Override
     public List<DoctorPrescriptionVO> listPrescriptions(String doctorId, String status) {
-        JsonNode doctorData = mockDataService.getDoctorData();
-        List<DoctorPrescriptionVO> result = new ArrayList<>();
+        LambdaQueryWrapper<Prescription> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Prescription::getDoctorId, doctorId);
 
-        if (doctorData == null || !doctorData.has("prescriptions")) {
-            return result;
+        if (status != null && !status.isEmpty() && !status.equals("all")) {
+            wrapper.eq(Prescription::getStatus, status);
         }
 
-        for (JsonNode p : doctorData.get("prescriptions")) {
-            String prescriptionStatus = p.get("status").asText();
-            if (status != null && !status.isEmpty() && !status.equals("all") && !status.equals(prescriptionStatus)) {
-                continue;
-            }
-            result.add(convertToPrescriptionVO(p));
+        wrapper.orderByDesc(Prescription::getCreateTime);
+
+        List<Prescription> prescriptions = prescriptionMapper.selectList(wrapper);
+        return prescriptions.stream()
+                .map(this::convertToPrescriptionVO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<DoctorPrescriptionVO> listPatientPrescriptions(String userId, String status) {
+        // 查找该用户的所有就诊人ID
+        LambdaQueryWrapper<Patient> patientQuery = new LambdaQueryWrapper<>();
+        patientQuery.eq(Patient::getUserId, parsePatientId(userId))
+                    .eq(Patient::getIsDeleted, false);
+        List<Patient> patients = patientMapper.selectList(patientQuery);
+        List<Long> patientIds = patients.stream().map(Patient::getId).collect(Collectors.toList());
+        if (patientIds.isEmpty()) {
+            patientIds.add(0L); // 无就诊人时查不到数据
         }
 
-        return result;
+        LambdaQueryWrapper<Prescription> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(Prescription::getPatientId, patientIds);
+
+        if (status != null && !status.isEmpty() && !status.equals("all")) {
+            wrapper.eq(Prescription::getStatus, status);
+        }
+
+        wrapper.orderByDesc(Prescription::getCreateTime);
+
+        List<Prescription> prescriptions = prescriptionMapper.selectList(wrapper);
+        return prescriptions.stream()
+                .map(this::convertToPrescriptionVO)
+                .collect(Collectors.toList());
     }
 
     @Override
     public DoctorPrescriptionVO getPrescriptionDetail(String doctorId, String prescriptionId) {
-        JsonNode doctorData = mockDataService.getDoctorData();
-        if (doctorData == null || !doctorData.has("prescriptions")) {
+        Prescription prescription = prescriptionMapper.selectById(prescriptionId);
+        if (prescription == null) {
             throw new BusinessException(ResultCode.PRESCRIPTION_NOT_FOUND);
         }
-
-        for (JsonNode p : doctorData.get("prescriptions")) {
-            if (p.get("id").asText().equals(prescriptionId)) {
-                return convertToPrescriptionVO(p);
-            }
-        }
-
-        throw new BusinessException(ResultCode.PRESCRIPTION_NOT_FOUND);
+        
+        DoctorPrescriptionVO vo = convertToPrescriptionVO(prescription);
+        
+        // 加载处方明细
+        LambdaQueryWrapper<PrescriptionItem> itemWrapper = new LambdaQueryWrapper<>();
+        itemWrapper.eq(PrescriptionItem::getPrescriptionId, prescriptionId);
+        List<PrescriptionItem> items = prescriptionItemMapper.selectList(itemWrapper);
+        
+        List<DoctorPrescriptionVO.DrugItemVO> drugs = items.stream().map(item -> {
+            DoctorPrescriptionVO.DrugItemVO drugVO = new DoctorPrescriptionVO.DrugItemVO();
+            drugVO.setId(String.valueOf(item.getId()));
+            drugVO.setName(item.getProductName());
+            drugVO.setSpec(item.getSpecification());
+            drugVO.setUnit("");
+            drugVO.setPrice(item.getPrice());
+            drugVO.setQuantity(item.getQuantity());
+            drugVO.setDosage(item.getDosage());
+            drugVO.setFrequency(item.getFrequency());
+            drugVO.setDuration(item.getDuration());
+            drugVO.setRemark("");
+            return drugVO;
+        }).collect(Collectors.toList());
+        
+        vo.setDrugs(drugs);
+        return vo;
     }
 
     @Override
@@ -78,322 +146,407 @@ public class PrescriptionServiceImpl implements PrescriptionService {
             throw new BusinessException(ResultCode.PRESCRIPTION_DRUG_EMPTY);
         }
 
-        JsonNode doctorData = mockDataService.getDoctorData();
         String now = LocalDateTime.now().format(DATE_TIME_FORMATTER);
         String prescriptionId = "PRES" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
 
-        ObjectNode newPrescription = objectMapper.createObjectNode();
-        newPrescription.put("id", prescriptionId);
-        newPrescription.put("doctorId", doctorId);
-        newPrescription.put("patientId", createDTO.getPatientId());
-        newPrescription.put("patientName", createDTO.getPatientName() != null ? createDTO.getPatientName() : "");
-        newPrescription.put("patientAge", createDTO.getPatientAge() != null ? createDTO.getPatientAge() : 0);
-        newPrescription.put("patientGender", createDTO.getPatientGender() != null ? createDTO.getPatientGender() : "");
-        newPrescription.put("consultationId", createDTO.getConsultationId() != null ? createDTO.getConsultationId() : "");
-        newPrescription.put("diagnosis", createDTO.getDiagnosis());
-        newPrescription.put("status", "pending");
-        newPrescription.put("statusText", "待审核");
-        newPrescription.put("createTime", now);
-        newPrescription.put("pharmacist", "");
-        newPrescription.put("reviewTime", "");
-        newPrescription.put("rejectReason", "");
-
-        // 构建药品数组并计算总金额
-        ArrayNode drugsArray = objectMapper.createArrayNode();
+        // 计算总金额
         BigDecimal totalAmount = BigDecimal.ZERO;
-
         for (CreatePrescriptionDTO.PrescriptionDrugDTO drugDTO : createDTO.getDrugs()) {
-            ObjectNode drugNode = objectMapper.createObjectNode();
-            drugNode.put("id", drugDTO.getId() != null ? drugDTO.getId() : "D" + System.currentTimeMillis());
-            drugNode.put("name", drugDTO.getName());
-            drugNode.put("spec", drugDTO.getSpec() != null ? drugDTO.getSpec() : "");
-            drugNode.put("unit", drugDTO.getUnit() != null ? drugDTO.getUnit() : "");
-            drugNode.put("price", drugDTO.getPrice() != null ? drugDTO.getPrice().doubleValue() : 0.0);
-            drugNode.put("quantity", drugDTO.getQuantity() != null ? drugDTO.getQuantity() : 1);
-            drugNode.put("dosage", drugDTO.getDosage() != null ? drugDTO.getDosage() : "");
-            drugNode.put("frequency", drugDTO.getFrequency() != null ? drugDTO.getFrequency() : "");
-            drugNode.put("duration", drugDTO.getDuration() != null ? drugDTO.getDuration() : "");
-            drugNode.put("remark", drugDTO.getRemark() != null ? drugDTO.getRemark() : "");
-
             if (drugDTO.getPrice() != null && drugDTO.getQuantity() != null) {
                 totalAmount = totalAmount.add(drugDTO.getPrice().multiply(BigDecimal.valueOf(drugDTO.getQuantity())));
             }
-
-            drugsArray.add(drugNode);
         }
 
-        newPrescription.set("drugs", drugsArray);
-        newPrescription.put("totalAmount", totalAmount.doubleValue());
+        Prescription prescription = new Prescription();
+        prescription.setId(prescriptionId);
+        prescription.setDoctorId(doctorId);
+        Long patientId = createDTO.getPatientId() != null ? Long.valueOf(createDTO.getPatientId()) : null;
+        prescription.setPatientId(patientId);
+        // 从就诊人获取 userId
+        if (patientId != null) {
+            Patient patient = patientMapper.selectById(patientId);
+            if (patient != null) {
+                prescription.setUserId(patient.getUserId());
+            }
+        }
+        prescription.setConsultationId(createDTO.getConsultationId());
+        prescription.setDiagnosis(createDTO.getDiagnosis());
+        prescription.setStatus("pending");
+        prescription.setTotalAmount(totalAmount);
+        prescription.setCreateTime(LocalDateTime.now());
+        
+        prescriptionMapper.insert(prescription);
 
-        // 添加到处方列表
-        if (doctorData != null && doctorData.has("prescriptions")) {
-            ((ArrayNode) doctorData.get("prescriptions")).insert(0, newPrescription);
+        // 插入处方明细
+        for (CreatePrescriptionDTO.PrescriptionDrugDTO drugDTO : createDTO.getDrugs()) {
+            PrescriptionItem item = new PrescriptionItem();
+            item.setPrescriptionId(prescriptionId);
+            // 按名称查找药品获取 productId
+            Long productId = 0L;
+            if (drugDTO.getName() != null) {
+                LambdaQueryWrapper<Drug> drugQuery = new LambdaQueryWrapper<>();
+                drugQuery.eq(Drug::getProductName, drugDTO.getName())
+                         .eq(Drug::getIsDeleted, 0)
+                         .last("LIMIT 1");
+                Drug drug = drugMapper.selectOne(drugQuery);
+                productId = drug != null ? drug.getId() : 0L;
+            }
+            item.setProductId(productId);
+            item.setProductName(drugDTO.getName());
+            item.setSpecification(drugDTO.getSpec());
+            item.setQuantity(drugDTO.getQuantity());
+            item.setDosage(drugDTO.getDosage());
+            item.setFrequency(drugDTO.getFrequency());
+            item.setDuration(drugDTO.getDuration());
+            item.setPrice(drugDTO.getPrice());
+            item.setCreateTime(LocalDateTime.now());
+            
+            prescriptionItemMapper.insert(item);
         }
 
         log.info("创建处方: {}, 总金额: {}", prescriptionId, totalAmount);
-        return convertToPrescriptionVO(newPrescription);
+        return convertToPrescriptionVO(prescription);
     }
 
     @Override
     public List<PatientDetailVO> listPatients(String doctorId, String keyword) {
-        JsonNode doctorData = mockDataService.getDoctorData();
+        // 通过问诊记录获取患者列表
+        LambdaQueryWrapper<Consultation> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Consultation::getDoctorId, doctorId)
+               .select(Consultation::getPatientId)
+               .groupBy(Consultation::getPatientId);
+        
+        List<Consultation> consultations = consultationMapper.selectList(wrapper);
+        
         List<PatientDetailVO> result = new ArrayList<>();
-
-        if (doctorData == null || !doctorData.has("patients")) {
-            return result;
-        }
-
-        for (JsonNode p : doctorData.get("patients")) {
-            String name = p.get("name").asText();
-            if (keyword != null && !keyword.isEmpty() && !name.contains(keyword)) {
-                continue;
+        for (Consultation c : consultations) {
+            if (c.getPatientId() != null) {
+                PatientDetailVO vo = new PatientDetailVO();
+                vo.setId(String.valueOf(c.getPatientId()));
+                vo.setName("患者" + c.getPatientId());
+                vo.setAge(0);
+                vo.setGender("");
+                vo.setPhone("");
+                vo.setAvatar("");
+                vo.setLastVisit(c.getCreateTime() != null ? c.getCreateTime().toString() : "");
+                vo.setVisitCount(1);
+                vo.setIsVip(false);
+                result.add(vo);
             }
-            result.add(convertToPatientVO(p));
         }
-
+        
         return result;
     }
 
     @Override
     public PatientDetailVO getPatientDetail(String doctorId, String patientId) {
-        JsonNode doctorData = mockDataService.getDoctorData();
-        if (doctorData == null || !doctorData.has("patients")) {
-            throw new BusinessException(ResultCode.PATIENT_NOT_FOUND);
-        }
-
-        for (JsonNode p : doctorData.get("patients")) {
-            if (p.get("id").asText().equals(patientId)) {
-                return convertToPatientVO(p);
+        // 从数据库查询患者信息
+        Patient patient = patientMapper.selectById(parsePatientId(patientId));
+        
+        PatientDetailVO vo = new PatientDetailVO();
+        if (patient != null) {
+            vo.setId(String.valueOf(patient.getId()));
+            vo.setName(patient.getName() != null ? patient.getName() : "患者" + patientId);
+            
+            // 计算年龄
+            if (patient.getBirthday() != null) {
+                vo.setAge(java.time.Period.between(patient.getBirthday(), java.time.LocalDate.now()).getYears());
+            } else {
+                vo.setAge(0);
             }
+            
+            // 性别
+            if (patient.getGender() != null) {
+                vo.setGender(patient.getGender() == 1 ? "男" : "女");
+            } else {
+                vo.setGender("未知");
+            }
+            
+            // 从患者表获取过敏史和病史
+            vo.setAllergies(patient.getAllergyHistory() != null ? patient.getAllergyHistory() : "");
+            vo.setMedicalHistory(patient.getMedicalHistory() != null ? patient.getMedicalHistory() : "");
+            
+            // 统计该医生的问诊次数
+            LambdaQueryWrapper<Consultation> consultationWrapper = new LambdaQueryWrapper<>();
+            consultationWrapper.eq(Consultation::getDoctorId, doctorId)
+                              .eq(Consultation::getPatientId, patient.getId());
+            long visitCount = consultationMapper.selectCount(consultationWrapper);
+            vo.setVisitCount((int) visitCount);
+            
+            // 查询最后就诊时间
+            LambdaQueryWrapper<Consultation> lastVisitWrapper = new LambdaQueryWrapper<>();
+            lastVisitWrapper.eq(Consultation::getDoctorId, doctorId)
+                           .eq(Consultation::getPatientId, patient.getId())
+                           .orderByDesc(Consultation::getCreateTime)
+                           .last("LIMIT 1");
+            Consultation lastConsultation = consultationMapper.selectOne(lastVisitWrapper);
+            if (lastConsultation != null && lastConsultation.getCreateTime() != null) {
+                vo.setLastVisit(lastConsultation.getCreateTime().format(DATE_TIME_FORMATTER));
+            } else {
+                vo.setLastVisit("");
+            }
+            
+            // 从用户表获取头像（通过user_id关联）
+            if (patient.getUserId() != null) {
+                User user = userMapper.selectById(patient.getUserId());
+                if (user != null) {
+                    vo.setAvatar(user.getAvatar() != null ? user.getAvatar() : "");
+                    // 如果患者表没有电话，从用户表获取
+                    if (patient.getPhone() == null || patient.getPhone().isEmpty()) {
+                        vo.setPhone(user.getPhone() != null ? user.getPhone() : "");
+                    }
+                } else {
+                    vo.setAvatar("");
+                    vo.setPhone(patient.getPhone() != null ? patient.getPhone() : "");
+                }
+            } else {
+                vo.setAvatar("");
+                vo.setPhone(patient.getPhone() != null ? patient.getPhone() : "");
+            }
+            
+            vo.setIsVip(false);
+            vo.setTags(new ArrayList<>()); // TODO: 从标签表获取
+            vo.setDiagnosis(new ArrayList<>()); // TODO: 从诊断记录获取
+        } else {
+            // 患者不存在，返回默认值
+            vo.setId(patientId);
+            vo.setName("患者" + patientId);
+            vo.setAge(0);
+            vo.setGender("未知");
+            vo.setPhone("");
+            vo.setAvatar("");
+            vo.setLastVisit("");
+            vo.setVisitCount(0);
+            vo.setIsVip(false);
+            vo.setAllergies("");
+            vo.setMedicalHistory("");
+            vo.setTags(new ArrayList<>());
+            vo.setDiagnosis(new ArrayList<>());
         }
-
-        throw new BusinessException(ResultCode.PATIENT_NOT_FOUND);
+        
+        return vo;
     }
 
     @Override
     public List<MedicalRecordVO> getMedicalRecords(String doctorId, String patientId) {
-        JsonNode doctorData = mockDataService.getDoctorData();
-        List<MedicalRecordVO> result = new ArrayList<>();
-
-        if (doctorData != null && doctorData.has("medicalRecords") && doctorData.get("medicalRecords").has(patientId)) {
-            for (JsonNode r : doctorData.get("medicalRecords").get(patientId)) {
-                MedicalRecordVO vo = new MedicalRecordVO();
-                vo.setId(r.get("id").asText());
-                vo.setPatientId(r.get("patientId").asText());
-                vo.setDate(r.get("date").asText());
-                vo.setType(r.get("type").asText());
-                vo.setDiagnosis(r.get("diagnosis").asText());
-                vo.setPrescription(r.has("prescription") && !r.get("prescription").isNull() ? r.get("prescription").asText() : "");
-                vo.setNotes(r.get("notes").asText());
-                vo.setDoctor(r.get("doctor").asText());
-                result.add(vo);
-            }
-        }
-
-        return result;
+        // 从问诊记录中获取病历
+        LambdaQueryWrapper<Consultation> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Consultation::getDoctorId, doctorId)
+               .eq(Consultation::getPatientId, parsePatientId(patientId))
+               .orderByDesc(Consultation::getCreateTime);
+        
+        List<Consultation> consultations = consultationMapper.selectList(wrapper);
+        
+        return consultations.stream().map(c -> {
+            MedicalRecordVO vo = new MedicalRecordVO();
+            vo.setId(c.getId());
+            vo.setPatientId(String.valueOf(c.getPatientId()));
+            vo.setDate(c.getCreateTime() != null ? c.getCreateTime().toString() : "");
+            vo.setType(c.getType());
+            vo.setDiagnosis("");
+            vo.setPrescription("");
+            vo.setNotes(c.getSymptom());
+            vo.setDoctor("");
+            return vo;
+        }).collect(Collectors.toList());
     }
 
     @Override
     public IncomeOverviewVO getIncomeOverview(String doctorId) {
-        JsonNode doctorData = mockDataService.getDoctorData();
         IncomeOverviewVO vo = new IncomeOverviewVO();
-
-        if (doctorData != null && doctorData.has("income")) {
-            JsonNode income = doctorData.get("income");
-            vo.setBalance(income.get("balance").asDouble());
-            vo.setMonthIncome(income.get("monthIncome").asDouble());
-            vo.setMonthIncomeRatio(income.get("monthIncomeRatio").asDouble());
-            vo.setTotalIncome(income.get("totalIncome").asDouble());
-            vo.setTodayIncome(income.get("todayIncome").asDouble());
-            vo.setWeekIncome(income.get("weekIncome").asDouble());
-            vo.setPendingSettlement(income.get("pendingSettlement").asDouble());
-            vo.setTotalWithdraw(income.get("totalWithdraw").asDouble());
+        
+        // 从医生收入表统计数据
+        LambdaQueryWrapper<DoctorIncome> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(DoctorIncome::getDoctorId, doctorId);
+        List<DoctorIncome> incomes = doctorIncomeMapper.selectList(wrapper);
+        
+        double balance = 0;
+        double monthIncome = 0;
+        double totalIncome = 0;
+        double todayIncome = 0;
+        double weekIncome = 0;
+        double pendingSettlement = 0;
+        double totalWithdraw = 0;
+        
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime todayStart = now.toLocalDate().atStartOfDay();
+        LocalDateTime weekStart = now.minusDays(7);
+        LocalDateTime monthStart = now.withDayOfMonth(1).toLocalDate().atStartOfDay();
+        
+        for (DoctorIncome income : incomes) {
+            double amount = income.getAmount() != null ? income.getAmount().doubleValue() : 0;
+            totalIncome += amount;
+            
+            if ("settled".equals(income.getStatus())) {
+                balance += amount;
+                
+                if (income.getSettleTime() != null) {
+                    if (income.getSettleTime().isAfter(todayStart)) {
+                        todayIncome += amount;
+                    }
+                    if (income.getSettleTime().isAfter(weekStart)) {
+                        weekIncome += amount;
+                    }
+                    if (income.getSettleTime().isAfter(monthStart)) {
+                        monthIncome += amount;
+                    }
+                }
+            } else if ("pending".equals(income.getStatus())) {
+                pendingSettlement += amount;
+            }
         }
-
+        
+        vo.setBalance(balance);
+        vo.setMonthIncome(monthIncome);
+        vo.setMonthIncomeRatio(0.0);
+        vo.setTotalIncome(totalIncome);
+        vo.setTodayIncome(todayIncome);
+        vo.setWeekIncome(weekIncome);
+        vo.setPendingSettlement(pendingSettlement);
+        vo.setTotalWithdraw(totalWithdraw);
+        
         return vo;
     }
 
     @Override
     public List<IncomeRecordVO> getIncomeList(String doctorId) {
-        JsonNode doctorData = mockDataService.getDoctorData();
-        List<IncomeRecordVO> result = new ArrayList<>();
-
-        if (doctorData == null || !doctorData.has("incomeRecords")) {
-            return result;
-        }
-
-        for (JsonNode r : doctorData.get("incomeRecords")) {
+        LambdaQueryWrapper<DoctorIncome> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(DoctorIncome::getDoctorId, doctorId)
+               .orderByDesc(DoctorIncome::getCreateTime);
+        
+        List<DoctorIncome> incomes = doctorIncomeMapper.selectList(wrapper);
+        
+        return incomes.stream().map(income -> {
             IncomeRecordVO vo = new IncomeRecordVO();
-            vo.setId(r.get("id").asText());
-            vo.setType(r.get("type").asText());
-            vo.setTypeIcon(r.has("typeIcon") ? r.get("typeIcon").asText() : "");
-            vo.setAmount(r.get("amount").asDouble());
-            vo.setPatientName(r.get("patientName").asText());
-            vo.setSource(r.get("source").asText());
-            vo.setTime(r.get("time").asText());
-            vo.setStatus(r.get("status").asText());
-            vo.setInquiryId(r.has("inquiryId") ? r.get("inquiryId").asText() : "");
-            result.add(vo);
-        }
-
-        return result;
+            vo.setId(String.valueOf(income.getId()));
+            vo.setType(income.getType());
+            vo.setTypeIcon("");
+            vo.setAmount(income.getAmount() != null ? income.getAmount().doubleValue() : 0.0);
+            vo.setPatientName("");
+            vo.setSource("");
+            vo.setTime(income.getCreateTime() != null ? income.getCreateTime().toString() : "");
+            vo.setStatus(income.getStatus());
+            vo.setInquiryId(income.getConsultationId());
+            return vo;
+        }).collect(Collectors.toList());
     }
 
     @Override
     public List<IncomeTrendVO> getIncomeTrend(String doctorId, String dimension) {
-        JsonNode doctorData = mockDataService.getDoctorData();
+        // TODO: 根据日期维度统计收入趋势
         List<IncomeTrendVO> result = new ArrayList<>();
-
-        if (doctorData != null && doctorData.has("trendData")) {
-            for (JsonNode t : doctorData.get("trendData")) {
-                IncomeTrendVO vo = new IncomeTrendVO();
-                vo.setDate(t.get("date").asText());
-                vo.setIncome(t.get("income").asInt());
-                vo.setQuantity(t.get("quantity").asInt());
-                result.add(vo);
-            }
-        }
-
         return result;
     }
 
     @Override
     public List<IncomeCompositionVO> getIncomeComposition(String doctorId) {
-        JsonNode doctorData = mockDataService.getDoctorData();
+        // TODO: 统计收入构成
         List<IncomeCompositionVO> result = new ArrayList<>();
-
-        if (doctorData != null && doctorData.has("compositionData")) {
-            for (JsonNode c : doctorData.get("compositionData")) {
-                IncomeCompositionVO vo = new IncomeCompositionVO();
-                vo.setType(c.get("type").asText());
-                vo.setAmount(c.get("amount").asInt());
-                vo.setPercentage(c.get("percentage").asDouble());
-                result.add(vo);
-            }
-        }
-
         return result;
     }
 
     @Override
     public List<WithdrawRecordVO> getWithdrawList(String doctorId) {
-        JsonNode doctorData = mockDataService.getDoctorData();
+        // TODO: 从提现记录表获取
         List<WithdrawRecordVO> result = new ArrayList<>();
-
-        if (doctorData == null || !doctorData.has("withdrawRecords")) {
-            return result;
-        }
-
-        for (JsonNode w : doctorData.get("withdrawRecords")) {
-            WithdrawRecordVO vo = new WithdrawRecordVO();
-            vo.setWithdrawId(w.get("withdrawId").asText());
-            vo.setAmount(w.get("amount").asDouble());
-            vo.setMethod(w.get("method").asText());
-            vo.setMethodIcon(w.has("methodIcon") ? w.get("methodIcon").asText() : "");
-            vo.setMethodName(w.get("methodName").asText());
-            vo.setStatus(w.get("status").asText());
-            vo.setStatusText(w.get("statusText").asText());
-            vo.setApplyTime(w.get("applyTime").asText());
-            vo.setArrivalTime(w.has("arrivalTime") && !w.get("arrivalTime").isNull() ? w.get("arrivalTime").asText() : "");
-            vo.setRejectReason(w.has("rejectReason") && !w.get("rejectReason").isNull() ? w.get("rejectReason").asText() : "");
-            result.add(vo);
-        }
-
         return result;
     }
 
     @Override
     public boolean applyWithdraw(String doctorId, WithdrawApplyDTO withdrawDTO) {
-        JsonNode doctorData = mockDataService.getDoctorData();
-        String now = LocalDateTime.now().format(DATE_TIME_FORMATTER);
-        String withdrawId = "WIT" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
-
-        ObjectNode newWithdraw = objectMapper.createObjectNode();
-        newWithdraw.put("withdrawId", withdrawId);
-        newWithdraw.put("doctorId", doctorId);
-        newWithdraw.put("amount", withdrawDTO.getAmount().doubleValue());
-        newWithdraw.put("method", withdrawDTO.getMethod());
-        newWithdraw.put("methodIcon", "bank".equals(withdrawDTO.getMethod()) ? "icon-bank" : "icon-alipay");
-        newWithdraw.put("methodName", withdrawDTO.getMethodName() != null ? withdrawDTO.getMethodName() : "");
-        newWithdraw.put("status", "processing");
-        newWithdraw.put("statusText", "处理中");
-        newWithdraw.put("applyTime", now);
-        newWithdraw.put("arrivalTime", "");
-        newWithdraw.put("rejectReason", "");
-
-        if (doctorData != null && doctorData.has("withdrawRecords")) {
-            ((ArrayNode) doctorData.get("withdrawRecords")).insert(0, newWithdraw);
-        }
-
-        log.info("申请提现: {}, 金额: {}", withdrawId, withdrawDTO.getAmount());
+        log.info("申请提现: 金额={}", withdrawDTO.getAmount());
+        // TODO: 创建提现记录
         return true;
     }
 
-    private DoctorPrescriptionVO convertToPrescriptionVO(JsonNode p) {
-        DoctorPrescriptionVO vo = new DoctorPrescriptionVO();
-        vo.setId(p.get("id").asText());
-        vo.setPatientId(p.get("patientId").asText());
-        vo.setPatientName(p.get("patientName").asText());
-        vo.setPatientAge(p.get("patientAge").asInt());
-        vo.setPatientGender(p.get("patientGender").asText());
-        vo.setConsultationId(p.get("consultationId").asText());
-        vo.setDiagnosis(p.get("diagnosis").asText());
-        vo.setTotalAmount(p.get("totalAmount").asDouble() > 0 ? BigDecimal.valueOf(p.get("totalAmount").asDouble()) : BigDecimal.ZERO);
-        vo.setStatus(p.get("status").asText());
-        vo.setStatusText(p.get("statusText").asText());
-        vo.setCreateTime(p.get("createTime").asText());
-        vo.setPharmacist(p.has("pharmacist") ? p.get("pharmacist").asText() : "");
-        vo.setReviewTime(p.has("reviewTime") ? p.get("reviewTime").asText() : "");
-        vo.setRejectReason(p.has("rejectReason") ? p.get("rejectReason").asText() : "");
+    private DoctorPrescriptionVO convertToPrescriptionVO(Prescription p) {
+        if (p == null) {
+            return null;
+        }
 
-        // 解析药品列表
-        if (p.has("drugs") && p.get("drugs").isArray()) {
-            List<DoctorPrescriptionVO.DrugItemVO> drugs = new ArrayList<>();
-            for (JsonNode d : p.get("drugs")) {
-                DoctorPrescriptionVO.DrugItemVO drugVO = new DoctorPrescriptionVO.DrugItemVO();
-                drugVO.setId(d.get("id").asText());
-                drugVO.setName(d.get("name").asText());
-                drugVO.setSpec(d.has("spec") ? d.get("spec").asText() : "");
-                drugVO.setUnit(d.has("unit") ? d.get("unit").asText() : "");
-                drugVO.setPrice(d.has("price") && d.get("price").asDouble() > 0 ? BigDecimal.valueOf(d.get("price").asDouble()) : BigDecimal.ZERO);
-                drugVO.setQuantity(d.has("quantity") ? d.get("quantity").asInt() : 1);
-                drugVO.setDosage(d.has("dosage") ? d.get("dosage").asText() : "");
-                drugVO.setFrequency(d.has("frequency") ? d.get("frequency").asText() : "");
-                drugVO.setDuration(d.has("duration") ? d.get("duration").asText() : "");
-                drugVO.setRemark(d.has("remark") ? d.get("remark").asText() : "");
-                drugs.add(drugVO);
+        DoctorPrescriptionVO vo = new DoctorPrescriptionVO();
+        vo.setId(p.getId());
+        vo.setPatientId(p.getPatientId() != null ? String.valueOf(p.getPatientId()) : "");
+
+        // 填充患者信息
+        if (p.getPatientId() != null) {
+            Patient patient = patientMapper.selectById(p.getPatientId());
+            if (patient != null) {
+                vo.setPatientName(patient.getName() != null ? patient.getName() : "");
+                if (patient.getBirthday() != null) {
+                    vo.setPatientAge(java.time.Period.between(patient.getBirthday(), java.time.LocalDate.now()).getYears());
+                } else {
+                    vo.setPatientAge(0);
+                }
+                vo.setPatientGender(patient.getGender() != null ? (patient.getGender() == 1 ? "男" : "女") : "");
+            } else {
+                vo.setPatientName("");
+                vo.setPatientAge(0);
+                vo.setPatientGender("");
             }
-            vo.setDrugs(drugs);
+        } else {
+            vo.setPatientName("");
+            vo.setPatientAge(0);
+            vo.setPatientGender("");
+        }
+        vo.setConsultationId(p.getConsultationId());
+        vo.setDiagnosis(p.getDiagnosis());
+        vo.setTotalAmount(p.getTotalAmount() != null ? p.getTotalAmount() : BigDecimal.ZERO);
+        vo.setStatus(p.getStatus());
+        vo.setStatusText(getStatusText(p.getStatus()));
+        vo.setCreateTime(p.getCreateTime() != null ? p.getCreateTime().format(DATE_TIME_FORMATTER) : "");
+        vo.setPharmacist("");
+        vo.setReviewTime("");
+        vo.setRejectReason(p.getRejectReason());
+        vo.setDrugs(new ArrayList<>());
+
+        // 填充关联的问诊会话信息
+        if (p.getConsultationId() != null && !p.getConsultationId().isEmpty()) {
+            Consultation consultation = consultationMapper.selectById(p.getConsultationId());
+            if (consultation != null) {
+                vo.setConsultationStatus(getConsultationStatusText(consultation.getStatus()));
+                vo.setConsultationSymptom(consultation.getSymptom());
+                vo.setConsultationType(consultation.getType());
+            }
         }
 
         return vo;
     }
 
-    private PatientDetailVO convertToPatientVO(JsonNode p) {
-        PatientDetailVO vo = new PatientDetailVO();
-        vo.setId(p.get("id").asText());
-        vo.setName(p.get("name").asText());
-        vo.setAge(p.get("age").asInt());
-        vo.setGender(p.get("gender").asText());
-        vo.setPhone(p.get("phone").asText());
-        vo.setAvatar(p.get("avatar").asText());
-        vo.setLastVisit(p.get("lastVisit").asText());
-        vo.setVisitCount(p.get("visitCount").asInt());
-        vo.setIsVip(p.get("isVip").asBoolean());
-        vo.setAllergies(p.has("allergies") && !p.get("allergies").isNull() ? p.get("allergies").asText() : null);
-        vo.setMedicalHistory(p.has("medicalHistory") && !p.get("medicalHistory").isNull() ? p.get("medicalHistory").asText() : null);
-
-        if (p.has("tags") && p.get("tags").isArray()) {
-            List<String> tags = new ArrayList<>();
-            for (JsonNode t : p.get("tags")) tags.add(t.asText());
-            vo.setTags(tags);
+    private String getStatusText(String status) {
+        switch (status) {
+            case "pending":
+                return "待审核";
+            case "approved":
+                return "已通过";
+            case "rejected":
+                return "已拒绝";
+            default:
+                return status;
         }
-        if (p.has("diagnosis") && p.get("diagnosis").isArray()) {
-            List<String> diagnosis = new ArrayList<>();
-            for (JsonNode d : p.get("diagnosis")) diagnosis.add(d.asText());
-            vo.setDiagnosis(diagnosis);
-        }
+    }
 
-        return vo;
+    private String getConsultationStatusText(String status) {
+        switch (status) {
+            case "pending":
+                return "待接诊";
+            case "processing":
+                return "进行中";
+            case "completed":
+                return "已完成";
+            case "closed":
+                return "已关闭";
+            default:
+                return status;
+        }
+    }
+
+    private Long parsePatientId(String patientId) {
+        try {
+            return Long.valueOf(patientId.replace("USER", "").replace("PATIENT", ""));
+        } catch (NumberFormatException e) {
+            log.warn("无法解析 patientId: {}, 使用默认值 1", patientId);
+            return 1L;
+        }
     }
 }

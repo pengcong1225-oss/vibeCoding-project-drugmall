@@ -2,9 +2,13 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Delete, Minus, Plus, CircleCheck, CircleCheckFilled, ShoppingCart, Star } from '@element-plus/icons-vue'
 import { useCartStore } from '@/stores/cart'
 import { useUserStore } from '@/stores/user'
+import { ROUTES, getDrugDetailRoute, getInquiryCheckoutRoute } from '@/constants/routes'
 import type { CartItem } from '@/stores/cart'
+import DrugCard from '@/components/DrugCard/index.vue'
+import type { Drug } from '@/types'
 
 const router = useRouter()
 const cartStore = useCartStore()
@@ -136,25 +140,154 @@ const goToCheckout = () => {
         type: 'info'
       }
     ).then(() => {
-      router.push('/login')
+      router.push(ROUTES.LOGIN)
     }).catch(() => {
       // 取消
     })
     return
   }
   
-  // 跳转到新的结算页
-  router.push('/inquiry/checkout/0')
+  router.push(getInquiryCheckoutRoute(0))
 }
 
-// 继续购物
 const continueShopping = () => {
-  router.push('/home')
+  router.push(ROUTES.HOME)
 }
 
-// 去药品详情
 const goToDrugDetail = (item: CartItem) => {
-  router.push(`/drug/${item.drugId}`)
+  router.push(getDrugDetailRoute(item.drugId))
+}
+
+// 左滑删除相关
+const swipeOpenId = ref<string | null>(null)
+const touchStartX = ref(0)
+const touchCurrentX = ref(0)
+const SWIPE_THRESHOLD = 80
+
+const handleTouchStart = (event: TouchEvent, itemId: string) => {
+  touchStartX.value = event.touches[0].clientX
+  touchCurrentX.value = touchStartX.value
+  // 关闭其他已打开的项
+  if (swipeOpenId.value && swipeOpenId.value !== itemId) {
+    swipeOpenId.value = null
+  }
+}
+
+const handleTouchMove = (event: TouchEvent, itemId: string) => {
+  touchCurrentX.value = event.touches[0].clientX
+  const diff = touchStartX.value - touchCurrentX.value
+  
+  // 如果向左滑动超过阈值，显示删除按钮
+  if (diff > SWIPE_THRESHOLD) {
+    swipeOpenId.value = itemId
+  } else if (diff < -20) {
+    // 向右滑动，关闭删除按钮
+    swipeOpenId.value = null
+  }
+}
+
+const handleTouchEnd = (itemId: string) => {
+  const diff = touchStartX.value - touchCurrentX.value
+  
+  if (diff > SWIPE_THRESHOLD) {
+    swipeOpenId.value = itemId
+  } else if (diff < -20) {
+    swipeOpenId.value = null
+  }
+}
+
+// 长按快速调整数量
+const longPressTimer = ref<ReturnType<typeof setInterval> | null>(null)
+const longPressItem = ref<CartItem | null>(null)
+const longPressDelta = ref(0)
+
+const startLongPress = (item: CartItem, delta: number) => {
+  longPressItem.value = item
+  longPressDelta.value = delta
+  
+  // 首次点击立即生效
+  updateQuantity(item, delta)
+  
+  // 300ms后开始快速调整
+  setTimeout(() => {
+    if (longPressItem.value === item) {
+      longPressTimer.value = setInterval(() => {
+        updateQuantity(item, delta)
+      }, 150)
+    }
+  }, 300)
+}
+
+const stopLongPress = () => {
+  longPressItem.value = null
+  if (longPressTimer.value) {
+    clearInterval(longPressTimer.value)
+    longPressTimer.value = null
+  }
+}
+
+// 推荐商品数据（模拟）
+const recommendedDrugs = ref<Drug[]>([
+  {
+    id: 'rec1',
+    name: '百蕊颗粒',
+    specification: '5g×12袋',
+    price: 28.5,
+    originalPrice: 35.0,
+    image: '/images/drugs/bairui.jpg',
+    isRx: false,
+    tags: ['感冒', '止咳'],
+    sales: 12580
+  },
+  {
+    id: 'rec2',
+    name: '阿莫西林胶囊',
+    specification: '0.25g×24粒',
+    price: 15.8,
+    originalPrice: 22.0,
+    image: '/images/drugs/amoxil.jpg',
+    isRx: true,
+    tags: ['抗生素', '消炎'],
+    sales: 8930
+  },
+  {
+    id: 'rec3',
+    name: '布洛芬缓释胶囊',
+    specification: '0.3g×20粒',
+    price: 19.9,
+    originalPrice: 28.0,
+    image: '/images/drugs/buluofen.jpg',
+    isRx: false,
+    tags: ['止痛', '退烧'],
+    sales: 25600
+  },
+  {
+    id: 'rec4',
+    name: '维生素C泡腾片',
+    specification: '1g×20片',
+    price: 32.0,
+    originalPrice: 45.0,
+    image: '/images/drugs/vitaminc.jpg',
+    isRx: false,
+    tags: ['维矿', '免疫'],
+    sales: 15230
+  }
+])
+
+// 添加推荐商品到购物车
+const addRecommendedToCart = (drug: Drug) => {
+  cartStore.addItem({
+    drugId: drug.id,
+    name: drug.name,
+    specification: drug.specification,
+    manufacturer: drug.manufacturer || '',
+    price: drug.price,
+    image: drug.image,
+    isRx: drug.isRx,
+    quantity: 1,
+    disease: '',
+    usage: ''
+  })
 }
 </script>
 
@@ -181,6 +314,25 @@ const goToDrugDetail = (item: CartItem) => {
           </template>
           <el-button type="primary" @click="continueShopping">去逛逛</el-button>
         </el-empty>
+
+        <!-- 推荐商品 -->
+        <div class="recommend-section">
+          <div class="recommend-header">
+            <el-icon><Star /></el-icon>
+            <span>热销推荐</span>
+          </div>
+          <div class="recommend-list">
+            <DrugCard
+              v-for="drug in recommendedDrugs"
+              :key="drug.id"
+              :drug="drug"
+              layout="vertical"
+              show-tag
+              show-sales
+              @add-to-cart="addRecommendedToCart"
+            />
+          </div>
+        </div>
       </div>
 
       <!-- 商品列表 -->
@@ -195,57 +347,73 @@ const goToDrugDetail = (item: CartItem) => {
           <span class="total-count">共 {{ cartStore.totalCount }} 件商品</span>
         </div>
 
-        <!-- 商品项 -->
+        <!-- 商品项 - 支持左滑删除 -->
         <div
           v-for="item in cartStore.items"
           :key="item.id"
-          class="cart-item"
-          :class="{ selected: selectedIds.includes(item.id) }"
+          class="cart-item-wrapper"
+          :class="{ 'is-open': swipeOpenId === item.id }"
+          @touchstart="handleTouchStart($event, item.id)"
+          @touchmove="handleTouchMove($event, item.id)"
+          @touchend="handleTouchEnd(item.id)"
         >
-          <!-- 选择框 -->
-          <div class="item-checkbox" @click="toggleSelectItem(item.id)">
-            <el-icon v-if="selectedIds.includes(item.id)" class="checked"><CircleCheckFilled /></el-icon>
-            <el-icon v-else class="unchecked"><CircleCheck /></el-icon>
-          </div>
+          <div class="cart-item" :class="{ selected: selectedIds.includes(item.id) }">
+            <!-- 选择框 -->
+            <div class="item-checkbox" @click="toggleSelectItem(item.id)">
+              <el-icon v-if="selectedIds.includes(item.id)" class="checked"><CircleCheckFilled /></el-icon>
+              <el-icon v-else class="unchecked"><CircleCheck /></el-icon>
+            </div>
 
-          <!-- 商品图片 -->
-          <div class="item-image" @click="goToDrugDetail(item)">
-            <img :src="item.image" :alt="item.name" />
-            <span v-if="item.isRx" class="rx-tag">Rx</span>
-          </div>
+            <!-- 商品图片 -->
+            <div class="item-image" @click="goToDrugDetail(item)">
+              <img :src="item.image" :alt="item.name" />
+              <span v-if="item.isRx" class="rx-tag">Rx</span>
+            </div>
 
-          <!-- 商品信息 -->
-          <div class="item-info">
-            <h3 class="item-name" @click="goToDrugDetail(item)">{{ item.name }}</h3>
-            <p class="item-spec">{{ item.specification }}</p>
-            <p class="item-manufacturer">{{ item.manufacturer }}</p>
+            <!-- 商品信息 -->
+            <div class="item-info">
+              <h3 class="item-name" @click="goToDrugDetail(item)">{{ item.name }}</h3>
+              <p class="item-spec">{{ item.specification }}</p>
+              <p class="item-manufacturer">{{ item.manufacturer }}</p>
 
-            <!-- 价格和数量 -->
-            <div class="item-bottom">
-              <span class="item-price">¥{{ item.price.toFixed(2) }}</span>
-              <div class="quantity-control">
-                <button
-                  class="btn-minus"
-                  :disabled="item.quantity <= 1"
-                  @click="updateQuantity(item, -1)"
-                >
-                  <el-icon><Minus /></el-icon>
-                </button>
-                <span class="quantity-value">{{ item.quantity }}</span>
-                <button
-                  class="btn-plus"
-                  :disabled="item.quantity >= 99"
-                  @click="updateQuantity(item, 1)"
-                >
-                  <el-icon><Plus /></el-icon>
-                </button>
+              <!-- 价格和数量 -->
+              <div class="item-bottom">
+                <span class="item-price">¥{{ item.price.toFixed(2) }}</span>
+                <div class="quantity-control">
+                  <button
+                    class="btn-minus"
+                    :disabled="item.quantity <= 1"
+                    @click="updateQuantity(item, -1)"
+                    @mousedown="startLongPress(item, -1)"
+                    @mouseup="stopLongPress"
+                    @mouseleave="stopLongPress"
+                    @touchstart="startLongPress(item, -1)"
+                    @touchend="stopLongPress"
+                  >
+                    <el-icon><Minus /></el-icon>
+                  </button>
+                  <span class="quantity-value">{{ item.quantity }}</span>
+                  <button
+                    class="btn-plus"
+                    :disabled="item.quantity >= 99"
+                    @click="updateQuantity(item, 1)"
+                    @mousedown="startLongPress(item, 1)"
+                    @mouseup="stopLongPress"
+                    @mouseleave="stopLongPress"
+                    @touchstart="startLongPress(item, 1)"
+                    @touchend="stopLongPress"
+                  >
+                    <el-icon><Plus /></el-icon>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
 
-          <!-- 删除按钮 -->
-          <div class="item-delete" @click="removeItem(item)">
+          <!-- 左滑删除按钮 -->
+          <div class="swipe-delete" @click="removeItem(item)">
             <el-icon><Delete /></el-icon>
+            <span>删除</span>
           </div>
         </div>
       </div>
@@ -339,6 +507,31 @@ const goToDrugDetail = (item: CartItem) => {
   :deep(.el-empty__description) {
     color: $text-tertiary;
   }
+
+  .recommend-section {
+    margin-top: $spacing-xl;
+    padding: 0 $spacing-md;
+
+    .recommend-header {
+      display: flex;
+      align-items: center;
+      gap: $spacing-xs;
+      margin-bottom: $spacing-md;
+      font-size: $font-md;
+      font-weight: 600;
+      color: $text-primary;
+
+      .el-icon {
+        color: #FFD100;
+      }
+    }
+
+    .recommend-list {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: $spacing-md;
+    }
+  }
 }
 
 // 购物车列表
@@ -381,21 +574,65 @@ const goToDrugDetail = (item: CartItem) => {
   }
 }
 
-// 购物车项
-.cart-item {
-  display: flex;
-  align-items: center;
-  gap: $spacing-sm;
-  padding: $spacing-md;
-  background: $bg-white;
+// 购物车项包装器（支持左滑）
+.cart-item-wrapper {
+  position: relative;
+  overflow: hidden;
   margin-bottom: 1px;
-  transition: background 0.2s ease;
 
   &:last-child {
     margin-bottom: 0;
     border-radius: 0 0 $radius-lg $radius-lg;
   }
 
+  .cart-item {
+    display: flex;
+    align-items: center;
+    gap: $spacing-sm;
+    padding: $spacing-md;
+    background: $bg-white;
+    transition: transform 0.3s ease;
+    position: relative;
+    z-index: 1;
+  }
+
+  &.is-open {
+    .cart-item {
+      transform: translateX(-80px);
+    }
+  }
+
+  .swipe-delete {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 80px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: $error;
+    color: $text-white;
+    cursor: pointer;
+    z-index: 0;
+
+    .el-icon {
+      font-size: 20px;
+      margin-bottom: 4px;
+    }
+
+    span {
+      font-size: 12px;
+    }
+
+    &:active {
+      background: darken($error, 10%);
+    }
+  }
+}
+
+.cart-item {
   &.selected {
     background: rgba($primary, 0.02);
   }

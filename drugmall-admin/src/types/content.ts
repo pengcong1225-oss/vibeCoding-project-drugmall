@@ -22,11 +22,14 @@ export interface Article {
   content?: string
   tags: string[]
   isRecommend: number
+  isTop?: number
   status: number
   views: number
   publishTime: string | null
   createTime?: string
 }
+
+export interface ArticleInfo extends Article {}
 
 export interface ArticleCategory {
   id: string
@@ -61,3 +64,5 @@ export interface NoticeStats {
   top: number
   draft: number
 }
+
+export interface NoticeInfo extends Notice {}

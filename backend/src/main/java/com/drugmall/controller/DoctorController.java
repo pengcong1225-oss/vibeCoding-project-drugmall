@@ -16,7 +16,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 医生管理控制器
@@ -60,6 +62,15 @@ public class DoctorController {
     @Operation(summary = "获取待办事项", description = "获取待办和未读消息数量")
     public Result<DoctorTodoCountVO> getTodoCount() {
         return Result.success(doctorService.getTodoCount(CURRENT_DOCTOR_ID));
+    }
+
+    @GetMapping("/prescription-count")
+    @Operation(summary = "获取待审核处方数量", description = "获取医生待审核的处方数量")
+    public Result<Map<String, Integer>> getPendingPrescriptionCount() {
+        int count = doctorService.countPendingPrescriptions(CURRENT_DOCTOR_ID);
+        Map<String, Integer> result = new HashMap<>();
+        result.put("count", count);
+        return Result.success(result);
     }
 
     @GetMapping("/schedule")

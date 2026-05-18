@@ -107,6 +107,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '咨询记录' }
   },
   {
+    path: '/inquiry/detail',
+    name: 'InquiryDetail',
+    component: () => import('@/views/inquiry/detail.vue'),
+    meta: { title: '咨询详情' }
+  },
+  {
     path: '/inquiry/pre/:doctorId?',
     name: 'InquiryPre',
     component: () => import('@/views/inquiry/pre.vue'),

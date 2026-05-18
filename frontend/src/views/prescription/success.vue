@@ -6,6 +6,7 @@ import { ArrowLeft, Check, Clock, Warning, Share, Download } from '@element-plus
 import { usePrescriptionStore } from '@/stores/prescription'
 import StepBar from './components/StepBar.vue'
 import PrescriptionCard from './components/PrescriptionCard.vue'
+import { ROUTES, getInquiryCheckoutRoute, getDrugDetailRoute, getPrescriptionApplyRoute } from '@/constants/routes'
 import type { ElectronicPrescription } from '@/stores/prescription'
 
 const router = useRouter()
@@ -32,40 +33,32 @@ const goBack = () => {
   router.back()
 }
 
-// 去购药（跳转到收银台支付页面）
 const goToPay = () => {
   if (!prescription.value) return
   
-  // 获取咨询ID（从store中获取）
   const consultationId = prescriptionStore.consultationId || 'CONS' + Date.now()
   
-  // 跳转到收银台页面
-  router.push(`/inquiry/checkout/${consultationId}`)
+  router.push(getInquiryCheckoutRoute(consultationId))
 }
 
-// 下载处方
 const downloadPrescription = () => {
   ElMessage.success('处方下载中...')
 }
 
-// 分享处方
 const sharePrescription = () => {
   ElMessage.success('分享功能开发中')
 }
 
-// 查看药品详情
 const viewDrugDetail = (drugId: string) => {
-  router.push(`/drug/detail?id=${drugId}`)
+  router.push(getDrugDetailRoute(drugId))
 }
 
-// 倒计时逻辑
 let countdownTimer: number | null = null
 const startCountdown = () => {
   countdownTimer = window.setInterval(() => {
     if (countdown.value > 0) {
       countdown.value--
     } else {
-      // 倒计时结束，清除定时器
       if (countdownTimer) {
         clearInterval(countdownTimer)
       }
@@ -74,18 +67,15 @@ const startCountdown = () => {
   }, 1000)
 }
 
-// 医生信息
 const doctorInfo = computed(() => prescriptionStore.doctorInfo)
 
 onMounted(() => {
-  // 如果没有处方数据，可能是直接访问该页面，需要返回
   if (!prescription.value) {
     ElMessage.warning('请先完成处方申请流程')
-    router.replace('/prescription/apply')
+    router.replace(ROUTES.PRESCRIPTION_APPLY)
     return
   }
   
-  // 启动倒计时
   startCountdown()
 })
 </script>

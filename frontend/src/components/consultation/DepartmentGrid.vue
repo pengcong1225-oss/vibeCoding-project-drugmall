@@ -22,7 +22,13 @@
             @click="$emit('select', dept)"
           >
             <div class="dept-icon-wrapper">
-              <img v-if="dept.iconUrl" :src="dept.iconUrl" class="dept-icon-img" :alt="dept.name" />
+              <img 
+                v-if="dept.iconUrl && !imageLoadErrors.has(dept.code)" 
+                :src="dept.iconUrl" 
+                class="dept-icon-img" 
+                :alt="dept.name"
+                @error="handleImageError(dept.code)"
+              />
               <el-icon v-else :size="22">
                 <component :is="getIconComponent(dept.icon)" />
               </el-icon>
@@ -86,6 +92,7 @@ const emit = defineEmits<{
 
 const sliderRef = ref<HTMLElement>()
 const currentPage = ref(0)
+const imageLoadErrors = ref<Set<string>>(new Set()) // 记录加载失败的图标
 
 // 每页显示10个（2排 x 5列）
 const ITEMS_PER_PAGE = 10
@@ -120,6 +127,12 @@ const iconMap: Record<string, any> = {
 
 const getIconComponent = (iconName: string) => {
   return iconMap[iconName] || FirstAidKit
+}
+
+// 处理图片加载失败
+const handleImageError = (deptCode: string) => {
+  console.warn(`科室图标加载失败: ${deptCode}`)
+  imageLoadErrors.value.add(deptCode)
 }
 
 // 处理滚动事件，更新指示器

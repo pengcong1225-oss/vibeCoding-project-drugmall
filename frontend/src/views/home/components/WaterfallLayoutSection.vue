@@ -70,8 +70,10 @@ const emit = defineEmits<{
 const router = useRouter()
 
 const waterfallItems = computed<WaterfallItemData[]>(() => {
-  const component = props.section.components[0]
-  return component?.data || []
+  const component = props.section.components?.[0]
+  if (!component?.data) return []
+  const data = Array.isArray(component.data) ? component.data : []
+  return data.filter((item: any) => item !== null && item !== undefined)
 })
 
 function handleAdClick(item: WaterfallItemData) {

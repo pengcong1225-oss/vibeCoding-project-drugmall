@@ -180,6 +180,7 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { aiAssistantApi } from '@/api/modules/ai-assistant'
+import { ROUTES, getDrugDetailRoute } from '@/constants/routes'
 import type { SymptomTestResponse, RecommendedDrug } from '@/api/modules/ai-assistant'
 
 const router = useRouter()
@@ -342,9 +343,9 @@ const getUrgencyType = (level?: string) => {
 }
 
 const goBack = () => router.back()
-const goToDrugDetail = (id: string) => router.push(`/drug/${id}`)
-const goToInquiry = () => router.push('/inquiry')
-const goToCart = () => router.push('/cart')
+const goToDrugDetail = (id: string) => router.push(getDrugDetailRoute(id))
+const goToInquiry = () => router.push(ROUTES.INQUIRY)
+const goToCart = () => router.push(ROUTES.CART)
 
 const addToCart = (drug: RecommendedDrug) => {
   ElMessage.success(`${drug.name} 已加入购物车`)

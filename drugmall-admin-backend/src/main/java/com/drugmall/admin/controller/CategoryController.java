@@ -1,35 +1,45 @@
 package com.drugmall.admin.controller;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.drugmall.admin.common.Result;
-import com.drugmall.admin.config.MockDataService;
-import com.fasterxml.jackson.databind.JsonNode;
+import com.drugmall.admin.entity.Category;
+import com.drugmall.admin.mapper.CategoryMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/admin/categories")
 @RequiredArgsConstructor
 public class CategoryController {
 
-    private final MockDataService mockDataService;
+    private final CategoryMapper categoryMapper;
 
     @GetMapping
-    public Result<JsonNode> getCategoryList() {
-        return Result.success(mockDataService.get("categories"));
+    public Result<List<Category>> getCategoryList() {
+        List<Category> categories = categoryMapper.selectList(
+            new LambdaQueryWrapper<Category>().orderByAsc(Category::getSort)
+        );
+        return Result.success(categories);
     }
 
     @PostMapping
-    public Result<Object> createCategory(@RequestBody JsonNode body) {
-        return Result.success(java.util.Map.of("id", String.valueOf(System.currentTimeMillis())));
+    public Result<Void> createCategory(@RequestBody Category category) {
+        categoryMapper.insert(category);
+        return Result.success();
     }
 
     @PutMapping("/{id}")
-    public Result<Void> updateCategory(@PathVariable String id, @RequestBody JsonNode body) {
+    public Result<Void> updateCategory(@PathVariable Long id, @RequestBody Category category) {
+        category.setId(id);
+        categoryMapper.updateById(category);
         return Result.success();
     }
 
     @DeleteMapping("/{id}")
-    public Result<Void> deleteCategory(@PathVariable String id) {
+    public Result<Void> deleteCategory(@PathVariable Long id) {
+        categoryMapper.deleteById(id);
         return Result.success();
     }
 }

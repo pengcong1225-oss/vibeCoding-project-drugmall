@@ -28,3 +28,15 @@ export interface OrderSourceItem {
   name: string
   value: number
 }
+
+export interface DashboardRealtime {
+  onlineUsers: number
+  onlineConsultations: number
+  todayIncome: number
+  todayOrders: number
+  orderFlow: Array<{
+    time: string
+    amount: number
+    status: string
+  }>
+}

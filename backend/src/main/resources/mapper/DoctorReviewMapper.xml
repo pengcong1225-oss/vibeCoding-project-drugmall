@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.drugmall.mapper.DoctorReviewMapper">
+
+    <select id="selectByDoctorId" resultType="map">
+        SELECT
+            dr.id AS id,
+            CASE WHEN dr.is_anonymous = 1 THEN '用**' ELSE u.name END AS userName,
+            dc.type AS type,
+            DATE_FORMAT(dr.create_time, '%Y-%m-%d') AS date,
+            dr.satisfaction AS satisfaction,
+            CASE dr.satisfaction
+                WHEN 'very_satisfied' THEN '非常满意'
+                WHEN 'satisfied' THEN '满意'
+                WHEN 'neutral' THEN '一般'
+                WHEN 'dissatisfied' THEN '不满意'
+                ELSE '未知' END AS satisfactionText,
+            dr.content AS content,
+            GROUP_CONCAT(drt.tag_name) AS tagNames
+        FROM dm_doctor_review dr
+        LEFT JOIN dm_user u ON dr.user_id = u.id
+        LEFT JOIN dm_consultation dc ON dr.consultation_id = dc.id
+        LEFT JOIN dm_doctor_review_tag drt ON dr.doctor_id = drt.doctor_id AND drt.is_deleted = 0
+        WHERE dr.doctor_id = #{doctorId}
+        AND dr.status = 1
+        AND dr.is_deleted = 0
+        <if test="tag != null and tag != ''">
+            AND EXISTS (
+                SELECT 1 FROM dm_doctor_review_tag t
+                WHERE t.doctor_id = dr.doctor_id
+                AND t.tag_name = #{tag}
+                AND t.is_deleted = 0
+            )
+        </if>
+        GROUP BY dr.id, dr.user_id, dr.is_anonymous, u.name, dc.type, dr.satisfaction, dr.create_time, dr.content
+        ORDER BY dr.create_time DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countByDoctorId" resultType="long">
+        SELECT COUNT(*)
+        FROM dm_doctor_review
+        WHERE doctor_id = #{doctorId}
+        AND status = 1
+        AND is_deleted = 0
+        <if test="tag != null and tag != ''">
+            AND EXISTS (
+                SELECT 1 FROM dm_doctor_review_tag
+                WHERE doctor_id = doctor_id
+                AND tag_name = #{tag}
+                AND is_deleted = 0
+            )
+        </if>
+    </select>
+
+</mapper>

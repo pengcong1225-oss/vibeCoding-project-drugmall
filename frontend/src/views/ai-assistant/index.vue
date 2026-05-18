@@ -394,6 +394,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { aiAssistantApi } from '@/api/modules/ai-assistant'
 import type { RecommendedDrug } from '@/api/modules/ai-assistant'
+import { ROUTES, getDrugDetailRoute, getInquiryPreRoute } from '@/constants/routes'
 import {
   ArrowLeft, Clock, ChatDotRound, ArrowRight,
   FirstAidKit, User, ShoppingCart, UserFilled,
@@ -1034,18 +1035,16 @@ const handleFileUpload = async (event: Event) => {
   }
 }
 
-// 导航
 const goBack = () => router.back()
-const goToDrugDetail = (id: string) => router.push(`/drug/${id}`)
-const goToInquiry = () => router.push('/inquiry')
+const goToDrugDetail = (id: string) => router.push(getDrugDetailRoute(id))
+const goToInquiry = () => router.push(ROUTES.INQUIRY)
 const goToConsult = (doctor: any) => {
   router.push({
-    path: `/inquiry/pre/${doctor.id}`,
+    path: getInquiryPreRoute(doctor.id),
     query: { name: doctor.name, department: doctor.department }
   })
 }
 
-// 购物车
 const handleAddToCart = (drug: RecommendedDrug) => {
   ElMessage.success(`${drug.name} 已加入购物车`)
 }
@@ -1053,7 +1052,7 @@ const handleAddToCart = (drug: RecommendedDrug) => {
 const addToCart = (drugs: RecommendedDrug[] | undefined) => {
   if (!drugs?.length) return
   drugs.forEach(drug => ElMessage.success(`${drug.name} 已加入购物车`))
-  setTimeout(() => router.push('/cart'), 1500)
+  setTimeout(() => router.push(ROUTES.CART), 1500)
 }
 
 // 初始化

@@ -3,6 +3,7 @@ package com.drugmall.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.TableField;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -12,23 +13,28 @@ import java.time.LocalDateTime;
  * 药品评价实体
  */
 @Data
-@TableName("dm_drug_review")
+@TableName("dm_product_review")
 public class DrugReview implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    @TableId(type = IdType.ASSIGN_ID)
-    private String id;
+    @TableId(type = IdType.AUTO)
+    private Long id;
 
-    private String userId;
+    @TableField("user_id")
+    private Long userId;
 
+    @TableField("user_name")
     private String userName;
 
+    @TableField("user_avatar")
     private String userAvatar;
 
-    private String drugId;
+    @TableField("product_id")
+    private Long productId;
 
-    private String orderId;
+    @TableField("order_id")
+    private Long orderId;
 
     private Integer rating;
 
@@ -38,15 +44,26 @@ public class DrugReview implements Serializable {
 
     private String tags;
 
+    @TableField("is_anonymous")
     private Boolean isAnonymous;
 
+    @TableField("is_recommended")
     private Boolean isRecommended;
 
+    @TableField("helpful_count")
     private Integer helpfulCount;
 
-    private LocalDateTime createTime;
-
+    @TableField("reply_content")
     private String replyContent;
 
+    @TableField("reply_time")
     private LocalDateTime replyTime;
+
+    private Integer status;
+
+    @TableField("create_time")
+    private LocalDateTime createTime;
+
+    @TableField("update_time")
+    private LocalDateTime updateTime;
 }

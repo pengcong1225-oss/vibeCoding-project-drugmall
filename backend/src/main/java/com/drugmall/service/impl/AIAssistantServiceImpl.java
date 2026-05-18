@@ -228,8 +228,8 @@ public class AIAssistantServiceImpl implements AIAssistantService {
             for (Drug drug : drugs) {
                 AIChatVO.RecommendedDrug recommendedDrug = new AIChatVO.RecommendedDrug();
                 recommendedDrug.setId(drug.getId().toString());
-                recommendedDrug.setName(drug.getName());
-                recommendedDrug.setImage(drug.getImage());
+                recommendedDrug.setName(drug.getProductName());
+                recommendedDrug.setImage(drug.getMainImage());
                 recommendedDrug.setPrice(drug.getPrice() != null ? drug.getPrice().doubleValue() : 0.0);
                 recommendedDrug.setSpec(drug.getSpecification());
                 recommendedDrug.setManufacturer(drug.getManufacturer());
@@ -306,7 +306,7 @@ public class AIAssistantServiceImpl implements AIAssistantService {
                 com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Drug> queryWrapper =
                         new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
                 
-                queryWrapper.like(Drug::getName, drugName)
+                queryWrapper.like(Drug::getProductName, drugName)
                         .or()
                         .like(Drug::getDescription, drugName);
                 
@@ -354,8 +354,8 @@ public class AIAssistantServiceImpl implements AIAssistantService {
             for (Drug drug : drugs) {
                 AIChatVO.RecommendedDrug recommendedDrug = new AIChatVO.RecommendedDrug();
                 recommendedDrug.setId(drug.getId().toString());
-                recommendedDrug.setName(drug.getName());
-                recommendedDrug.setImage(drug.getImage());
+                recommendedDrug.setName(drug.getProductName());
+                recommendedDrug.setImage(drug.getMainImage());
                 recommendedDrug.setPrice(drug.getPrice() != null ? drug.getPrice().doubleValue() : 0.0);
                 recommendedDrug.setSpec(drug.getSpecification());
                 recommendedDrug.setManufacturer(drug.getManufacturer());
@@ -382,11 +382,7 @@ public class AIAssistantServiceImpl implements AIAssistantService {
 
             // 构建查询条件：名称、分类、疾病包含关键词
             queryWrapper.and(wrapper -> wrapper
-                    .like(Drug::getName, keyword)
-                    .or()
-                    .like(Drug::getCategory, keyword)
-                    .or()
-                    .like(Drug::getDisease, keyword)
+                    .like(Drug::getProductName, keyword)
                     .or()
                     .like(Drug::getDescription, keyword)
             );

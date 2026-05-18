@@ -25,6 +25,11 @@ public interface DoctorService {
     DoctorInfoVO getProfile(String doctorId);
 
     /**
+     * 获取医生列表
+     */
+    List<DoctorInfoVO> listDoctors(String department, String keyword);
+
+    /**
      * 更新医生信息
      */
     DoctorInfoVO updateProfile(String doctorId, DoctorProfileUpdateDTO updateDTO);
@@ -40,6 +45,11 @@ public interface DoctorService {
     DoctorTodoCountVO getTodoCount(String doctorId);
 
     /**
+     * 获取待审核处方数量
+     */
+    int countPendingPrescriptions(String doctorId);
+
+    /**
      * 获取排班信息
      */
     List<Object> getSchedule(String doctorId);
@@ -48,4 +58,9 @@ public interface DoctorService {
      * 获取执业信息
      */
     Object getLicense(String doctorId);
+
+    /**
+     * 为处方购药自动分配医生（在线且可开方）
+     */
+    String assignDoctorForPrescription(String drugId);
 }

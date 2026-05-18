@@ -42,6 +42,11 @@ public class HomeSectionVO implements Serializable {
     private String title;
 
     /**
+     * 模块副标题
+     */
+    private String subtitle;
+
+    /**
      * 布局方式（full_width/half_width/custom）
      */
     private String layout;
@@ -60,6 +65,11 @@ public class HomeSectionVO implements Serializable {
      * 模块级配置（JSON格式存储的额外配置）
      */
     private Map<String, Object> config;
+
+    /**
+     * 绑定的Tab ID列表（空表示所有Tab可见）
+     */
+    private List<String> tabIds;
 
     /**
      * 模块包含的组件列表

@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { Plus, Check } from '@element-plus/icons-vue'
 import { formatPrice } from '@/utils'
+import { getDrugDetailRoute } from '@/constants/routes'
 import type { Drug } from '@/types'
 
 const props = defineProps<{
@@ -20,12 +22,20 @@ const router = useRouter()
 const drugImage = computed(() => props.drug.imageUrl || props.drug.image || '')
 
 const goToDetail = () => {
-  router.push(`/drug/${props.drug.id}`)
+  router.push(getDrugDetailRoute(props.drug.id))
 }
+
+const isAdding = ref(false)
 
 const handleAddToCart = (event: Event) => {
   event.stopPropagation()
+  isAdding.value = true
   emit('addToCart', props.drug)
+  
+  // 1.5秒后重置状态
+  setTimeout(() => {
+    isAdding.value = false
+  }, 1500)
 }
 
 const discount = computed(() => {
@@ -46,7 +56,7 @@ const discount = computed(() => {
     <div class="drug-image" :style="{ backgroundColor: drug.imageColor || '#00b578' }">
       <img
         v-if="drugImage"
-        :src="drugImage"
+        v-lazy="drugImage"
         :alt="drug.name"
         class="drug-img"
       />
@@ -69,28 +79,39 @@ const discount = computed(() => {
       <!-- 规格 -->
       <p class="drug-spec">{{ drug.specification }}</p>
       
-      <!-- 标签 -->
-      <div v-if="showTag && drug.tags?.length" class="drug-tags">
-        <span v-for="tag in drug.tags.slice(0, 2)" :key="tag" class="tag">{{ tag }}</span>
+      <!-- 标签和销量合并一行 -->
+      <div class="drug-meta">
+        <!-- Rx标识前置 -->
+        <span v-if="drug.isRx" class="rx-tag">Rx</span>
+        <span v-else class="otc-tag">OTC</span>
+        
+        <!-- 标签 -->
+        <div v-if="showTag && drug.tags?.length" class="drug-tags">
+          <span v-for="tag in drug.tags.slice(0, 2)" :key="tag" class="tag">{{ tag }}</span>
+        </div>
+        
+        <!-- 销量 -->
+        <span v-if="showSales && drug.sales > 0" class="drug-sales">
+          已售{{ drug.sales > 10000 ? (drug.sales / 10000).toFixed(1) + '万' : drug.sales }}
+        </span>
       </div>
-      
-      <!-- 销量 -->
-      <p v-if="showSales && drug.sales > 0" class="drug-sales">
-        已售 {{ drug.sales > 10000 ? (drug.sales / 10000).toFixed(1) + '万' : drug.sales }}
-      </p>
       
       <!-- 底部信息 -->
       <div class="drug-footer">
         <div class="price-section">
           <span class="price-symbol">¥</span>
-          <span class="price-value">{{ formatPrice(drug.price) }}</span>
+          <span class="price-value">
+            <span class="integer">{{ Math.floor(drug.price) }}</span>
+            <span class="decimal">.{{ (drug.price % 1).toFixed(2).slice(2) }}</span>
+          </span>
           <span v-if="drug.originalPrice && drug.originalPrice > drug.price" class="original-price">
             ¥{{ formatPrice(drug.originalPrice) }}
           </span>
         </div>
         
-        <button class="add-btn" @click="handleAddToCart">
-          <el-icon><Plus /></el-icon>
+        <button class="add-btn" :class="{ 'is-adding': isAdding }" @click="handleAddToCart">
+          <el-icon v-if="!isAdding"><Plus /></el-icon>
+          <el-icon v-else class="check-icon"><Check /></el-icon>
         </button>
       </div>
     </div>
@@ -191,7 +212,7 @@ const discount = computed(() => {
     }
   }
   
-  // Rx标识
+  // Rx标识（图片左上角）
   .rx-badge {
     position: absolute;
     top: $spacing-xs;
@@ -202,6 +223,16 @@ const discount = computed(() => {
     font-weight: bold;
     padding: 2px 4px;
     border-radius: $radius-sm;
+    animation: rxPulse 2s infinite;
+  }
+
+  @keyframes rxPulse {
+    0%, 100% {
+      box-shadow: 0 0 0 0 rgba($error, 0.4);
+    }
+    50% {
+      box-shadow: 0 0 0 4px rgba($error, 0);
+    }
   }
   
   // 折扣标识
@@ -237,25 +268,49 @@ const discount = computed(() => {
     margin-bottom: $spacing-xs;
   }
   
-  .drug-tags {
+  .drug-meta {
     display: flex;
+    align-items: center;
     gap: $spacing-xs;
-    margin-bottom: $spacing-xs;
+    margin-bottom: $spacing-sm;
     flex-wrap: wrap;
-    
-    .tag {
+
+    .rx-tag {
       font-size: $font-xs;
-      color: $primary;
-      background: rgba($primary, 0.1);
+      color: $error;
+      background: rgba($error, 0.1);
       padding: 2px 6px;
       border-radius: $radius-sm;
+      font-weight: 600;
     }
-  }
-  
-  .drug-sales {
-    font-size: $font-sm;
-    color: $text-tertiary;
-    margin-bottom: $spacing-sm;
+
+    .otc-tag {
+      font-size: $font-xs;
+      color: $success;
+      background: rgba($success, 0.1);
+      padding: 2px 6px;
+      border-radius: $radius-sm;
+      font-weight: 600;
+    }
+
+    .drug-tags {
+      display: flex;
+      gap: $spacing-xs;
+      flex-wrap: wrap;
+      
+      .tag {
+        font-size: $font-xs;
+        color: $primary;
+        background: rgba($primary, 0.1);
+        padding: 2px 6px;
+        border-radius: $radius-sm;
+      }
+    }
+    
+    .drug-sales {
+      font-size: $font-xs;
+      color: $text-tertiary;
+    }
   }
   
   // 底部区域
@@ -270,18 +325,22 @@ const discount = computed(() => {
   .price-section {
     display: flex;
     align-items: baseline;
-    gap: 4px;
+    gap: 2px;
     
     .price-symbol {
       font-size: $font-sm;
       color: $error;
-      font-weight: 500;
+      font-weight: 600;
     }
     
     .price-value {
-      font-size: $font-lg;
+      font-size: 22px;
       font-weight: bold;
       color: $error;
+      
+      .decimal {
+        font-size: $font-md;
+      }
     }
     
     .original-price {
@@ -303,7 +362,9 @@ const discount = computed(() => {
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
     
     &:hover {
       background: $primary-dark;
@@ -313,6 +374,42 @@ const discount = computed(() => {
     &:active {
       transform: scale(0.95);
     }
+    
+    &.is-adding {
+      background: $success;
+      animation: addSuccess 0.5s ease;
+      
+      .check-icon {
+        animation: checkPop 0.3s ease;
+      }
+    }
+  }
+}
+
+@keyframes addSuccess {
+  0% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes checkPop {
+  0% {
+    transform: scale(0) rotate(-45deg);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.2) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
   }
 }
 </style>

@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
+import { ROUTES } from '@/constants/routes'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -43,32 +44,26 @@ const goBack = () => {
   router.back()
 }
 
-// 去消息中心
 const goToMessages = () => {
-  router.push('/messages')
+  router.push(ROUTES.MESSAGES)
 }
 
-// 去设置
 const goToSettings = () => {
-  router.push('/settings')
+  router.push(ROUTES.SETTINGS)
 }
 
-// 去登录
 const goToLogin = () => {
-  router.push('/login')
+  router.push(ROUTES.LOGIN)
 }
 
-// 开通健康卡
 const openHealthCard = () => {
   ElMessage.info('健康卡功能开发中')
 }
 
-// 点击活动横幅
 const clickActivityBanner = () => {
   ElMessage.info('春季过敏守护活动')
 }
 
-// 点击红包卡片
 const clickRedPacket = (type: string) => {
   const messages: Record<string, string> = {
     'allergy': '过敏补贴红包',
@@ -78,20 +73,18 @@ const clickRedPacket = (type: string) => {
   ElMessage.info(`${messages[type]}功能开发中`)
 }
 
-// 点击资产统计
 const clickAssetStat = (type: string) => {
   if (type === 'coupon') {
-    router.push('/coupons')
+    router.push(ROUTES.COUPONS)
   } else {
     ElMessage.info('会员卡包功能开发中')
   }
 }
 
-// 点击快捷入口
 const clickQuickEntry = (type: string) => {
   const paths: Record<string, string> = {
-    'cart': '/cart',
-    'order': '/order/list',
+    'cart': ROUTES.CART,
+    'order': ROUTES.ORDER_LIST,
     'refund': '/order/refund'
   }
   if (type === 'refund') {
@@ -101,15 +94,14 @@ const clickQuickEntry = (type: string) => {
   router.push(paths[type])
 }
 
-// 点击健康服务
 const clickHealthService = (label: string) => {
   const pathMap: Record<string, string> = {
-    '家庭健康档案': '/patient',
-    '为TA买药': '/patient',
-    '我的咨询': '/inquiry',
-    '处方病历': '/prescription',
+    '家庭健康档案': ROUTES.PATIENT,
+    '为TA买药': ROUTES.PATIENT,
+    '我的咨询': ROUTES.INQUIRY_LIST,
+    '处方病历': ROUTES.PRESCRIPTION,
     '我的检测': '/test',
-    '意见/反馈': '/feedback'
+    '意见/反馈': ROUTES.FEEDBACK
   }
   const path = pathMap[label]
   if (path) {
@@ -117,7 +109,6 @@ const clickHealthService = (label: string) => {
   }
 }
 
-// 退出登录
 const logout = () => {
   ElMessageBox.confirm(
     '确定要退出登录吗？',
@@ -130,7 +121,7 @@ const logout = () => {
   ).then(() => {
     userStore.logout()
     ElMessage.success('已退出登录')
-    router.push('/home')
+    router.push(ROUTES.HOME)
   }).catch(() => {
     // 取消
   })

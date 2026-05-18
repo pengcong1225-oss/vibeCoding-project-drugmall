@@ -1,5 +1,11 @@
 import { request } from '@/utils/request'
 import type { LoginParams, LoginResult, UserInfo, UserListParams, UserListResult } from '@/types/user'
+import type { Order } from '@/types/order'
+
+interface OrderListResult {
+  list: Order[]
+  total: number
+}
 
 // 用户登录
 export const login = (data: LoginParams): Promise<LoginResult> => {
@@ -47,7 +53,7 @@ export const updateUserStatus = (id: string, status: number): Promise<void> => {
 }
 
 // 获取用户订单列表
-export const getUserOrders = (id: string, params: { pageNum: number; pageSize: number }): Promise<UserListResult> => {
+export const getUserOrders = (id: string, params: { pageNum: number; pageSize: number }): Promise<OrderListResult> => {
   return request.get(`/admin/users/${id}/orders`, params)
 }
 

@@ -2,9 +2,12 @@ import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig, AxiosResp
 import { ElMessage } from 'element-plus'
 import router from '@/router'
 import { mockHomePageConfig, mockInquiryList, mockPatients, mockUserCenterData } from './mock'
+import { ResponseCode } from '@/constants'
+import { API_CONFIG, STORAGE_KEYS } from '@/constants/config'
+import { ROUTES } from '@/constants/routes'
+import { messages } from '@/constants/messages'
 
-// 是否启用mock数据
-const ENABLE_MOCK = import.meta.env.VITE_ENABLE_MOCK === 'true' || true
+const ENABLE_MOCK = import.meta.env.VITE_ENABLE_MOCK === 'true' || import.meta.env.VITE_USE_MOCK === 'true'
 
 // Mock响应构造器
 const createMockResponse = (data: any) => ({
@@ -24,9 +27,9 @@ const createMockResponse = (data: any) => ({
 // 创建axios实例
 const request: AxiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
-  timeout: 30000,
+  timeout: API_CONFIG.TIMEOUT,
   headers: {
-    'Content-Type': 'application/json'
+    'Content-Type': API_CONFIG.CONTENT_TYPE
   }
 })
 
@@ -98,7 +101,7 @@ request.interceptors.request.use(
     addPending(config)
     
     // 添加token
-    const token = localStorage.getItem('token')
+    const token = localStorage.getItem(STORAGE_KEYS.TOKEN)
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -126,40 +129,36 @@ request.interceptors.response.use(
     
     const { code, message, data } = response.data
     
-    // 成功响应
-    if (code === 200 || code === 0) {
+    if (code === ResponseCode.SUCCESS || code === ResponseCode.SUCCESS_ALT) {
       return data
     }
     
-    // 特殊错误处理
     switch (code) {
-      case 401:
-        // 未授权，清除token并跳转到登录页
-        localStorage.removeItem('token')
-        localStorage.removeItem('userInfo')
-        router.push('/login')
-        ElMessage.error('登录已过期，请重新登录')
+      case ResponseCode.UNAUTHORIZED:
+        localStorage.removeItem(STORAGE_KEYS.TOKEN)
+        localStorage.removeItem(STORAGE_KEYS.USER_INFO)
+        router.push(ROUTES.LOGIN)
+        ElMessage.error(messages.auth.loginExpired)
         break
-      case 403:
-        ElMessage.error('没有权限执行此操作')
+      case ResponseCode.FORBIDDEN:
+        ElMessage.error(messages.auth.noPermission)
         break
-      case 404:
-        ElMessage.error('请求的资源不存在')
+      case ResponseCode.NOT_FOUND:
+        ElMessage.error(messages.auth.resourceNotFound)
         break
-      case 500:
-        ElMessage.error(message || '服务器内部错误')
+      case ResponseCode.SERVER_ERROR:
+        ElMessage.error(message || messages.common.serverBusy)
         break
       default:
-        ElMessage.error(message || '操作失败')
+        ElMessage.error(message || messages.common.operationFailed)
     }
     
-    return Promise.reject(new Error(message || '请求失败'))
+    return Promise.reject(new Error(message || messages.common.requestFailed))
   },
   (error: any) => {
-    // 处理mock响应
     if (error.__isMock && error.response) {
       const { code, data } = error.response.data
-      if (code === 200 || code === 0) {
+      if (code === ResponseCode.SUCCESS || code === ResponseCode.SUCCESS_ALT) {
         return Promise.resolve(data)
       }
     }
@@ -169,49 +168,41 @@ request.interceptors.response.use(
       removePending(error.config)
     }
     
-    // 请求被取消
     if (error.name === 'AbortError' || error.message === 'canceled') {
-      return Promise.reject(new Error('请求已取消'))
+      return Promise.reject(new Error(messages.common.requestCancelled))
     }
     
-    // 网络错误（后端未启动等情况）
     if (!error.response) {
-      // 如果启用mock，尝试返回mock数据
       if (ENABLE_MOCK && error.config?.url?.includes('/home/render/page')) {
         return Promise.resolve(mockHomePageConfig)
       }
-      // 不显示错误消息，让调用方处理
-      return Promise.reject(new Error('网络错误'))
+      return Promise.reject(new Error(messages.common.networkError))
     }
     
-    // 根据状态码处理错误
     const { status, data } = error.response as AxiosResponse
-    const message = data?.message || '请求失败'
+    const message = data?.message || messages.common.requestFailed
     
     switch (status) {
-      case 400:
-        ElMessage.error(message)
+      case ResponseCode.UNAUTHORIZED:
+        localStorage.removeItem(STORAGE_KEYS.TOKEN)
+        localStorage.removeItem(STORAGE_KEYS.USER_INFO)
+        router.push(ROUTES.LOGIN)
+        ElMessage.error(messages.auth.loginExpired)
         break
-      case 401:
-        localStorage.removeItem('token')
-        localStorage.removeItem('userInfo')
-        router.push('/login')
-        ElMessage.error('登录已过期，请重新登录')
+      case ResponseCode.FORBIDDEN:
+        ElMessage.error(messages.auth.noPermission)
         break
-      case 403:
-        ElMessage.error('没有权限执行此操作')
+      case ResponseCode.NOT_FOUND:
+        ElMessage.error(messages.auth.resourceNotFound)
         break
-      case 404:
-        ElMessage.error('请求的资源不存在')
+      case ResponseCode.REQUEST_TIMEOUT:
+        ElMessage.error(messages.common.requestTimeout)
         break
-      case 408:
-        ElMessage.error('请求超时，请稍后重试')
-        break
-      case 500:
-      case 502:
-      case 503:
-      case 504:
-        ElMessage.error('服务器繁忙，请稍后重试')
+      case ResponseCode.SERVER_ERROR:
+      case ResponseCode.BAD_GATEWAY:
+      case ResponseCode.SERVICE_UNAVAILABLE:
+      case ResponseCode.GATEWAY_TIMEOUT:
+        ElMessage.error(messages.common.serverBusy)
         break
       default:
         ElMessage.error(message)

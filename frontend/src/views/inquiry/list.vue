@@ -93,7 +93,7 @@
                 去支付
               </button>
               <button
-                v-else-if="item.status === 'in_progress'"
+                v-else-if="item.status === 'processing'"
                 class="action-btn primary"
                 @click.stop="goToChat(item)"
               >
@@ -139,18 +139,19 @@ import { ElMessage } from 'element-plus'
 import { Loading } from '@element-plus/icons-vue'
 import { getConsultationList } from '@/api/modules/inquiry'
 import { userMenuIcons, mockInquiryList } from '@/api/mock'
+import { ConsultationStatus } from '@/constants'
+import { ROUTES } from '@/constants/routes'
+import { EMPTY_TEXT_MAP, CONSULTATION_STATUS_TEXT_MAP, CONSULTATION_STATUS_CLASS_MAP } from '@/constants/business'
 import type { Consultation } from '@/api/modules/inquiry'
 
 const router = useRouter()
 
-// 默认头像 - 使用写实风格医生图标
 const defaultAvatar = 'https://img.icons8.com/color/96/doctor-male.png'
 
-// 筛选标签
 const filterTabs = [
   { label: '全部', value: 'all' },
-  { label: '进行中', value: 'in_progress' },
-  { label: '已完成', value: 'completed' },
+  { label: '进行中', value: ConsultationStatus.PROCESSING },
+  { label: '已完成', value: ConsultationStatus.COMPLETED },
   { label: '待评价', value: 'pending_review' }
 ]
 
@@ -178,41 +179,16 @@ const filteredList = computed(() => {
   })
 })
 
-// 空状态文本
 const emptyText = computed(() => {
-  const map: Record<string, string> = {
-    all: '暂无咨询记录',
-    in_progress: '暂无进行中的咨询',
-    completed: '暂无已完成的咨询',
-    pending_review: '暂无待评价的咨询'
-  }
-  return map[currentTab.value] || '暂无数据'
+  return EMPTY_TEXT_MAP[currentTab.value as keyof typeof EMPTY_TEXT_MAP] || '暂无数据'
 })
 
-// 获取状态文本
 const getStatusText = (status: string) => {
-  const map: Record<string, string> = {
-    pending: '待支付',
-    waiting: '等待接诊',
-    in_progress: '进行中',
-    completed: '已完成',
-    cancelled: '已取消',
-    refunded: '已退款'
-  }
-  return map[status] || status
+  return CONSULTATION_STATUS_TEXT_MAP[status] || status
 }
 
-// 获取状态样式类
 const getStatusClass = (status: string) => {
-  const map: Record<string, string> = {
-    pending: 'warning',
-    waiting: 'info',
-    in_progress: 'primary',
-    completed: 'success',
-    cancelled: 'default',
-    refunded: 'default'
-  }
-  return map[status] || 'default'
+  return CONSULTATION_STATUS_CLASS_MAP[status] || 'default'
 }
 
 // 加载咨询列表
@@ -224,7 +200,6 @@ const loadInquiryList = async (isLoadMore = false) => {
   }
 
   try {
-    // 实际项目中调用API
     const res = await getConsultationList(currentTab.value === 'all' ? undefined : currentTab.value)
 
     if (Array.isArray(res)) {
@@ -233,17 +208,13 @@ const loadInquiryList = async (isLoadMore = false) => {
       } else {
         inquiryList.value = res
       }
+      hasMore.value = res.length >= 10
     } else {
-      // 使用模拟数据
-      inquiryList.value = mockInquiryList
+      ElMessage.error('获取咨询记录失败')
     }
-
-    hasMore.value = false
   } catch (error) {
     console.error('获取咨询记录失败:', error)
-    // 使用模拟数据
-    inquiryList.value = mockInquiryList
-    ElMessage.error('获取咨询记录失败')
+    ElMessage.error('获取咨询记录失败，请稍后重试')
   } finally {
     loading.value = false
     loadingMore.value = false
@@ -266,22 +237,20 @@ const goBack = () => {
   router.back()
 }
 
-// 跳转到详情
 const goToDetail = (item: any) => {
+  console.log('点击咨询卡片，准备跳转到详情页', item.id)
+  console.log('目标路由:', ROUTES.INQUIRY_DETAIL)
   router.push({
-    path: `/inquiry/chat`,
+    path: ROUTES.INQUIRY_DETAIL,
     query: {
-      consultationId: item.id,
-      doctorId: item.doctorId,
-      doctorName: item.doctorName
+      consultationId: item.id
     }
   })
 }
 
-// 去支付
 const goToPay = (item: any) => {
   router.push({
-    path: `/inquiry/pay/${item.id}`,
+    path: `${ROUTES.INQUIRY_PAY}/${item.id}`,
     query: {
       doctorId: item.doctorId,
       doctorName: item.doctorName,
@@ -298,10 +267,9 @@ const goToPay = (item: any) => {
   })
 }
 
-// 继续咨询
 const goToChat = (item: any) => {
   router.push({
-    path: `/inquiry/chat`,
+    path: ROUTES.INQUIRY_CHAT,
     query: {
       consultationId: item.id,
       doctorId: item.doctorId,
@@ -310,7 +278,6 @@ const goToChat = (item: any) => {
   })
 }
 
-// 去评价
 const goToReview = (item: any) => {
   ElMessage.info('评价功能开发中')
 }

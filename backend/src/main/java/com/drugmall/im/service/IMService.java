@@ -21,10 +21,11 @@ public interface IMService {
     /**
      * 获取消息历史
      * @param userId 业务用户ID
+     * @param userType 用户类型
      * @param conversationId 会话ID
      * @return 消息列表
      */
-    List<MessageVO> getMessages(String userId, String conversationId);
+    List<MessageVO> getMessages(String userId, String userType, String conversationId);
 
     /**
      * 发送消息（Mock模式下模拟发送）

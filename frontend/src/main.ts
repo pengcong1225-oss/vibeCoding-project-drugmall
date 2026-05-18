@@ -11,12 +11,18 @@ import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 // 全局样式
 import './styles/index.scss'
 
+// 全局指令
+import { registerDirectives } from './directives'
+
 const app = createApp(App)
 
 // 注册所有图标
 for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
   app.component(key, component)
 }
+
+// 注册全局指令
+registerDirectives(app)
 
 app.use(createPinia())
 app.use(router)

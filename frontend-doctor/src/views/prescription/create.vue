@@ -3,6 +3,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { usePrescriptionStore } from '@/stores/prescription'
 import { usePatientStore } from '@/stores/patient'
+import { imService } from '@/utils/im'
+import { ElMessage } from 'element-plus'
 
 const route = useRoute()
 const router = useRouter()
@@ -97,28 +99,63 @@ const removeDrug = (index: number) => {
 // 提交处方
 const submitPrescription = async () => {
   if (!prescriptionForm.value.diagnosis) {
-    alert('请输入诊断')
+    ElMessage.warning('请输入诊断')
     return
   }
   if (prescriptionForm.value.drugs.length === 0) {
-    alert('请添加至少一种药品')
+    ElMessage.warning('请添加至少一种药品')
     return
   }
 
-  const patient = patientStore.patients.find(p => p.id === patientId)
+  try {
+    const patient = patientStore.patients.find(p => p.id === patientId)
 
-  await prescriptionStore.createPrescription({
-    patientId: patientId,
-    patientName: patient?.name || '未知患者',
-    patientAge: patient?.age || 0,
-    patientGender: patient?.gender || '男',
-    consultationId: consultationId,
-    diagnosis: prescriptionForm.value.diagnosis,
-    drugs: prescriptionForm.value.drugs,
-    totalAmount: totalAmount.value
-  })
+    await prescriptionStore.createPrescription({
+      patientId: patientId,
+      patientName: patient?.name || '未知患者',
+      patientAge: patient?.age || 0,
+      patientGender: patient?.gender || '男',
+      consultationId: consultationId,
+      diagnosis: prescriptionForm.value.diagnosis,
+      drugs: prescriptionForm.value.drugs,
+      totalAmount: totalAmount.value
+    })
 
-  router.push('/prescription')
+    // 通过IM发送处方消息给患者
+    await sendPrescriptionMessage()
+
+    ElMessage.success('处方已提交并发送给患者')
+    router.push('/prescription')
+  } catch (error: any) {
+    console.error('提交处方失败:', error)
+    ElMessage.error('提交失败: ' + (error.message || '未知错误'))
+  }
+}
+
+// 通过IM发送处方消息
+async function sendPrescriptionMessage() {
+  try {
+    const doctorId = '001'
+    
+    // 确保IM已初始化
+    if (!imService.isInitialized) {
+      await imService.init(doctorId, 'doctor')
+    }
+    
+    const conversationId = `C2C_patient_${patientId}`
+
+    const drugsList = prescriptionForm.value.drugs.map((drug, index) => 
+      `${index + 1}. ${drug.name} ${drug.spec} - ${drug.dosage} ${drug.frequency} ${drug.duration} ×${drug.quantity}${drug.unit}`
+    ).join('\n')
+
+    const prescriptionContent = `【电子处方】\n诊断：${prescriptionForm.value.diagnosis}\n药品清单：\n${drugsList}\n合计：¥${totalAmount.value.toFixed(2)}`
+
+    await imService.sendTextMessage(conversationId, prescriptionContent)
+    console.log('[处方] 处方消息已发送给患者')
+  } catch (error) {
+    console.error('[处方] 发送IM消息失败:', error)
+    throw new Error('处方已保存但发送通知失败')
+  }
 }
 
 // 返回
@@ -481,10 +518,218 @@ $border-light: #e8e8e8;
   background: #FAFAFA;
   border-radius: 8px;
   margin-bottom: 8px;
-  
+
   .drug-info {
     flex: 1;
-    
+
     .drug-name {
       font-size: 14px;
       font-weight: 500;
+      color: $text-primary;
+      margin-bottom: 4px;
+
+      .drug-spec {
+        font-size: 12px;
+        color: $text-tertiary;
+        margin-left: 4px;
+      }
+    }
+
+    .drug-usage {
+      font-size: 12px;
+      color: $text-secondary;
+
+      .drug-remark {
+        color: $text-tertiary;
+      }
+    }
+  }
+
+  .drug-amount {
+    text-align: right;
+    font-size: 13px;
+    color: $text-secondary;
+    white-space: nowrap;
+
+    .amount {
+      display: block;
+      color: $primary;
+      font-weight: 500;
+    }
+  }
+
+  .drug-actions {
+    padding: 4px;
+    cursor: pointer;
+    color: $text-tertiary;
+
+    svg {
+      width: 18px;
+      height: 18px;
+    }
+  }
+}
+
+.add-drug-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px;
+  border: 1px dashed $border-light;
+  border-radius: 8px;
+  color: $primary;
+  font-size: 14px;
+  cursor: pointer;
+
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+.drug-form {
+  background: #FAFAFA;
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 8px;
+
+  .form-row {
+    margin-bottom: 8px;
+    position: relative;
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .form-grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+  }
+
+  input, select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid $border-light;
+    border-radius: 6px;
+    font-size: 13px;
+    outline: none;
+    background: #fff;
+
+    &:focus {
+      border-color: $primary;
+    }
+  }
+
+  .search-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #fff;
+    border: 1px solid $border-light;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    z-index: 10;
+    max-height: 200px;
+    overflow-y: auto;
+
+    .suggestions-title {
+      padding: 8px 12px;
+      font-size: 12px;
+      color: $text-tertiary;
+      border-bottom: 1px solid $border-light;
+    }
+
+    .suggestion-item {
+      display: flex;
+      align-items: center;
+      padding: 10px 12px;
+      cursor: pointer;
+
+      &:active {
+        background: #f5f5f5;
+      }
+
+      .suggestion-name {
+        flex: 1;
+        font-size: 14px;
+        color: $text-primary;
+      }
+
+      .suggestion-spec {
+        font-size: 12px;
+        color: $text-tertiary;
+        margin-right: 12px;
+      }
+
+      .suggestion-price {
+        font-size: 13px;
+        color: $primary;
+        font-weight: 500;
+      }
+    }
+  }
+
+  .btn-confirm-add {
+    width: 100%;
+    padding: 10px;
+    background: $primary;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    margin-top: 4px;
+
+    &:active {
+      background: darken($primary, 5%);
+    }
+  }
+
+  .btn-cancel {
+    width: 100%;
+    padding: 10px;
+    background: #fff;
+    color: $text-secondary;
+    border: 1px solid $border-light;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    margin-top: 4px;
+  }
+}
+
+.amount-summary {
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+
+  .summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    font-size: 14px;
+    color: $text-secondary;
+
+    &.total {
+      border-top: 1px solid $border-light;
+      margin-top: 8px;
+      padding-top: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      color: $text-primary;
+
+      .value {
+        color: $primary;
+      }
+    }
+  }
+}
+</style>

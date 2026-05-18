@@ -11,11 +11,12 @@
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
+import { ROUTES } from '@/constants/routes'
 
 const router = useRouter()
 
 const goHome = () => {
-  router.push('/home')
+  router.push(ROUTES.HOME)
 }
 </script>
 

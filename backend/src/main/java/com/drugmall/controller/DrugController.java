@@ -89,6 +89,13 @@ public class DrugController {
         return Result.success(drugService.getDrugFAQs(id));
     }
 
+    @GetMapping("/{id}/stores")
+    @Operation(summary = "获取药品在售门店", description = "获取指定药品的在售门店列表")
+    public Result<List<DrugStoreVO>> getDrugStores(
+            @Parameter(description = "药品ID") @PathVariable String id) {
+        return Result.success(drugService.getDrugStores(id));
+    }
+
     @GetMapping("/search/suggestions")
     @Operation(summary = "搜索建议", description = "根据关键词获取搜索建议")
     public Result<List<SearchSuggestionVO>> getSearchSuggestions(

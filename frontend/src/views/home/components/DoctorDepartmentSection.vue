@@ -24,10 +24,10 @@
       <div class="dept-filter-bar">
         <div 
           v-for="tag in departmentTags" 
-          :key="tag.value"
+          :key="tag.code"
           class="filter-tag"
-          :class="{ active: selectedDepartment === tag.value }"
-          @click="handleDepartmentChange(tag.value)"
+          :class="{ active: selectedDepartment === tag.code }"
+          @click="handleDepartmentChange(tag.code)"
         >
           {{ tag.label }}
         </div>
@@ -46,10 +46,9 @@
           </div>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="default">综合排序</el-dropdown-item>
-              <el-dropdown-item command="rating">好评优先</el-dropdown-item>
-              <el-dropdown-item command="consult">接诊量优先</el-dropdown-item>
-              <el-dropdown-item command="price">价格从低到高</el-dropdown-item>
+              <el-dropdown-item v-for="opt in sortOptions" :key="opt.value" :command="opt.value">
+                {{ opt.label }}
+              </el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
@@ -61,13 +60,9 @@
           </div>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="all">全部擅长</el-dropdown-item>
-              <el-dropdown-item command="allergy">过敏性疾病</el-dropdown-item>
-              <el-dropdown-item command="skin">皮肤疾病</el-dropdown-item>
-              <el-dropdown-item command="tcm">中医调理</el-dropdown-item>
-              <el-dropdown-item command="chronic">慢性病管理</el-dropdown-item>
-              <el-dropdown-item command="child">儿科疾病</el-dropdown-item>
-              <el-dropdown-item command="psychology">心理咨询</el-dropdown-item>
+              <el-dropdown-item v-for="opt in specialtyOptions" :key="opt.value" :command="opt.value">
+                {{ opt.label }}
+              </el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
@@ -197,108 +192,34 @@ import { useRouter } from 'vue-router'
 import { ArrowDown, Filter } from '@element-plus/icons-vue'
 import DepartmentGrid, { type Department } from '@/components/consultation/DepartmentGrid.vue'
 import ServiceShortcuts, { type ShortcutItem } from '@/components/consultation/ServiceShortcuts.vue'
+import { businessApi } from '@/api/modules/business'
+import { getDoctorList } from '@/api/modules/inquiry'
 
 const router = useRouter()
 
 const onlineCount = ref(2700)
 
-// 科室数据 - 每页2排x5列，共25个科室
-const departments = ref<Department[]>([
-  // 第一页
-  { code: 'bone', name: '骨科', icon: 'bone', tag: '', tagType: 'info' },
-  { code: 'neurology', name: '神经内科', icon: 'brain', tag: '', tagType: 'info' },
-  { code: 'general', name: '全科', icon: 'firstAid', tag: '', tagType: 'info' },
-  { code: 'tcm', name: '中医科', icon: 'herb', tag: '', tagType: 'info' },
-  { code: 'surgery', name: '普外科', icon: 'scissor', tag: '', tagType: 'info' },
-  { code: 'andrology', name: '男科门诊', icon: 'male', tag: '', tagType: 'info' },
-  { code: 'cardiology', name: '心血管内科', icon: 'heart', tag: '', tagType: 'info' },
-  { code: 'endocrine', name: '内分泌科', icon: 'stomach', tag: '', tagType: 'info' },
-  { code: 'tcm-spleen', name: '中医脾胃病', icon: 'herb', tag: '', tagType: 'info' },
-  { code: 'tcm-male', name: '中医男科', icon: 'male', tag: '补肾', tagType: 'supplement' },
-  { code: 'tcm-sleep', name: '中医失眠科', icon: 'moon', tag: '', tagType: 'info' },
-  { code: 'tcm-female', name: '中医妇科', icon: 'female', tag: '', tagType: 'info' },
-  { code: 'weight', name: '减重门诊', icon: 'scale', tag: '', tagType: 'info' },
-  { code: 'sleep', name: '睡眠中心', icon: 'moon', tag: '9.9元起', tagType: 'price' },
-  // 第二页
-  { code: 'dermatology', name: '皮肤科', icon: 'skin', tag: '瘙痒', tagType: 'hot' },
-  { code: 'respiratory', name: '呼吸内科', icon: 'lung', tag: '', tagType: 'info' },
-  { code: 'pediatrics', name: '儿科', icon: 'child', tag: '发热', tagType: 'fever' },
-  { code: 'gastroenterology', name: '消化内科', icon: 'stomach', tag: '', tagType: 'info' },
-  { code: 'gynecology', name: '妇产科', icon: 'female', tag: '', tagType: 'info' },
-  { code: 'ent', name: '耳鼻喉科', icon: 'ear', tag: '', tagType: 'info' },
-  { code: 'urology', name: '泌尿外科', icon: 'kidney', tag: '', tagType: 'info' },
-  { code: 'dental', name: '口腔科', icon: 'tooth', tag: '', tagType: 'info' },
-  { code: 'ophthalmology', name: '眼科', icon: 'eye', tag: '', tagType: 'info' },
-  { code: 'psychology', name: '心理咨询', icon: 'brain', tag: '19.9元', tagType: 'price' },
-])
+const departments = ref<Department[]>([])
+const serviceShortcuts = ref<ShortcutItem[]>([])
 
-const serviceShortcuts = ref<ShortcutItem[]>([
-  { id: 1, name: '用药咨询', subtitle: '安全用药', image: '', doctorAvatar: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=100&h=100&fit=crop&crop=face' },
-  { id: 2, name: '抓中药', subtitle: '养生茶饮', image: '', doctorAvatar: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=100&h=100&fit=crop&crop=face' },
-  { id: 3, name: '心理咨询', subtitle: '19.9元', image: '', doctorAvatar: 'https://images.unsplash.com/photo-1594824476967-48c8b964273f?w=100&h=100&fit=crop&crop=face' },
-  { id: 4, name: '电话医生', subtitle: '9.9元起', image: '', doctorAvatar: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=100&h=100&fit=crop&crop=face' },
-])
-
-// 排序选项
-const sortOptions = [
-  { value: 'default', label: '综合排序' },
-  { value: 'rating', label: '好评优先' },
-  { value: 'consult', label: '接诊量优先' },
-  { value: 'price', label: '价格从低到高' }
-]
+const sortOptions = ref<{ label: string; value: string }[]>([])
 const currentSort = ref('default')
 
-// 擅长选项
-const specialtyOptions = [
-  { value: 'all', label: '全部擅长' },
-  { value: 'allergy', label: '过敏性疾病' },
-  { value: 'skin', label: '皮肤疾病' },
-  { value: 'tcm', label: '中医调理' },
-  { value: 'chronic', label: '慢性病管理' },
-  { value: 'child', label: '儿科疾病' },
-  { value: 'psychology', label: '心理咨询' }
-]
+const specialtyOptions = ref<{ label: string; value: string }[]>([])
 const currentSpecialty = ref('all')
 
-// 筛选面板显示状态
 const showFilterPanel = ref(false)
 
-// 特色服务选项
-const featureOptions = [
-  { value: 'prescription', label: '可开处方' },
-  { value: 'online', label: '在线医生' },
-  { value: 'quick', label: '秒问医生' },
-  { value: 'cheap', label: '低价咨询' }
-]
+const featureOptions = ref<{ label: string; value: string }[]>([])
 const selectedFeatures = ref<string[]>([])
 
-// 医生职称选项
-const titleOptions = [
-  { value: 'all', label: '全部' },
-  { value: 'chief', label: '主任医师' },
-  { value: 'associate', label: '副主任医师' },
-  { value: 'attending', label: '主治医师' },
-  { value: 'resident', label: '住院医师' }
-]
+const titleOptions = ref<{ label: string; value: string }[]>([])
 const selectedTitle = ref('all')
 
-// 医院等级选项
-const hospitalLevelOptions = [
-  { value: 'all', label: '全部' },
-  { value: '3a', label: '三甲医院' },
-  { value: '2a', label: '二甲医院' },
-  { value: '1a', label: '一甲医院' }
-]
+const hospitalLevelOptions = ref<{ label: string; value: string }[]>([])
 const selectedHospitalLevel = ref('all')
 
-const departmentTags = ref([
-  { value: 'all', label: '全部' },
-  { value: 'dermatology', label: '皮肤科' },
-  { value: 'respiratory', label: '呼吸内科' },
-  { value: 'pediatrics', label: '儿科' },
-  { value: 'gastroenterology', label: '消化内科' },
-])
-
+const departmentTags = ref<{ code: string; label: string }[]>([])
 const selectedDepartment = ref('all')
 
 interface DoctorInfo {
@@ -369,9 +290,75 @@ const mockDoctors: DoctorInfo[] = [
   },
 ]
 
-onMounted(() => {
-  doctorList.value = mockDoctors
+onMounted(async () => {
+  await Promise.all([
+    loadBusinessData(),
+    loadDoctors()
+  ])
 })
+
+async function loadDoctors() {
+  try {
+    console.log('开始加载医生列表...')
+    const doctors = await getDoctorList({})
+    console.log('医生列表数据:', doctors)
+    if (Array.isArray(doctors) && doctors.length > 0) {
+      doctorList.value = doctors.slice(0, 10).map((d: any) => ({
+        id: d.id,
+        name: d.name,
+        title: d.title,
+        hospital: d.hospital,
+        department: d.department,
+        avatar: d.avatar || '',
+        specialty: d.specialty || '',
+        price: d.price || 0,
+        rating: d.rating || 0,
+        isOnline: d.isOnline || false,
+        canPrescribe: d.canPrescribe || false,
+        waitTime: d.waitTime || 0,
+        consultCount: d.consultCount || '0'
+      }))
+      console.log('医生列表加载成功，共', doctorList.value.length, '个医生')
+    } else {
+      console.warn('医生列表为空')
+      // 使用模拟数据作为后备
+      doctorList.value = mockDoctors
+    }
+  } catch (error) {
+    console.error('加载医生列表失败:', error)
+    // 使用模拟数据作为后备
+    doctorList.value = mockDoctors
+  }
+}
+
+async function loadBusinessData() {
+  try {
+    console.log('开始加载业务数据...')
+    const [deptRes, shortcutRes, tagRes, sortRes, specialtyRes, featureRes, titleRes, hospitalRes] = await Promise.all([
+      businessApi.getDepartments(),
+      businessApi.getServiceShortcuts(),
+      businessApi.getDepartmentTags(),
+      businessApi.getDictData('doctor_sort'),
+      businessApi.getDictData('doctor_specialty'),
+      businessApi.getDictData('doctor_feature'),
+      businessApi.getDictData('doctor_title'),
+      businessApi.getDictData('hospital_level')
+    ])
+
+    console.log('科室数据:', deptRes)
+    departments.value = deptRes
+    serviceShortcuts.value = shortcutRes
+    departmentTags.value = tagRes
+    sortOptions.value = sortRes
+    specialtyOptions.value = specialtyRes
+    featureOptions.value = featureRes
+    titleOptions.value = titleRes
+    hospitalLevelOptions.value = hospitalRes
+    console.log('业务数据加载成功')
+  } catch (error) {
+    console.error('加载业务数据失败:', error)
+  }
+}
 
 function handleDeptSelect(dept: Department) {
   router.push({

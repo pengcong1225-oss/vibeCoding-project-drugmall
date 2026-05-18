@@ -83,16 +83,18 @@ public class CartController {
     @Operation(summary = "选择/取消选择商品", description = "设置购物车商品选中状态")
     public Result<Void> selectCartItem(
             @Parameter(description = "购物车项ID") @PathVariable String itemId,
-            @Parameter(description = "是否选中") @RequestParam Boolean isSelected) {
-        cartService.selectCartItem(CURRENT_USER_ID, itemId, isSelected);
+            @RequestBody java.util.Map<String, Boolean> body) {
+        Boolean selected = body.getOrDefault("selected", false);
+        cartService.selectCartItem(CURRENT_USER_ID, itemId, selected);
         return Result.success();
     }
 
     @PutMapping("/select-all")
     @Operation(summary = "全选/取消全选", description = "设置所有购物车商品选中状态")
     public Result<Void> selectAllCartItems(
-            @Parameter(description = "是否全选") @RequestParam Boolean isSelected) {
-        cartService.selectAllCartItems(CURRENT_USER_ID, isSelected);
+            @RequestBody java.util.Map<String, Boolean> body) {
+        Boolean selected = body.getOrDefault("selected", false);
+        cartService.selectAllCartItems(CURRENT_USER_ID, selected);
         return Result.success();
     }
 
@@ -100,7 +102,9 @@ public class CartController {
     @Operation(summary = "更新商品数量", description = "更新购物车商品数量")
     public Result<CartItemVO> updateCartItemQuantity(
             @Parameter(description = "购物车项ID") @PathVariable String itemId,
-            @Parameter(description = "数量") @RequestParam @Min(1) Integer quantity) {
+            @RequestBody java.util.Map<String, Integer> body) {
+        Integer quantity = body.getOrDefault("quantity", 1);
+        if (quantity < 1) quantity = 1;
         return Result.success(cartService.updateCartItemQuantity(CURRENT_USER_ID, itemId, quantity));
     }
 
@@ -113,8 +117,8 @@ public class CartController {
     @GetMapping("/checkout")
     @Operation(summary = "获取结算信息", description = "获取购物车结算信息")
     public Result<CartCheckoutInfoVO> getCheckoutInfo(
-            @Parameter(description = "购物车项ID列表") @RequestParam @NotEmpty List<String> itemIds) {
-        return Result.success(cartService.getCheckoutInfo(CURRENT_USER_ID, itemIds));
+            @Parameter(description = "购物车项ID列表") @RequestParam(name = "cartItemIds") @NotEmpty List<String> cartItemIds) {
+        return Result.success(cartService.getCheckoutInfo(CURRENT_USER_ID, cartItemIds));
     }
 
     @PostMapping("/merge")

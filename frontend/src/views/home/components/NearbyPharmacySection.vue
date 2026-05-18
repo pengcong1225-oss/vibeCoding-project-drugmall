@@ -55,10 +55,10 @@
         </div>
         <div class="pharmacy-tags">
           <span
-            v-for="(tag, idx) in pharmacy.tags"
+            v-for="(tag, idx) in (pharmacy.tags || []).filter(t => t)"
             :key="idx"
             class="pharmacy-tag"
-            :class="tag.type"
+            :class="tag.type || 'primary'"
           >
             {{ tag.text }}
           </span>
@@ -90,9 +90,9 @@ const emit = defineEmits<{
 const router = useRouter()
 
 // ✅ 修复：正确解析药店数据结构
-// 后端返回的 data 是一个对象：{pharmacies: [...], filters: [...], activeFilter: '...'}
+// 后端返回的 data 是一个对象：{stores: [...]}
 const pharmacyData = computed(() => {
-  const component = props.section.components[0]
+  const component = props.section.components?.[0]
   return component?.data || {}
 })
 
@@ -100,7 +100,7 @@ const activeFilter = ref(pharmacyData.value.activeFilter || '附近药店')
 const filters = ref<string[]>(pharmacyData.value.filters || ['附近药店', '成人用品', '医疗器械', '隐形眼镜', '营养保健'])
 
 const pharmacies = computed<PharmacyData[]>(() => {
-  return pharmacyData.value.pharmacies || []
+  return pharmacyData.value.stores || []
 })
 
 const estimatedTime = computed(() => {

@@ -46,7 +46,9 @@ export const useUserStore = defineStore('user', () => {
       roles.value = res.roles || []
       return res
     } catch (error) {
-      throw error
+      // 如果获取失败，不抛出异常，返回 null
+      console.warn('获取用户信息失败')
+      return null
     }
   }
 

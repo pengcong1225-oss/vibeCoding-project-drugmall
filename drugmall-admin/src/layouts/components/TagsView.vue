@@ -39,19 +39,19 @@ const closeView = (view: RouteLocationNormalizedLoaded) => {
 }
 
 // 关闭其他标签
-const closeOthers = (view: RouteLocationNormalizedLoaded) => {
+const _closeOthers = (view: RouteLocationNormalizedLoaded) => {
   visitedViews.value = visitedViews.value.filter(v => v.path === view.path)
   router.push(view.path)
 }
 
 // 关闭所有标签
-const closeAll = () => {
+const _closeAll = () => {
   visitedViews.value = []
   router.push('/dashboard')
 }
 
 // 刷新标签
-const refreshView = (view: RouteLocationNormalizedLoaded) => {
+const _refreshView = (view: RouteLocationNormalizedLoaded) => {
   router.replace({
     path: '/redirect' + view.path,
     query: view.query

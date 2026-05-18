@@ -1,19 +1,11 @@
-/**
- * 腾讯IM SDK工具类
- * 集成腾讯云即时通信SDK，实现实时聊天功能
- */
 import TIM from 'tim-js-sdk'
-import type { IMConfig, IMEventListener, IMEventType, MessageVO, ChatMessage } from '@/types/im'
+import type { IMConfig, IMEventListener, IMEventType, MessageVO, ChatMessage, TIMRawMessage } from '@/types/im'
 import { getUserSig } from '@/api/im'
 
-// 简单的消息提示函数
 const showMessage = (message: string, type: 'success' | 'warning' | 'error' | 'info' = 'info') => {
   console.log(`[IM ${type.toUpperCase()}] ${message}`)
 }
 
-/**
- * IM服务管理类
- */
 class IMServiceManager {
   private tim: any = null
   private config: IMConfig = {
@@ -21,27 +13,25 @@ class IMServiceManager {
   }
   private listeners: Map<string, Array<Function>> = new Map()
   private initialized: boolean = false
+  private sdkReady: boolean = false
 
-  /**
-   * 初始化IM服务
-   */
   async init(userId: string, userType: string): Promise<boolean> {
     try {
-      if (this.initialized && this.tim) {
+      if (this.initialized && this.tim && this.sdkReady) {
         return true
       }
 
       console.log('[IM] 开始初始化TIM SDK...')
-      
-      // 创建SDK实例
+
       this.tim = TIM.create({
         SDKAppID: this.config.sdkAppId
       })
-      
-      this.tim.setLogLevel(0) // 关闭日志
 
-      // 获取UserSig并登录
-      const userSigData = await getUserSig(userId, userType)
+      this.tim.setLogLevel(1)
+
+      this.registerEvents()
+
+      const userSigData = await getUserSig(userId, userType as 'patient' | 'doctor')
       console.log('[IM] UserSig获取成功:', userSigData.userId)
 
       const loginRes = await this.tim.login({
@@ -51,10 +41,10 @@ class IMServiceManager {
 
       console.log('[IM] 登录成功:', loginRes)
 
-      // 注册事件监听
-      this.registerEvents()
-
       this.initialized = true
+
+      await this.waitSdkReady()
+
       this.emit('onSdkReady')
 
       return true
@@ -66,49 +56,87 @@ class IMServiceManager {
     }
   }
 
+  private waitSdkReady(): Promise<void> {
+    if (this.sdkReady) {
+      return Promise.resolve()
+    }
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('SDK Ready超时'))
+      }, 10000)
+
+      const onReady = () => {
+        clearTimeout(timeout)
+        this.tim.off(TIM.EVENT.SDK_READY, onReady)
+        resolve()
+      }
+
+      this.tim.on(TIM.EVENT.SDK_READY, onReady)
+    })
+  }
+
   get TIM() {
     return TIM || {}
   }
 
-  /**
-   * 注册事件监听
-   */
+  get isInitialized() {
+    return this.initialized && this.sdkReady
+  }
+
   private registerEvents() {
     if (!this.tim) return
-    
-    // 新消息通知
+
+    this.tim.on(TIM.EVENT.SDK_READY, () => {
+      console.log('[IM] SDK Ready')
+      this.sdkReady = true
+      this.emit('onSdkReady')
+    })
+
+    this.tim.on(TIM.EVENT.SDK_NOT_READY, () => {
+      console.warn('[IM] SDK Not Ready')
+      this.sdkReady = false
+      this.emit('onSdkNotReady')
+    })
+
     this.tim.on(TIM.EVENT.MESSAGE_RECEIVED, (event: any) => {
       const msgList = event.data || []
       for (const msg of msgList) {
         this.emit('onMessageReceived', msg)
       }
     })
-    
-    // 会话列表更新
+
     this.tim.on(TIM.EVENT.CONVERSATION_LIST_UPDATED, (event: any) => {
       this.emit('onConversationListUpdate', event)
     })
-    
-    // 被踢下线
+
     this.tim.on(TIM.EVENT.KICKED_OUT, (event: any) => {
       this.emit('onKickedOut', event)
+      this.sdkReady = false
       showMessage('您已在其他设备登录', 'warning')
     })
-    
-    // 网络状态变化
+
     this.tim.on(TIM.EVENT.NET_STATE_CHANGE, (event: any) => {
       this.emit('onNetStateChange', event)
     })
+
+    this.tim.on(TIM.EVENT.ERROR, (event: any) => {
+      console.error('[IM] SDK Error:', event)
+    })
   }
 
-  /**
-   * 发送文本消息
-   */
   async sendTextMessage(conversationId: string, text: string): Promise<any> {
     try {
+      if (!this.sdkReady) {
+        throw new Error('SDK未就绪，无法发送消息')
+      }
+
+      const targetId = this.extractTargetId(conversationId)
+      const isC2C = conversationId.startsWith('C2C')
+
       const message = this.tim.createTextMessage({
-        to: conversationId.replace('C2C_', ''),
-        conversationType: this.TIM.TYPES.CONV_C2C,
+        to: targetId,
+        conversationType: isC2C ? TIM.TYPES.CONV_C2C : TIM.TYPES.CONV_GROUP,
         payload: { text }
       })
 
@@ -122,11 +150,13 @@ class IMServiceManager {
     }
   }
 
-  /**
-   * 获取历史消息列表
-   */
   async getMessageList(conversationId: string, count: number = 20): Promise<any[]> {
     try {
+      if (!this.sdkReady) {
+        console.warn('[IM] SDK未就绪，返回空消息列表')
+        return []
+      }
+
       const res = await this.tim.getMessageList({
         conversationID: conversationId,
         count: count
@@ -135,37 +165,35 @@ class IMServiceManager {
 
     } catch (error: any) {
       console.error('[IM] 获取消息列表失败:', error)
-      throw error
+      return []
     }
   }
 
-  /**
-   * 标记消息已读
-   */
   async setMessageRead(conversationId: string): Promise<void> {
     try {
+      if (!this.sdkReady) return
       await this.tim.setMessageRead({ conversationID: conversationId })
     } catch (error) {
       console.warn('[IM] 标记已读失败:', error)
     }
   }
 
-  /**
-   * 将TIM消息转换为VO
-   */
-  convertMessage(msg: any): MessageVO {
+  convertMessage(msg: any): TIMRawMessage {
     let content = '[消息]'
     let type = 'text'
 
-    if (msg.type === this.TIM.TYPES.MSG_TEXT) {
+    if (msg.type === TIM.TYPES.MSG_TEXT) {
       content = msg.payload?.text || ''
       type = 'text'
-    } else if (msg.type === this.TIM.TYPES.MSG_IMAGE) {
-      content = msg.payload?.imageUrl || '[图片]'
+    } else if (msg.type === TIM.TYPES.MSG_IMAGE) {
+      content = msg.payload?.imageInfoArray?.[0]?.url || '[图片]'
       type = 'image'
-    } else if (msg.type === this.TIM.TYPES.MSG_CUSTOM) {
+    } else if (msg.type === TIM.TYPES.MSG_CUSTOM) {
       content = '[自定义消息]'
       type = 'custom'
+    } else if (msg.type === TIM.TYPES.MSG_AUDIO) {
+      content = '[语音]'
+      type = 'voice'
     }
 
     return {
@@ -179,9 +207,6 @@ class IMServiceManager {
     }
   }
 
-  /**
-   * 将MessageVO转换为ChatMessage
-   */
   convertToChatMessage(msg: MessageVO, patientAvatar?: string, doctorAvatar?: string): ChatMessage {
     const isSelf = msg.flow === 'out'
 
@@ -194,9 +219,16 @@ class IMServiceManager {
     }
   }
 
-  /**
-   * 事件监听
-   */
+  private extractTargetId(conversationId: string): string {
+    if (conversationId.startsWith('C2C')) {
+      return conversationId.replace(/^C2C_?/, '')
+    }
+    if (conversationId.startsWith('GROUP')) {
+      return conversationId.replace(/^GROUP_?/, '')
+    }
+    return conversationId
+  }
+
   on(event: IMEventType | string, callback: Function) {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, [])
@@ -204,9 +236,6 @@ class IMServiceManager {
     this.listeners.get(event)?.push(callback)
   }
 
-  /**
-   * 移除事件监听
-   */
   off(event: IMEventType | string, callback: Function) {
     const callbacks = this.listeners.get(event)
     if (callbacks) {
@@ -215,9 +244,6 @@ class IMServiceManager {
     }
   }
 
-  /**
-   * 触发事件
-   */
   private emit(event: string, data?: any) {
     const callbacks = this.listeners.get(event)
     if (callbacks) {
@@ -225,9 +251,6 @@ class IMServiceManager {
     }
   }
 
-  /**
-   * 销毁实例
-   */
   destroy() {
     if (this.tim) {
       this.tim.logout()
@@ -235,6 +258,7 @@ class IMServiceManager {
     }
     this.listeners.clear()
     this.initialized = false
+    this.sdkReady = false
   }
 }
 

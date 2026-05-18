@@ -17,7 +17,7 @@ const props = defineProps<{
 }>()
 
 // 是否只有一个子菜单
-const isOnlyOneChild = computed(() => {
+const _isOnlyOneChild = computed(() => {
   if (!props.item.children || props.item.children.length === 0) {
     return true
   }

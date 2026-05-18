@@ -50,4 +50,19 @@ public class DoctorInfoVO implements Serializable {
 
     @Schema(description = "专长")
     private List<String> specialties;
+
+    @Schema(description = "是否在线")
+    private Boolean isOnline;
+
+    @Schema(description = "可开处方")
+    private Boolean canPrescribe;
+
+    @Schema(description = "等待时间(秒)")
+    private Integer waitTime;
+
+    @Schema(description = "价格")
+    private Double price;
+
+    @Schema(description = "接诊量显示文本")
+    private String consultCount;
 }

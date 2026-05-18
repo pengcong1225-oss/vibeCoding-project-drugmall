@@ -41,9 +41,9 @@ public interface OrderService {
     void confirmOrder(String userId, String orderId);
 
     /**
-     * 再次购买
+     * 再次购买（返回购物车项ID列表）
      */
-    void reorder(String userId, String orderId);
+    List<String> reorder(String userId, String orderId);
 
     /**
      * 支付订单

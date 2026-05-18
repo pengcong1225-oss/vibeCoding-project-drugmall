@@ -53,45 +53,43 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowRight } from '@element-plus/icons-vue'
+import { ROUTES } from '@/constants/routes'
+import { CATEGORY_ICONS } from '@/constants/images'
 import type { ServiceItemData } from '@/types/home'
 
 const router = useRouter()
 const sliderRef = ref<HTMLElement>()
 const currentPage = ref(0)
 
-// 服务数据 - 药品分类真实图片，使用青绿色系背景
 const services = ref<ServiceItemData[]>([
-  // 第一页
-  { id: '1', name: '感冒发烧', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i4/O1CN01Z5paLz1O0zuCC7osS_!!6000000001644-55-tps-83-82.svg', bgColor: 'rgba(0, 201, 167, 0.12)', category: '感冒发烧' },
-  { id: '2', name: '咳嗽化痰', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i2/O1CN01O0et1z1Jog3zZ1Dgn_!!6000000001069-55-tps-83-82.svg', bgColor: 'rgba(0, 229, 191, 0.12)', category: '咳嗽化痰' },
-  { id: '3', name: '肠胃用药', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i1/O1CN01XY8X0i1GxPFS0YlFW_!!6000000000683-55-tps-83-82.svg', bgColor: 'rgba(16, 185, 129, 0.12)', category: '肠胃用药' },
-  { id: '4', name: '皮肤用药', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i3/O1CN01MNj3nA1q3Hq0q0ZqL_!!6000000005438-55-tps-83-82.svg', bgColor: 'rgba(0, 201, 167, 0.08)', category: '皮肤用药' },
-  { id: '5', name: '维生素钙', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i4/O1CN01Z5paLz1O0zuCC7osS_!!6000000001644-55-tps-83-82.svg', bgColor: 'rgba(0, 229, 191, 0.08)', category: '维生素钙' },
-  { id: '6', name: '止痛消炎', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i2/O1CN01O0et1z1Jog3zZ1Dgn_!!6000000001069-55-tps-83-82.svg', bgColor: 'rgba(0, 184, 148, 0.12)', category: '止痛消炎' },
-  { id: '7', name: '五官用药', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i1/O1CN01XY8X0i1GxPFS0YlFW_!!6000000000683-55-tps-83-82.svg', bgColor: 'rgba(0, 201, 167, 0.1)', category: '五官用药' },
-  { id: '8', name: '儿童用药', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i3/O1CN01MNj3nA1q3Hq0q0ZqL_!!6000000005438-55-tps-83-82.svg', bgColor: 'rgba(0, 229, 191, 0.1)', category: '儿童用药' },
-  { id: '9', name: '慢病用药', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i4/O1CN01Z5paLz1O0zuCC7osS_!!6000000001644-55-tps-83-82.svg', bgColor: 'rgba(16, 185, 129, 0.1)', category: '慢病用药' },
-  { id: '10', name: '医疗器械', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i2/O1CN01O0et1z1Jog3zZ1Dgn_!!6000000001069-55-tps-83-82.svg', bgColor: 'rgba(0, 201, 167, 0.08)', category: '医疗器械' },
-  // 第二页
-  { id: '11', name: '中药饮片', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i1/O1CN01XY8X0i1GxPFS0YlFW_!!6000000000683-55-tps-83-82.svg', bgColor: 'rgba(0, 229, 191, 0.12)', category: '中药饮片' },
-  { id: '12', name: '男科用药', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i3/O1CN01MNj3nA1q3Hq0q0ZqL_!!6000000005438-55-tps-83-82.svg', bgColor: 'rgba(0, 184, 148, 0.12)', category: '男科用药' },
-  { id: '13', name: '妇科用药', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i4/O1CN01Z5paLz1O0zuCC7osS_!!6000000001644-55-tps-83-82.svg', bgColor: 'rgba(0, 201, 167, 0.1)', category: '妇科用药' },
-  { id: '14', name: '避孕测孕', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i2/O1CN01O0et1z1Jog3zZ1Dgn_!!6000000001069-55-tps-83-82.svg', bgColor: 'rgba(0, 229, 191, 0.1)', category: '避孕测孕' },
-  { id: '15', name: '过敏用药', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i1/O1CN01XY8X0i1GxPFS0YlFW_!!6000000000683-55-tps-83-82.svg', bgColor: 'rgba(16, 185, 129, 0.12)', category: '过敏用药' },
-  { id: '16', name: '肝胆用药', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i3/O1CN01MNj3nA1q3Hq0q0ZqL_!!6000000005438-55-tps-83-82.svg', bgColor: 'rgba(0, 201, 167, 0.12)', category: '肝胆用药' },
-  { id: '17', name: '心脑血管', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i4/O1CN01Z5paLz1O0zuCC7osS_!!6000000001644-55-tps-83-82.svg', bgColor: 'rgba(0, 229, 191, 0.08)', category: '心脑血管' },
-  { id: '18', name: '滋补养生', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i2/O1CN01O0et1z1Jog3zZ1Dgn_!!6000000001069-55-tps-83-82.svg', bgColor: 'rgba(0, 184, 148, 0.1)', category: '滋补养生' },
-  { id: '19', name: '口腔护理', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i1/O1CN01XY8X0i1GxPFS0YlFW_!!6000000000683-55-tps-83-82.svg', bgColor: 'rgba(0, 201, 167, 0.1)', category: '口腔护理' },
-  { id: '20', name: '眼科用药', icon: '', iconUrl: 'https://img.alicdn.com/imgextra/i3/O1CN01MNj3nA1q3Hq0q0ZqL_!!6000000005438-55-tps-83-82.svg', bgColor: 'rgba(0, 229, 191, 0.12)', category: '眼科用药' },
+  { id: '1', name: '感冒发烧', icon: '', iconUrl: CATEGORY_ICONS['感冒发烧'], bgColor: 'rgba(0, 201, 167, 0.12)', category: '感冒发烧' },
+  { id: '2', name: '咳嗽化痰', icon: '', iconUrl: CATEGORY_ICONS['咳嗽化痰'], bgColor: 'rgba(0, 229, 191, 0.12)', category: '咳嗽化痰' },
+  { id: '3', name: '肠胃用药', icon: '', iconUrl: CATEGORY_ICONS['肠胃用药'], bgColor: 'rgba(16, 185, 129, 0.12)', category: '肠胃用药' },
+  { id: '4', name: '皮肤用药', icon: '', iconUrl: CATEGORY_ICONS['皮肤用药'], bgColor: 'rgba(0, 201, 167, 0.08)', category: '皮肤用药' },
+  { id: '5', name: '维生素钙', icon: '', iconUrl: CATEGORY_ICONS['维生素钙'], bgColor: 'rgba(0, 229, 191, 0.08)', category: '维生素钙' },
+  { id: '6', name: '止痛消炎', icon: '', iconUrl: CATEGORY_ICONS['止痛消炎'], bgColor: 'rgba(0, 184, 148, 0.12)', category: '止痛消炎' },
+  { id: '7', name: '五官用药', icon: '', iconUrl: CATEGORY_ICONS['五官用药'], bgColor: 'rgba(0, 201, 167, 0.1)', category: '五官用药' },
+  { id: '8', name: '儿童用药', icon: '', iconUrl: CATEGORY_ICONS['儿童用药'], bgColor: 'rgba(0, 229, 191, 0.1)', category: '儿童用药' },
+  { id: '9', name: '慢病用药', icon: '', iconUrl: CATEGORY_ICONS['慢病用药'], bgColor: 'rgba(16, 185, 129, 0.1)', category: '慢病用药' },
+  { id: '10', name: '医疗器械', icon: '', iconUrl: CATEGORY_ICONS['医疗器械'], bgColor: 'rgba(0, 201, 167, 0.08)', category: '医疗器械' },
+  { id: '11', name: '中药饮片', icon: '', iconUrl: CATEGORY_ICONS['中药饮片'], bgColor: 'rgba(0, 229, 191, 0.12)', category: '中药饮片' },
+  { id: '12', name: '男科用药', icon: '', iconUrl: CATEGORY_ICONS['男科用药'], bgColor: 'rgba(0, 184, 148, 0.12)', category: '男科用药' },
+  { id: '13', name: '妇科用药', icon: '', iconUrl: CATEGORY_ICONS['妇科用药'], bgColor: 'rgba(0, 201, 167, 0.1)', category: '妇科用药' },
+  { id: '14', name: '避孕测孕', icon: '', iconUrl: CATEGORY_ICONS['避孕测孕'], bgColor: 'rgba(0, 229, 191, 0.1)', category: '避孕测孕' },
+  { id: '15', name: '过敏用药', icon: '', iconUrl: CATEGORY_ICONS['过敏用药'], bgColor: 'rgba(16, 185, 129, 0.12)', category: '过敏用药' },
+  { id: '16', name: '肝胆用药', icon: '', iconUrl: CATEGORY_ICONS['肝胆用药'], bgColor: 'rgba(0, 201, 167, 0.12)', category: '肝胆用药' },
+  { id: '17', name: '心脑血管', icon: '', iconUrl: CATEGORY_ICONS['心脑血管'], bgColor: 'rgba(0, 229, 191, 0.08)', category: '心脑血管' },
+  { id: '18', name: '滋补养生', icon: '', iconUrl: CATEGORY_ICONS['滋补养生'], bgColor: 'rgba(0, 184, 148, 0.1)', category: '滋补养生' },
+  { id: '19', name: '口腔护理', icon: '', iconUrl: CATEGORY_ICONS['口腔护理'], bgColor: 'rgba(0, 201, 167, 0.1)', category: '口腔护理' },
+  { id: '20', name: '眼科用药', icon: '', iconUrl: CATEGORY_ICONS['眼科用药'], bgColor: 'rgba(0, 229, 191, 0.12)', category: '眼科用药' },
 ])
 
-// 点击全部服务进入分类页
 function handleViewAll() {
-  router.push('/category')
+  router.push(ROUTES.CATEGORY)
 }
 
 function handleServiceClick(item: ServiceItemData) {
-  router.push(`/category?active=${item.id}`)
+  router.push(`${ROUTES.CATEGORY}?active=${item.id}`)
 }
 
 // 处理滚动事件，更新指示器

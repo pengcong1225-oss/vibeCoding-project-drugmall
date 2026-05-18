@@ -15,4 +15,7 @@ public class BrowseHistoryDTO {
     @NotBlank(message = "药品ID不能为空")
     @Schema(description = "药品ID", required = true, example = "1")
     private String drugId;
+
+    @Schema(description = "商品ID（与drugId兼容）", example = "1")
+    private String productId;
 }

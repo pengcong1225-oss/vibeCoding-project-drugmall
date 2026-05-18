@@ -15,8 +15,8 @@
 
       <el-form-item label="性别" prop="gender">
         <el-radio-group v-model="formData.gender">
-          <el-radio value="male">男</el-radio>
-          <el-radio value="female">女</el-radio>
+          <el-radio :value="1">男</el-radio>
+          <el-radio :value="2">女</el-radio>
         </el-radio-group>
       </el-form-item>
 
@@ -65,7 +65,7 @@ const submitLoading = ref(false)
 
 const formData = reactive({
   name: '',
-  gender: 'male' as 'male' | 'female',
+  gender: 1,
   idCard: '',
   phone: '',
   birthday: '',

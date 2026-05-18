@@ -15,8 +15,8 @@
 
       <el-form-item label="性别" prop="gender">
         <el-radio-group v-model="formData.gender">
-          <el-radio value="male">男</el-radio>
-          <el-radio value="female">女</el-radio>
+          <el-radio :value="1">男</el-radio>
+          <el-radio :value="2">女</el-radio>
         </el-radio-group>
       </el-form-item>
 
@@ -68,7 +68,7 @@ const patientId = ref('')
 const formData = reactive({
   id: '',
   name: '',
-  gender: 'male' as 'male' | 'female',
+  gender: 1,
   idCard: '',
   phone: '',
   birthday: '',
@@ -119,7 +119,7 @@ const loadPatient = async () => {
       if (patient) {
         formData.id = patient.id
         formData.name = patient.name
-        formData.gender = patient.gender as 'male' | 'female'
+        formData.gender = patient.gender
         formData.idCard = patient.idCard
         formData.phone = patient.phone
         formData.birthday = patient.birthday || ''

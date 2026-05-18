@@ -5,6 +5,7 @@ import { ElMessage } from 'element-plus'
 import { ArrowLeft, Phone, VideoCamera, MoreFilled, Warning } from '@element-plus/icons-vue'
 import { usePrescriptionStore } from '@/stores/prescription'
 import StepBar from './components/StepBar.vue'
+import { ROUTES } from '@/constants/routes'
 import type { ChatMessage, DoctorInfo } from '@/stores/prescription'
 
 const router = useRouter()
@@ -104,11 +105,10 @@ const sendMessage = async () => {
       isGeneratingPrescription.value = true
       scrollToBottom()
       
-      // 3秒后完成处方
       setTimeout(async () => {
         await prescriptionStore.setDoctorInfo(doctorInfo.value)
         await prescriptionStore.completePrescription()
-        router.push('/prescription/success')
+        router.push(ROUTES.PRESCRIPTION_SUCCESS)
       }, 3000)
     }, 1500)
 

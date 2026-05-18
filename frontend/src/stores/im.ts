@@ -74,6 +74,32 @@ export const useIMStore = defineStore('im', () => {
   /**
    * 注册TIM SDK事件处理器（真实模式）
    */
+  const eventListeners: Map<string, Function[]> = new Map()
+
+  function on(event: string, handler: Function) {
+    if (!eventListeners.has(event)) {
+      eventListeners.set(event, [])
+    }
+    eventListeners.get(event)!.push(handler)
+  }
+
+  function off(event: string, handler: Function) {
+    const handlers = eventListeners.get(event)
+    if (handlers) {
+      const index = handlers.indexOf(handler)
+      if (index > -1) {
+        handlers.splice(index, 1)
+      }
+    }
+  }
+
+  function emit(event: string, data: any) {
+    const handlers = eventListeners.get(event)
+    if (handlers) {
+      handlers.forEach(handler => handler(data))
+    }
+  }
+
   function setupSDKEventHandlers() {
     // 收到新消息
     imSDK.on('MESSAGE_RECEIVED', (msgList: any[]) => {
@@ -91,6 +117,7 @@ export const useIMStore = defineStore('im', () => {
         };
         handleNewMessage(msg);
       }
+      emit('MESSAGE_RECEIVED', msgList)
     });
 
     // 会话列表更新
@@ -188,13 +215,19 @@ export const useIMStore = defineStore('im', () => {
    * 进入会话
    */
   async function enterConversation(conversationId: string) {
-    if (!isLoggedIn.value) return;
+    console.log('[IM Store] 尝试进入会话:', conversationId);
+    
+    if (!isLoggedIn.value) {
+      console.error('[IM Store] 进入会话失败：未登录');
+      return;
+    }
 
     try {
       isLoading.value = true;
 
       if (imSDK.isRealMode()) {
         // 真实模式：通过TIM SDK标记已读
+        console.log('[IM Store] 真实模式，调用setMessageRead');
         await imSDK.setMessageRead(conversationId);
       } else {
         // Mock模式：通过后端API
@@ -210,11 +243,27 @@ export const useIMStore = defineStore('im', () => {
       }
 
       // 查找会话
-      const conversation = conversations.value.find(c => c.conversationId === conversationId);
-      if (conversation) {
-        currentConversation.value = conversation;
-        conversation.unreadCount = 0;
+      let conversation = conversations.value.find(c => c.conversationId === conversationId);
+      
+      if (!conversation) {
+        // 如果会话不存在（新会话），创建一个临时会话对象
+        console.log('[IM Store] 会话不存在，创建新会话:', conversationId);
+        conversation = {
+          conversationId,
+          type: 'C2C',
+          targetUserId: conversationId.replace(/^C2C_?/, ''),
+          targetUserName: '',
+          targetUserAvatar: '',
+          lastMessage: null,
+          unreadCount: 0,
+          lastMessageTime: new Date().toISOString(),
+          consultationId: ''
+        };
+        conversations.value.push(conversation);
       }
+      
+      currentConversation.value = conversation;
+      conversation.unreadCount = 0;
 
       // 加载消息历史
       await loadMessageHistory(conversationId);
@@ -249,10 +298,12 @@ export const useIMStore = defineStore('im', () => {
       } else {
         // Mock模式：通过后端API
         const uid = currentUser.value?.userId?.split('_')[1];
-        if (!uid) return;
+        const uType = currentUser.value?.userId?.split('_')[0] as 'patient' | 'doctor';
+        if (!uid || !uType) return;
 
         const { data } = await apiGetMessages({
           userId: uid,
+          userType: uType,
           conversationId: convId
         });
 
@@ -273,16 +324,30 @@ export const useIMStore = defineStore('im', () => {
    * 发送文本消息
    */
   async function sendTextMessage(content: string) {
-    if (!currentConversation.value || !isLoggedIn.value) return;
+    console.log('[IM Store] 准备发送消息:', {
+      isLoggedIn: isLoggedIn.value,
+      currentConversation: currentConversation.value?.conversationId,
+      content
+    });
+    
+    if (!currentConversation.value || !isLoggedIn.value) {
+      console.error('[IM Store] 发送失败：', {
+        hasConversation: !!currentConversation.value,
+        isLoggedIn: isLoggedIn.value
+      });
+      throw new Error('未登录或未进入会话');
+    }
 
     try {
       if (imSDK.isRealMode()) {
         // 真实模式：通过TIM SDK发送
+        console.log('[IM Store] 使用TIM SDK发送消息, conversationId:', currentConversation.value.conversationId);
         const msg = await imSDK.sendTextMessage(
           currentConversation.value.conversationId,
           content
         );
         messages.value.push(msg);
+        console.log('[IM Store] TIM SDK消息发送成功');
       } else {
         // Mock模式：通过后端API
         const uid = currentUser.value?.userId?.split('_')[1];
@@ -426,6 +491,8 @@ export const useIMStore = defineStore('im', () => {
     loadMessageHistory,
     sendTextMessage,
     markRead,
-    handleNewMessage
+    handleNewMessage,
+    on,
+    off
   };
 });

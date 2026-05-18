@@ -1,38 +1,34 @@
 import { request } from '@/utils/request'
-import type { 
-  Order, 
-  OrderQueryParams, 
-  OrderListResult, 
-  ShipFormData,
-  RefundFormData 
-} from '@/types/order'
+import type { Order, OrderQueryParams, Refund, AbnormalOrder, RefundQuery, AbnormalOrderQuery } from '@/types/order'
 
-// 订单管理
-export const getOrderList = (params: OrderQueryParams): Promise<OrderListResult> => {
-  return request.get('/admin/orders', params)
+export function getOrderList(params: OrderQueryParams) {
+  return request.get<{ list: Order[], total: number }>('/admin/orders', params)
 }
 
-export const getOrderDetail = (id: string): Promise<Order> => {
-  return request.get(`/admin/orders/${id}`)
+export function cancelOrder(id: string) {
+  return request.put(`/admin/orders/${id}/cancel`)
 }
 
-export const confirmOrder = (id: string): Promise<void> => {
-  return request.post(`/admin/orders/${id}/confirm`)
+export function shipOrder(id: string, data: { trackingNo: string, company: string }) {
+  return request.put(`/admin/orders/${id}/ship`, data)
 }
 
-export const shipOrder = (data: ShipFormData): Promise<void> => {
-  return request.post('/admin/orders/ship', data)
+export function getRefundList(params: RefundQuery) {
+  return request.get<{ list: Refund[], total: number }>('/admin/refunds', params)
 }
 
-export const cancelOrder = (id: string, reason?: string): Promise<void> => {
-  return request.post(`/admin/orders/${id}/cancel`, { reason })
+export function getRefundDetail(id: string) {
+  return request.get<Refund>(`/admin/refunds/${id}`)
 }
 
-export const handleRefund = (data: RefundFormData): Promise<void> => {
-  return request.post('/admin/orders/refund', data)
+export function auditRefund(id: string, data: { status: 'approved' | 'rejected', reason?: string }) {
+  return request.put(`/admin/refunds/${id}/audit`, data)
 }
 
-// 获取物流轨迹
-export const getLogisticsTraces = (orderId: string): Promise<any[]> => {
-  return request.get(`/admin/orders/${orderId}/traces`)
+export function getAbnormalOrderList(params: AbnormalOrderQuery) {
+  return request.get<{ list: AbnormalOrder[], total: number }>('/admin/orders/abnormal', params)
+}
+
+export function handleAbnormalOrder(id: string, data: { result: string, remark?: string }) {
+  return request.put(`/admin/orders/abnormal/${id}/handle`, data)
 }

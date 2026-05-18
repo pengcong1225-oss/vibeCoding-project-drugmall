@@ -14,6 +14,10 @@ public class DrugVO implements Serializable {
     
     private String name;
     
+    private String genericName;
+    
+    private String brand;
+    
     private String specification;
     
     private String manufacturer;
@@ -30,6 +34,8 @@ public class DrugVO implements Serializable {
     
     private Boolean isRx;
     
+    private Boolean isNationalEssential;
+    
     private String category;
     
     private String categoryId;
@@ -38,9 +44,39 @@ public class DrugVO implements Serializable {
     
     private String usage;
     
+    private String contraindications;
+    
+    private String precautions;
+    
+    private String adverseReactions;
+    
+    private String storage;
+    
+    private String validity;
+    
+    private String ingredients;
+    
+    private String appearance;
+    
+    private String drugInteractions;
+    
     private Integer stock;
     
     private Integer sales;
+    
+    private String approvalNumber;
+    
+    private String barCode;
+    
+    private String medicalInsuranceCode;
+    
+    private String traceabilityCode;
+    
+    private Boolean isLongPrescription;
+    
+    private String insuranceCategory;
+    
+    private java.util.List<DrugSpecificationVO> specifications;
     
     private String description;
     

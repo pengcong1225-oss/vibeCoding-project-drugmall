@@ -2,7 +2,9 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { formatPrice, formatDateTime } from '@/utils'
-import type { Order, OrderStatus } from '@/types'
+import { OrderStatus, ReviewStatus } from '@/constants'
+import { IMAGES } from '@/constants/images'
+import type { Order, OrderStatus as OrderStatusType } from '@/types'
 
 const props = defineProps<{
   order: Order
@@ -20,34 +22,32 @@ const emit = defineEmits<{
 
 const router = useRouter()
 
-// 状态配置
-const statusConfig: Record<OrderStatus, { text: string; color: string; type: string }> = {
-  pending: { text: '待支付', color: '#ff9500', type: 'warning' },
-  paid: { text: '已支付', color: '#00b578', type: 'success' },
+const statusConfig: Record<OrderStatusType, { text: string; color: string; type: string }> = {
+  [OrderStatus.PENDING]: { text: '待支付', color: '#ff9500', type: 'warning' },
+  [OrderStatus.PAID]: { text: '已支付', color: '#00b578', type: 'success' },
   confirmed: { text: '已确认', color: '#1890ff', type: 'info' },
-  shipped: { text: '配送中', color: '#00b578', type: 'success' },
-  delivered: { text: '已送达', color: '#00b578', type: 'success' },
-  completed: { text: '已完成', color: '#666', type: 'info' },
-  cancelled: { text: '已取消', color: '#999', type: 'info' },
-  refunding: { text: '退款中', color: '#ff9500', type: 'warning' },
-  refunded: { text: '已退款', color: '#666', type: 'info' }
+  [OrderStatus.SHIPPED]: { text: '配送中', color: '#00b578', type: 'success' },
+  [OrderStatus.DELIVERED]: { text: '已送达', color: '#00b578', type: 'success' },
+  [OrderStatus.COMPLETED]: { text: '已完成', color: '#666', type: 'info' },
+  [OrderStatus.CANCELLED]: { text: '已取消', color: '#999', type: 'info' },
+  [OrderStatus.REFUNDING]: { text: '退款中', color: '#ff9500', type: 'warning' },
+  [OrderStatus.REFUNDED]: { text: '已退款', color: '#666', type: 'info' }
 }
 
 const currentStatus = computed(() => statusConfig[props.order.status])
 
-// 操作按钮配置
 const primaryAction = computed(() => {
   switch (props.order.status) {
-    case 'pending':
+    case OrderStatus.PENDING:
       return { text: '立即支付', action: () => emit('pay', props.order) }
-    case 'shipped':
+    case OrderStatus.SHIPPED:
       return { text: '确认收货', action: () => emit('confirm', props.order) }
-    case 'completed':
-      if (props.order.items && props.order.items.length > 0 && !props.order.items.every(item => item.reviewStatus === 'completed')) {
+    case OrderStatus.COMPLETED:
+      if (props.order.items && props.order.items.length > 0 && !props.order.items.every(item => item.reviewStatus === ReviewStatus.COMPLETED)) {
         return { text: '评价', action: () => emit('review', props.order) }
       }
       return { text: '再次购买', action: () => emit('rebuy', props.order) }
-    case 'cancelled':
+    case OrderStatus.CANCELLED:
       return { text: '再次购买', action: () => emit('rebuy', props.order) }
     default:
       return null
@@ -56,12 +56,12 @@ const primaryAction = computed(() => {
 
 const secondaryAction = computed(() => {
   switch (props.order.status) {
-    case 'pending':
+    case OrderStatus.PENDING:
       return { text: '取消订单', action: () => emit('cancel', props.order) }
-    case 'completed':
-    case 'cancelled':
+    case OrderStatus.COMPLETED:
+    case OrderStatus.CANCELLED:
       return { text: '删除订单', action: () => emit('delete', props.order) }
-    case 'paid':
+    case OrderStatus.PAID:
     case 'confirmed':
       return { text: '申请退款', action: () => emit('refund', props.order) }
     default:
@@ -73,12 +73,10 @@ const goToDetail = () => {
   router.push(`/order/${props.order.id}`)
 }
 
-// 获取商品图片
 const getDrugImage = (image: string | undefined) => {
-  return image || 'https://via.placeholder.com/80x80/00b578/ffffff?text=Drug'
+  return image || IMAGES.PLACEHOLDER_DRUG_SMALL.replace('120x120', '80x80').replace('f5f5f5/666', '00b578/ffffff').replace('text=药品', 'text=Drug')
 }
 
-// 显示更多商品数量
 const moreCount = computed(() => {
   if (!props.order.items || props.order.items.length === 0) return 0
   const count = props.order.items.length - 3
@@ -134,7 +132,7 @@ const moreCount = computed(() => {
     </div>
     
     <!-- 订单时间（仅待支付显示） -->
-    <div v-if="order.status === 'pending' && order.expireTime" class="order-time">
+    <div v-if="order.status === OrderStatus.PENDING && order.expireTime" class="order-time">
       <el-icon><Clock /></el-icon>
       <span>支付截止时间: {{ formatDateTime(order.expireTime) }}</span>
     </div>

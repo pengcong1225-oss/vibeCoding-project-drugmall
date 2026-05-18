@@ -2,10 +2,11 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { ArrowLeft, Share, Location, StarFilled, ChatDotRound, UserFilled, ArrowRight } from '@element-plus/icons-vue'
+import { ArrowLeft, Share, Location, StarFilled, ChatDotRound, UserFilled, ArrowRight, Warning, CircleCheck, Lock } from '@element-plus/icons-vue'
 import { useCartStore } from '@/stores/cart'
-import { getDrugStores } from '@/api/modules/drug'
-import type { Drug } from '@/types'
+import { getDrugDetail, getDrugStores } from '@/api/modules/drug'
+import { ROUTES, getStoreRoute, getPrescriptionApplyRoute, getInquiryCheckoutRoute } from '@/constants/routes'
+import type { Drug, DrugDetail as DrugDetailType } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
@@ -28,167 +29,180 @@ const tabRef = ref<HTMLElement>()
 const showFullInstruction = ref(false)
 const showFullInfo = ref(false)
 
-// 药品数据
-const drug = ref<Drug | null>(null)
+// 药品详情数据
+const drugDetail = ref<DrugDetailType | null>(null)
 const loading = ref(false)
 
-// 当前选中的规格
+// 当前选中的规格索引
 const selectedSpecIndex = ref(0)
 
 // 当前轮播索引
 const currentSwiperIndex = ref(0)
 
-// 模拟药品数据
-const mockDrugData: Drug = {
-  id: '1',
-  name: '阿莫西林胶囊',
-  genericName: '阿莫西林',
-  brand: '联邦制药',
-  specification: '0.25g*24粒',
-  price: 28.50,
-  originalPrice: 35.00,
-  stock: 999,
-  isRx: true,
-  manufacturer: '珠海联邦制药股份有限公司',
-  approvalNumber: '国药准字H20000292',
-  images: [
-    'https://via.placeholder.com/400x400/4A90D9/FFFFFF?text=药品图片1',
-    'https://via.placeholder.com/400x400/5BA0E9/FFFFFF?text=药品图片2',
-    'https://via.placeholder.com/400x400/6BB0F9/FFFFFF?text=药品图片3'
-  ],
-  tags: ['国家基药', '医保甲类'],
-  disease: '适用于敏感菌所致的呼吸道感染、泌尿生殖道感染、皮肤软组织感染等',
-  usage: '口服。成人一次0.5g，每6-8小时1次，一日剂量不超过4g',
-  contraindications: '青霉素过敏者禁用',
-  precautions: '用药前需做青霉素皮试',
-  adverseReactions: '恶心、呕吐、腹泻等胃肠道反应',
-  storage: '密封，在凉暗干燥处保存',
-  isNationalEssential: true
-}
-
-// 规格列表
-const specs = ref([
-  { id: 1, name: '0.25g*24粒', price: 28.50 },
-  { id: 2, name: '0.25g*36粒', price: 38.00 },
-  { id: 3, name: '0.5g*24粒', price: 45.00 }
-])
-
 // 在售商家数据
 const stores = ref<any[]>([])
 const storesLoading = ref(false)
 
+// 加载药品详情数据
+const loadDrugData = async (drugId: string) => {
+  if (!drugId) {
+    ElMessage.error('药品ID无效')
+    return
+  }
+  
+  loading.value = true
+  try {
+    const res = await getDrugDetail(drugId)
+    console.log('药品详情API响应:', res)
+    
+    // 处理不同的响应格式
+    if (res && typeof res === 'object' && !Array.isArray(res)) {
+      drugDetail.value = res as DrugDetailType
+    } else {
+      drugDetail.value = null
+      ElMessage.error('药品不存在')
+    }
+  } catch (error: any) {
+    console.error('获取药品详情失败:', error)
+    drugDetail.value = null
+    ElMessage.error('获取药品详情失败，请稍后重试')
+  } finally {
+    loading.value = false
+  }
+}
+
 // 加载门店数据
 const loadDrugStores = async (drugId: string) => {
+  if (!drugId) return
+  
   storesLoading.value = true
   try {
     const res = await getDrugStores(drugId, { limit: 10 })
-    stores.value = res.data || []
+    console.log('门店列表API响应:', res)
+    
+    if (Array.isArray(res)) {
+      stores.value = res
+    } else if (res && Array.isArray(res.data)) {
+      stores.value = res.data
+    } else {
+      stores.value = []
+    }
   } catch (error) {
     console.error('加载门店数据失败:', error)
-    // 使用默认数据
-    stores.value = [
-      {
-        id: 1,
-        name: '百姓大药房（光谷店）',
-        price: 28.50,
-        originalPrice: 35.00,
-        distance: '1.2km',
-        delivery: '29分钟达',
-        rating: 4.9,
-        sales: 1200,
-        tags: ['医保定点', '24小时']
-      }
-    ]
+    stores.value = []
   } finally {
     storesLoading.value = false
   }
 }
 
-// 医生问答数据
-const doctorQAs = ref([
-  {
-    id: 1,
-    doctorName: '张医生',
-    title: '主治医师',
-    department: '呼吸内科',
-    hospital: '三甲医院',
-    avatar: 'https://via.placeholder.com/60x60/00C9A7/FFFFFF?text=张',
-    question: '阿莫西林胶囊可以治疗感冒吗？',
-    answer: '阿莫西林是抗生素，主要用于细菌感染。普通感冒多为病毒感染，使用抗生素无效。建议在医生指导下使用。',
-    likes: 128
-  },
-  {
-    id: 2,
-    doctorName: '李医生',
-    title: '副主任医师',
-    department: '药剂科',
-    hospital: '二甲医院',
-    avatar: 'https://via.placeholder.com/60x60/0891B2/FFFFFF?text=李',
-    question: '服用阿莫西林需要注意什么？',
-    answer: '1. 青霉素过敏者禁用；2. 用药前需做皮试；3. 按疗程服用，不可随意停药；4. 饭后服用可减少胃肠道刺激。',
-    likes: 256
-  }
-])
-
-// 用户评价数据
-const reviews = ref([
-  {
-    id: 1,
-    userName: '用户***88',
-    avatar: 'https://via.placeholder.com/40x40/FFD700/333333?text=A',
-    rating: 5,
-    content: '药品包装完好，送货速度快，价格实惠，正品有保障！',
-    date: '2024-01-15',
-    specs: '0.25g*24粒',
-    images: ['https://via.placeholder.com/100x100/F5F5F5/666666?text=图1']
-  },
-  {
-    id: 2,
-    userName: '用户***23',
-    avatar: 'https://via.placeholder.com/40x40/FF6B6B/FFFFFF?text=B',
-    rating: 5,
-    content: '医生开的药，在这买比医院便宜不少，是正品。',
-    date: '2024-01-12',
-    specs: '0.25g*24粒',
-    images: []
-  },
-  {
-    id: 3,
-    userName: '用户***56',
-    avatar: 'https://via.placeholder.com/40x40/4ECDC4/FFFFFF?text=C',
-    rating: 4,
-    content: '药效不错，就是配送稍微慢了一点。',
-    date: '2024-01-10',
-    specs: '0.25g*36粒',
-    images: []
-  }
-])
-
-// 说明书内容
-const instructionContent = ref({
-  name: '阿莫西林胶囊',
-  genericName: '阿莫西林',
-  englishName: 'Amoxicillin Capsules',
-  ingredients: '本品主要成份为阿莫西林',
-  appearance: '本品内容物为白色至淡黄色粉末或颗粒',
-  indications: '适用于敏感菌所致的呼吸道感染、泌尿生殖道感染、皮肤软组织感染、急性单纯性淋病等',
-  dosage: '口服。成人一次0.5g，每6-8小时1次，一日剂量不超过4g。小儿一日剂量按体重20-40mg/kg，每8小时1次',
-  adverseReactions: '1. 恶心、呕吐、腹泻等胃肠道反应；2. 皮疹、药物热等过敏反应；3. 贫血、血小板减少等',
-  contraindications: '青霉素过敏者禁用',
-  precautions: '1. 用药前必须做青霉素皮试；2. 传染性单核细胞增多症患者禁用；3. 孕妇及哺乳期妇女慎用',
-  drugInteractions: '1. 与丙磺舒合用可升高本品血药浓度；2. 与别嘌醇合用增加皮疹发生率',
-  storage: '密封，在凉暗干燥处保存',
-  validity: '24个月'
+// 计算属性：获取当前药品对象（兼容后端返回结构）
+const drug = computed(() => {
+  if (!drugDetail.value) return null
+  // 如果返回的是 { drug: {...} } 结构，提取drug字段
+  return (drugDetail.value as any).drug || drugDetail.value
 })
 
-// 加载药品数据
-const loadDrugData = async () => {
-  loading.value = true
-  // 模拟API调用
-  await new Promise(resolve => setTimeout(resolve, 500))
-  drug.value = mockDrugData
-  loading.value = false
-}
+// 计算属性：规格列表（从药品数据中提取）
+const specs = computed(() => {
+  if (!drug.value) return []
+  // 优先使用后端返回的specifications字段
+  if (drug.value.specifications && drug.value.specifications.length > 0) {
+    return drug.value.specifications.map((spec: any, index: number) => ({
+      id: spec.id,
+      name: spec.specName || spec.name,
+      price: spec.price || drug.value.price,
+      originalPrice: spec.originalPrice,
+      stock: spec.stock,
+      barCode: spec.barCode,
+      isDefault: spec.isDefault || index === 0
+    }))
+  }
+  // 如果没有specifications，使用旧格式
+  return [{
+    id: 1,
+    name: drug.value.specification || '默认规格',
+    price: drug.value.price || 0,
+    stock: drug.value.stock,
+    isDefault: true
+  }]
+})
+
+// 计算属性：说明书内容（从药品数据中提取）
+const instructionContent = computed(() => {
+  const d = drug.value
+  if (!d) return {
+    name: '',
+    genericName: '',
+    englishName: '',
+    ingredients: '',
+    appearance: '',
+    indications: '',
+    dosage: '',
+    adverseReactions: '',
+    contraindications: '',
+    precautions: '',
+    drugInteractions: '',
+    storage: '',
+    validity: ''
+  }
+  
+  return {
+    name: d.name || '',
+    genericName: d.genericName || d.name || '',
+    englishName: '',
+    ingredients: d.ingredients || '',
+    appearance: d.appearance || '',
+    indications: d.disease || d.indications || '',
+    dosage: d.usage || d.dosage || '',
+    adverseReactions: d.adverseReactions || '',
+    contraindications: d.contraindications || '',
+    precautions: d.precautions || '',
+    drugInteractions: d.drugInteractions || '',
+    storage: d.storage || '',
+    validity: d.validity || ''
+  }
+})
+
+// 计算属性：医生问答（从API返回的FAQ数据转换）
+const doctorQAs = computed(() => {
+  if (!drugDetail.value) return []
+  const faqs = (drugDetail.value as any).faqs || []
+  return faqs.map((faq: any, index: number) => ({
+    id: faq.id || index + 1,
+    doctorName: '药师',
+    title: '执业药师',
+    department: '药学部',
+    hospital: '在线药房',
+    avatar: `https://via.placeholder.com/60x60/00C9A7/FFFFFF?text=药`,
+    question: faq.question || '',
+    answer: faq.answer || '',
+    likes: 0
+  }))
+})
+
+// 计算属性：用户评价（从API返回的reviews数据转换）
+const reviews = computed(() => {
+  if (!drugDetail.value) return []
+  const reviewList = (drugDetail.value as any).reviews || []
+  return reviewList.map((review: any) => ({
+    id: review.id,
+    userName: review.userName || `用户***${review.userId?.slice(-2) || '00'}`,
+    avatar: review.userAvatar || `https://via.placeholder.com/40x40/FFD700/333333?text=${(review.userName || 'U')[0]}`,
+    rating: review.rating || 5,
+    content: review.content || '',
+    date: review.createTime?.split('T')[0] || '',
+    specs: drug.value?.specification || '',
+    images: review.images || []
+  }))
+})
+
+// 计算属性：默认选中的门店ID（只有一家时自动选中）
+const selectedStoreId = computed(() => {
+  if (stores.value.length === 1) {
+    return stores.value[0].id
+  }
+  return null
+})
 
 // 返回上一页
 const goBack = () => {
@@ -221,30 +235,23 @@ const changeSwiper = (index: number) => {
   currentSwiperIndex.value = index
 }
 
-// 去咨询
 const goConsult = () => {
-  router.push('/inquiry/pre')
+  router.push(ROUTES.INQUIRY_PRE)
 }
 
-// 去AI助手
 const goAIAssistant = () => {
-  router.push('/ai-assistant')
+  router.push(ROUTES.AI_ASSISTANT)
 }
 
-// 进店
 const goStore = (storeId: number) => {
-  router.push(`/store/${storeId}`)
+  router.push(getStoreRoute(storeId))
 }
 
-// 立即购买
 const buyNow = () => {
   if (!drug.value) return
   
-  // 判断是否为处方药
   if (drug.value.isRx) {
-    // 处方药需要先开方
     ElMessage.info('处方药需要先进行在线问诊开方')
-    // 构建处方申请数据
     const prescriptionData = {
       drugId: drug.value.id,
       drugName: drug.value.name,
@@ -256,12 +263,10 @@ const buyNow = () => {
       usage: drug.value.usage || ''
     }
     localStorage.setItem('prescriptionApplyData', JSON.stringify(prescriptionData))
-    // 跳转到处方申请页，传递药品ID
-    router.push(`/prescription/apply?drugId=${drug.value.id}`)
+    router.push(getPrescriptionApplyRoute(drug.value.id))
     return
   }
   
-  // 非处方药直接购买
   const orderData = {
     drugId: drug.value.id,
     name: drug.value.name,
@@ -275,8 +280,7 @@ const buyNow = () => {
     isRx: false
   }
   localStorage.setItem('drugOrderData', JSON.stringify(orderData))
-  // 跳转到新的结算页
-  router.push('/inquiry/checkout/0')
+  router.push(getInquiryCheckoutRoute(0))
 }
 
 // 滚动监听
@@ -286,11 +290,13 @@ const handleScroll = () => {
 }
 
 onMounted(() => {
-  loadDrugData()
-  // 获取药品ID并加载门店数据
+  // 获取药品ID
   const drugId = route.params.id as string
   if (drugId) {
+    loadDrugData(drugId)
     loadDrugStores(drugId)
+  } else {
+    ElMessage.error('缺少药品ID')
   }
   window.addEventListener('scroll', handleScroll, { passive: true })
 })
@@ -398,10 +404,55 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- 处方药提示 -->
-        <div v-if="drug.isRx" class="rx-notice">
-          <span class="rx-tag">处方药</span>
-          <span class="rx-desc">处方药须凭处方在药师指导下购买和使用</span>
+        <!-- 医保信息 -->
+        <div v-if="drug.medicalInsuranceCode || drug.insuranceCategory || drug.isLongPrescription" class="medical-info-section">
+          <div v-if="drug.traceabilityCode" class="info-row">
+            <span class="info-label">追溯码:</span>
+            <span class="info-value trace-code">{{ drug.traceabilityCode }}</span>
+          </div>
+          <div v-if="drug.medicalInsuranceCode" class="info-row">
+            <span class="info-label">医保编码:</span>
+            <span class="info-value">{{ drug.medicalInsuranceCode }}</span>
+          </div>
+          <div v-if="drug.insuranceCategory" class="info-row">
+            <span class="info-label">医保类别:</span>
+            <span class="info-value" :class="`category-${drug.insuranceCategory}`">
+              {{ drug.insuranceCategory }}类
+            </span>
+          </div>
+          <div v-if="drug.isLongPrescription" class="info-row">
+            <span class="info-label">长处方:</span>
+            <el-tag type="success" size="small" effect="plain">是</el-tag>
+          </div>
+        </div>
+
+        <!-- 处方药提示 - 强化版 -->
+        <div v-if="drug.isRx" class="rx-notice-enhanced">
+          <div class="rx-notice-header">
+            <el-icon class="rx-icon"><Warning /></el-icon>
+            <span class="rx-tag">处方药</span>
+          </div>
+          <p class="rx-desc">处方药须凭处方在药师指导下购买和使用</p>
+          <div class="rx-requirements">
+            <span class="req-item">
+              <el-icon><CircleCheck /></el-icon>
+              需上传处方
+            </span>
+            <span class="req-item">
+              <el-icon><CircleCheck /></el-icon>
+              药师审核
+            </span>
+            <span class="req-item">
+              <el-icon><CircleCheck /></el-icon>
+              实名购买
+            </span>
+          </div>
+        </div>
+
+        <!-- 隐私保护提示 -->
+        <div class="privacy-notice">
+          <el-icon><Lock /></el-icon>
+          <span>您的购药信息将严格保密，仅用于药品配送和用药指导</span>
         </div>
 
         <!-- 说明书横向滚动预览 -->
@@ -514,6 +565,7 @@ onUnmounted(() => {
             v-for="store in stores"
             :key="store.id"
             class="store-card"
+            :class="{ 'is-selected': selectedStoreId === store.id }"
             @click="goStore(store.id)"
           >
             <div class="store-header">
@@ -687,14 +739,15 @@ onUnmounted(() => {
           </div>
           <span>去咨询</span>
         </div>
-        <div class="action-btn" @click="goStore(stores[0]?.id)">
+        <div class="action-btn" @click="goStore(selectedStoreId || stores[0]?.id)">
           <el-icon><UserFilled /></el-icon>
           <span>进店</span>
         </div>
       </div>
       <div class="action-right">
-        <button class="btn-buy" @click="buyNow">
-          <span class="btn-text">立即购买</span>
+        <button class="btn-buy" :class="{ 'is-rx': drug.isRx }" @click="buyNow">
+          <span class="btn-text">{{ drug.isRx ? '凭方购买' : '立即购买' }}</span>
+          <span v-if="drug.isRx" class="btn-sub">需上传处方</span>
         </button>
       </div>
     </div>
@@ -960,24 +1013,132 @@ $card-radius: 16px;
     }
   }
 
-  // 处方药提示（复刻图片样式）
-  .rx-notice {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 10px 0;
-    margin-bottom: 12px;
+  // 医保信息区域
+  .medical-info-section {
+    background: #f5f7fa;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
 
-    .rx-tag {
-      font-size: 15px;
-      font-weight: 600;
-      color: #00c9a7;
-      flex-shrink: 0;
+    .info-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+      font-size: 13px;
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+
+      .info-label {
+        color: $text-secondary;
+        min-width: 70px;
+        flex-shrink: 0;
+      }
+
+      .info-value {
+        color: $text-primary;
+        font-weight: 500;
+        flex: 1;
+
+        &.trace-code {
+          font-family: 'Courier New', monospace;
+          letter-spacing: 1px;
+          font-size: 12px;
+          color: #409eff;
+        }
+
+        &.category-甲类 {
+          color: #52c41a;
+        }
+
+        &.category-乙类 {
+          color: #1890ff;
+        }
+
+        &.category-丙类 {
+          color: #faad14;
+        }
+      }
+    }
+  }
+
+  // 处方药提示 - 强化版
+  .rx-notice-enhanced {
+    background: linear-gradient(135deg, #FFF5F5 0%, #FFF0F0 100%);
+    border: 1px solid rgba($error, 0.2);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+
+    .rx-notice-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+
+      .rx-icon {
+        font-size: 20px;
+        color: $error;
+      }
+
+      .rx-tag {
+        font-size: 16px;
+        font-weight: 600;
+        color: $error;
+      }
     }
 
     .rx-desc {
       font-size: 14px;
       color: $text-secondary;
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+
+    .rx-requirements {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+
+      .req-item {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 12px;
+        color: $error;
+        background: rgba($error, 0.08);
+        padding: 4px 10px;
+        border-radius: 20px;
+
+        .el-icon {
+          font-size: 12px;
+        }
+      }
+    }
+  }
+
+  // 隐私保护提示
+  .privacy-notice {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+    background: #F0F9FF;
+    border-radius: 8px;
+    margin-bottom: 16px;
+
+    .el-icon {
+      font-size: 16px;
+      color: $info;
+      flex-shrink: 0;
+    }
+
+    span {
+      font-size: 12px;
+      color: $text-secondary;
+      line-height: 1.4;
     }
   }
 
@@ -1344,6 +1505,13 @@ $card-radius: 16px;
     padding: 16px;
     margin-bottom: 12px;
     cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.3s;
+
+    &.is-selected {
+      border-color: $primary;
+      background: rgba($primary, 0.05);
+    }
 
     &:active {
       opacity: 0.9;
@@ -1778,6 +1946,7 @@ $card-radius: 16px;
       border-radius: 22px;
       cursor: pointer;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
       transition: all 0.2s ease;
@@ -1788,8 +1957,20 @@ $card-radius: 16px;
         transform: scale(0.98);
       }
 
+      &.is-rx {
+        background: linear-gradient(135deg, #FF6B6B 0%, #EE5A5A 100%);
+        color: #fff;
+        box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+      }
+
       .btn-text {
         font-size: 15px;
+      }
+
+      .btn-sub {
+        font-size: 11px;
+        font-weight: 400;
+        opacity: 0.9;
       }
     }
   }

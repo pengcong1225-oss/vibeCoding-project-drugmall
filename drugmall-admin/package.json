@@ -24,10 +24,12 @@
     "vue-router": "^4.2.5"
   },
   "devDependencies": {
+    "@types/mockjs": "^1.0.10",
     "@types/node": "^20.10.5",
     "@types/nprogress": "^0.2.3",
     "@vitejs/plugin-vue": "^4.5.2",
     "@vue/tsconfig": "^0.5.1",
+    "mockjs": "^1.1.0",
     "sass": "^1.69.5",
     "typescript": "~5.3.3",
     "unplugin-auto-import": "^0.17.2",

@@ -14,9 +14,17 @@ import java.util.List;
 @Schema(description = "创建订单请求参数")
 public class CreateOrderDTO {
 
-    @NotEmpty(message = "购物车项ID列表不能为空")
-    @Schema(description = "购物车项ID列表", required = true)
+    @Schema(description = "购物车项ID列表（从购物车下单时必填）")
     private List<String> cartItemIds;
+
+    @Schema(description = "药品ID（直接购买时使用，与cartItemIds二选一）")
+    private String drugId;
+
+    @Schema(description = "购买数量（直接购买时使用，默认1）")
+    private Integer quantity;
+
+    @Schema(description = "药品规格ID（直接购买时可选）")
+    private String specificationId;
 
     @NotBlank(message = "地址ID不能为空")
     @Schema(description = "地址ID", required = true, example = "1")

@@ -107,9 +107,8 @@ export default defineConfig(({ mode }) => {
       hmr: true,
       proxy: {
         '/api': {
-          target: 'http://localhost:8080',
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api/, '/api')
+          target: process.env.VITE_API_PROXY_TARGET || 'http://localhost:8080',
+          changeOrigin: true
         }
       }
     },

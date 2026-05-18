@@ -56,7 +56,7 @@ export const getArticleStats = (): Promise<ArticleStats> => {
 }
 
 // ========== Notice ==========
-export const getNoticeList = (params: { pageNum: number; pageSize: number; type?: string; keyword?: string }): Promise<{ list: Notice[]; total: number; pageNum: number; pageSize: number; pages: number }> => {
+export const getNoticeList = (params: { pageNum: number; pageSize: number; type?: string; keyword?: string; status?: number }): Promise<{ list: Notice[]; total: number; pageNum: number; pageSize: number; pages: number }> => {
   return request.get('/admin/content/notices', params)
 }
 

@@ -82,6 +82,8 @@ import {
   InfoFilled
 } from '@element-plus/icons-vue'
 import { payConsultation } from '@/api/modules/inquiry'
+import { ROUTES, getInquiryWaitingRoute } from '@/constants/routes'
+import { businessApi } from '@/api/modules/business'
 
 const route = useRoute()
 const router = useRouter()
@@ -94,26 +96,7 @@ const consultationId = ref('')
 const selectedMethod = ref('wechat')
 
 // 支付方式列表
-const paymentMethods = [
-  {
-    value: 'wechat',
-    label: '微信支付',
-    desc: '推荐使用微信支付',
-    icon: 'wechat'
-  },
-  {
-    value: 'alipay',
-    label: '支付宝',
-    desc: '',
-    icon: 'alipay'
-  },
-  {
-    value: 'bankcard',
-    label: '银行卡',
-    desc: '支持储蓄卡/信用卡',
-    icon: 'bankcard'
-  }
-]
+const paymentMethods = ref<{ value: string; label: string; desc: string }[]>([])
 
 // 支付中状态
 const paying = ref(false)
@@ -149,15 +132,12 @@ const handlePay = async () => {
     //   paymentMethod: selectedMethod.value
     // })
 
-    // 模拟支付过程
     await new Promise(resolve => setTimeout(resolve, 2000))
 
-    // 支付成功
     ElMessage.success('支付成功')
 
-    // 跳转到等待接诊页面
     router.push({
-      path: `/inquiry/waiting/${consultationId.value}`,
+      path: getInquiryWaitingRoute(consultationId.value),
       query: {
         doctorId: route.query.doctorId,
         doctorName: route.query.doctorName
@@ -176,9 +156,25 @@ const goBack = () => {
   router.back()
 }
 
-onMounted(() => {
+onMounted(async () => {
   loadOrderInfo()
+  await loadPaymentMethods()
 })
+
+async function loadPaymentMethods() {
+  try {
+    const res = await businessApi.getPaymentMethods()
+    paymentMethods.value = res.data
+      .filter(p => ['wechat', 'alipay', 'bankcard'].includes(p.code))
+      .map(p => ({
+        value: p.code,
+        label: p.name,
+        desc: p.description || ''
+      }))
+  } catch (error) {
+    console.error('加载支付方式失败:', error)
+  }
+}
 </script>
 
 <style scoped lang="scss">

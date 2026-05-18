@@ -41,7 +41,7 @@
           </div>
           <div class="avatar-section">
             <img
-              :src="patient.avatar || (patient.gender === 'male' ? defaultMaleAvatar : defaultFemaleAvatar)"
+              :src="patient.avatar || (patient.gender === 1 ? defaultMaleAvatar : defaultFemaleAvatar)"
               class="patient-avatar"
               alt="头像"
             />
@@ -50,7 +50,7 @@
           <div class="patient-info">
             <div class="patient-header">
               <span class="name">{{ patient.name }}</span>
-              <span class="gender">{{ patient.gender === 'male' ? '男' : '女' }}</span>
+              <span class="gender">{{ patient.gender === 1 ? '男' : '女' }}</span>
               <span class="age">{{ patient.age }}岁</span>
               <span v-if="patient.isDefault && !selectMode" class="default-badge">默认就诊人</span>
             </div>
@@ -104,8 +104,8 @@
 
         <el-form-item label="性别" prop="gender">
           <el-radio-group v-model="formData.gender">
-            <el-radio value="male">男</el-radio>
-            <el-radio value="female">女</el-radio>
+            <el-radio :value="1">男</el-radio>
+            <el-radio :value="2">女</el-radio>
           </el-radio-group>
         </el-form-item>
 
@@ -181,7 +181,7 @@ const patientList = ref<Patient[]>([])
 const formData = reactive({
   id: '',
   name: '',
-  gender: 'male' as 'male' | 'female',
+  gender: 1,
   idCard: '',
   phone: '',
   birthday: '',
@@ -236,7 +236,7 @@ const handleAdd = () => {
   Object.assign(formData, {
     id: '',
     name: '',
-    gender: 'male',
+    gender: 1,
     idCard: '',
     phone: '',
     birthday: '',
@@ -392,7 +392,7 @@ const handleSubmit = async () => {
           birthday: formData.birthday,
           relationship: '本人',
           isDefault: formData.isDefault,
-          avatar: formData.gender === 'male' ? defaultMaleAvatar : defaultFemaleAvatar
+          avatar: formData.gender === 1 ? defaultMaleAvatar : defaultFemaleAvatar
         })
       }
 
@@ -433,26 +433,14 @@ const loadPatientList = async () => {
     if (Array.isArray(res) && res.length > 0) {
       patientList.value = res.map((p: Patient) => ({
         ...p,
-        avatar: p.avatar || (p.gender === 'male' ? defaultMaleAvatar : defaultFemaleAvatar)
+        avatar: p.avatar || (p.gender === 1 ? defaultMaleAvatar : defaultFemaleAvatar)
       }))
     } else {
-      // 使用模拟数据
-      patientList.value = mockPatients.map(p => ({
-        ...p,
-        idCard: p.idCard?.replace(/\*/g, '') || '110101199001011234',
-        phone: p.phone?.replace(/\*/g, '') || '13800138000',
-        avatar: p.avatar || (p.gender === '男' ? defaultMaleAvatar : defaultFemaleAvatar)
-      })) as Patient[]
+      ElMessage.warning('暂无就诊人')
     }
   } catch (error) {
     console.error('获取就诊人列表失败:', error)
-    // 使用模拟数据
-    patientList.value = mockPatients.map(p => ({
-      ...p,
-      idCard: '110101199001011234',
-      phone: '13800138000',
-      avatar: p.avatar || (p.gender === '男' ? defaultMaleAvatar : defaultFemaleAvatar)
-    })) as Patient[]
+    ElMessage.error('获取就诊人列表失败，请稍后重试')
   } finally {
     loading.value = false
   }

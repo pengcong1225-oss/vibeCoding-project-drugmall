@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Refresh, Edit, Delete } from '@element-plus/icons-vue'
 import type { Brand } from '@/types/product'
@@ -26,22 +26,22 @@ const formRef = ref()
 const submitLoading = ref(false)
 
 // 表单数据
-const formData = reactive<Partial<Brand>>({
+const formData = reactive<{ id?: string; name?: string; logo?: string; description?: string; sortOrder?: number; status?: number }>({
   id: undefined,
-  brandName: '',
-  brandLogo: '',
-  brandDesc: '',
+  name: '',
+  logo: '',
+  description: '',
   sortOrder: 0,
   status: 1
 })
 
 // 表单校验规则
 const formRules = {
-  brandName: [
+  name: [
     { required: true, message: '请输入品牌名称', trigger: 'blur' },
     { min: 1, max: 50, message: '长度在1-50个字符', trigger: 'blur' }
   ],
-  brandLogo: [
+  logo: [
     { required: true, message: '请上传品牌LOGO', trigger: 'change' }
   ],
   sortOrder: [
@@ -138,7 +138,7 @@ const handleStatusChange = async (row: Brand) => {
 const handleSubmit = async () => {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid) return
-  
+
   submitLoading.value = true
   try {
     if (isEdit.value) {
@@ -160,9 +160,9 @@ const handleSubmit = async () => {
 // 重置表单
 const resetForm = () => {
   formData.id = undefined
-  formData.brandName = ''
-  formData.brandLogo = ''
-  formData.brandDesc = ''
+  formData.name = ''
+  formData.logo = ''
+  formData.description = ''
   formData.sortOrder = 0
   formData.status = 1
   formRef.value?.resetFields()
@@ -170,8 +170,8 @@ const resetForm = () => {
 
 // 图片上传成功
 const handleUploadSuccess = (url: string) => {
-  formData.brandLogo = url
-  formRef.value?.validateField('brandLogo')
+  formData.logo = url
+  formRef.value?.validateField('logo')
 }
 
 onMounted(() => {
@@ -213,18 +213,18 @@ onMounted(() => {
         <el-table-column type="index" label="序号" width="60" align="center" />
         <el-table-column label="品牌LOGO" width="120" align="center">
           <template #default="{ row }">
-            <el-image 
-              :src="row.brandLogo" 
-              :preview-src-list="[row.brandLogo]"
+            <el-image
+              :src="row.logo"
+              :preview-src-list="[row.logo]"
               fit="contain"
               style="width: 80px; height: 50px"
             />
           </template>
         </el-table-column>
-        <el-table-column prop="brandName" label="品牌名称" min-width="150" />
-        <el-table-column prop="brandDesc" label="品牌描述" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="name" label="品牌名称" min-width="150" />
+        <el-table-column prop="description" label="品牌描述" min-width="200" show-overflow-tooltip />
         <el-table-column prop="sortOrder" label="排序" width="80" align="center" />
-        <el-table-column prop="status" label="状态" width="100" align="center">
+        <el-table-column label="状态" width="100" align="center">
           <template #default="{ row }">
             <el-switch v-model="row.status" :active-value="1" :inactive-value="0" @change="handleStatusChange(row)" />
           </template>
@@ -255,23 +255,23 @@ onMounted(() => {
     <!-- 新增/编辑对话框 -->
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="600px" destroy-on-close>
       <el-form ref="formRef" :model="formData" :rules="formRules" label-width="100px">
-        <el-form-item label="品牌名称" prop="brandName">
-          <el-input v-model="formData.brandName" placeholder="请输入品牌名称" maxlength="50" show-word-limit />
+        <el-form-item label="品牌名称" prop="name">
+          <el-input v-model="formData.name" placeholder="请输入品牌名称" maxlength="50" show-word-limit />
         </el-form-item>
-        <el-form-item label="品牌LOGO" prop="brandLogo">
+        <el-form-item label="品牌LOGO" prop="logo">
           <el-upload
             class="brand-uploader"
             action="/api/upload"
             :show-file-list="false"
             :on-success="(res: any) => handleUploadSuccess(res.url)"
           >
-            <img v-if="formData.brandLogo" :src="formData.brandLogo" class="brand-image" />
+            <img v-if="formData.logo" :src="formData.logo" class="brand-image" />
             <el-icon v-else class="uploader-icon"><Plus /></el-icon>
           </el-upload>
-          <div class="upload-tip">建议尺寸：200x200px，支持jpg、png格式</div>
+          <div class="upload-tip">建议尺寸200x200px，支持jpg、png格式</div>
         </el-form-item>
         <el-form-item label="品牌描述">
-          <el-input v-model="formData.brandDesc" type="textarea" :rows="3" placeholder="请输入品牌描述" maxlength="200" show-word-limit />
+          <el-input v-model="formData.description" type="textarea" :rows="3" placeholder="请输入品牌描述" maxlength="200" show-word-limit />
         </el-form-item>
         <el-form-item label="排序号" prop="sortOrder">
           <el-input-number v-model="formData.sortOrder" :min="0" :max="999" />
@@ -279,8 +279,8 @@ onMounted(() => {
         </el-form-item>
         <el-form-item label="状态">
           <el-radio-group v-model="formData.status">
-            <el-radio :label="1">启用</el-radio>
-            <el-radio :label="0">禁用</el-radio>
+            <el-radio :value="1">启用</el-radio>
+            <el-radio :value="0">禁用</el-radio>
           </el-radio-group>
         </el-form-item>
       </el-form>

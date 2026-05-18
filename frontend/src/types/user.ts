@@ -9,7 +9,7 @@ export interface UserInfo {
   isAuthenticated: boolean
   email?: string
   birthday?: string
-  gender?: 'male' | 'female' | 'unknown'
+  gender?: number  // 1=男, 2=女, 0=未知
   realName?: string
   idCard?: string
 }
@@ -31,7 +31,7 @@ export interface LoginResult {
 export interface Patient {
   id: string
   name: string
-  gender: 'male' | 'female'
+  gender: number  // 1=男, 2=女
   age: number
   idCard: string
   phone: string
@@ -46,7 +46,7 @@ export interface Patient {
 // 添加患者参数
 export interface AddPatientParams {
   name: string
-  gender: 'male' | 'female'
+  gender: number  // 1=男, 2=女
   age: number
   idCard: string
   phone: string

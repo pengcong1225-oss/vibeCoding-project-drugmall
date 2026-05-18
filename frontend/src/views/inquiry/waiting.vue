@@ -93,11 +93,11 @@
 
     <!-- 底部操作 -->
     <div class="waiting-footer">
-      <button class="action-btn secondary" @click="remindDoctor" :disabled="reminding">
+      <button class="action-btn secondary" @click="remindDoctorAction" :disabled="reminding">
         <span v-if="reminding">提醒中...</span>
         <span v-else>提醒医生</span>
       </button>
-      <button class="action-btn primary" @click="cancelConsultation" :disabled="cancelling">
+      <button class="action-btn primary" @click="cancelConsultationAction" :disabled="cancelling">
         <span v-if="cancelling">取消中...</span>
         <span v-else>取消问诊</span>
       </button>
@@ -110,13 +110,17 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Loading, InfoFilled } from '@element-plus/icons-vue'
-import { checkDoctorAcceptance, getDoctorDetail, type DoctorInfo } from '@/api/modules/inquiry'
+import { getConsultationDetail, getDoctorDetail, checkDoctorAcceptance, cancelConsultation, remindDoctor, type DoctorInfo, type ConsultationDetail } from '@/api/modules/inquiry'
+import { ROUTES } from '@/constants/routes'
 
 const route = useRoute()
 const router = useRouter()
 
 // 默认头像
 const defaultAvatar = 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=200&h=200&fit=crop&crop=face'
+
+// 问诊ID
+const consultationId = ref(route.params.consultationId as string || '')
 
 // 医生信息
 const doctorInfo = ref<DoctorInfo>({
@@ -132,8 +136,8 @@ const doctorInfo = ref<DoctorInfo>({
   workYears: 12,
   isOnline: true,
   tags: [],
-  inquiryCount: 11000,
-  rating: 0.98
+  inquiryCount: 0,
+  rating: 0
 })
 
 // 排队信息
@@ -147,67 +151,86 @@ const reminding = ref(false)
 const cancelling = ref(false)
 const checkTimer = ref<number | null>(null)
 
-// 加载医生信息
-const loadDoctorInfo = async () => {
-  const doctorId = route.query.doctorId as string
-  if (!doctorId) {
-    ElMessage.error('医生信息不存在')
+// 加载问诊和医生信息
+const loadConsultationInfo = async () => {
+  if (!consultationId.value) {
+    ElMessage.error('问诊信息不存在')
+    router.push(ROUTES.INQUIRY)
     return
   }
 
   try {
-    // 实际项目中调用API
-    // const res = await getDoctorDetail(doctorId)
-    // doctorInfo.value = res
-
-    // 模拟数据
-    doctorInfo.value = {
-      id: doctorId,
-      name: route.query.doctorName as string || '刘贞君',
-      title: '主治医师',
-      hospital: '山东青岛中西医结合医院',
-      department: '皮肤科',
-      avatar: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=200&h=200&fit=crop&crop=face',
-      specialty: '擅长中西医结合诊疗银屑病，痤疮，湿疹，荨麻疹等常见皮肤病',
-      price: 19.9,
-      waitTime: 12,
-      workYears: 12,
-      isOnline: true,
-      tags: ['三甲'],
-      inquiryCount: 11000,
-      rating: 0.98
+    console.log('加载问诊详情:', consultationId.value)
+    
+    // 获取问诊详情
+    const detail: ConsultationDetail = await getConsultationDetail(consultationId.value)
+    console.log('问诊详情:', detail)
+    
+    // 如果有医生信息，加载医生详情
+    if (detail.doctorId) {
+      try {
+        const doctor: DoctorInfo = await getDoctorDetail(detail.doctorId)
+        doctorInfo.value = {
+          ...doctor,
+          inquiryCount: doctor.consultationCount || 0,
+          rating: doctor.rating || 0
+        }
+        console.log('医生信息:', doctorInfo.value)
+      } catch (error) {
+        console.error('获取医生信息失败:', error)
+        // 使用问诊中的医生信息
+        doctorInfo.value = {
+          id: detail.doctorId || '',
+          name: detail.doctorName || '在线医生',
+          title: detail.doctorTitle || '主治医师',
+          hospital: detail.hospital || '',
+          department: detail.department || '',
+          avatar: detail.doctorAvatar || '',
+          specialty: '',
+          price: detail.price || 19.9,
+          waitTime: 12,
+          workYears: 12,
+          isOnline: true,
+          tags: [],
+          inquiryCount: 0,
+          rating: 0
+        }
+      }
     }
-
-    // 模拟排队信息
+    
+    // 计算排队位置（根据pending状态的问诊数量）
+    // 这里简化处理，实际应该根据创建时间排序
     queueInfo.value = {
-      position: Math.floor(Math.random() * 5) + 1,
+      position: Math.floor(Math.random() * 5) + 1, // TODO: 从后端获取真实排队位置
       total: Math.floor(Math.random() * 10) + 5
     }
+    
   } catch (error) {
-    console.error('获取医生信息失败:', error)
-    ElMessage.error('获取医生信息失败')
+    console.error('获取问诊信息失败:', error)
+    ElMessage.error('获取问诊信息失败')
+    return
   }
+
+  // 加载完信息后立即检查状态（如果医生已接诊，跳过等待轮询）
+  checkAcceptanceStatus()
 }
 
 // 检查医生接诊状态
 const checkAcceptanceStatus = async () => {
-  const consultationId = route.params.consultationId as string
-  if (!consultationId) return
+  if (!consultationId.value) return
 
   try {
-    // 实际项目中调用API
-    // const res = await checkDoctorAcceptance(consultationId)
+    const res = await checkDoctorAcceptance(consultationId.value)
 
-    // 模拟医生已接诊（5秒后自动跳转，用于演示）
-    // 实际项目中应该根据API返回结果判断
-    if (Math.random() > 0.95) {
-      // 模拟医生接诊
+    // 如果医生已接诊，跳转到聊天页面
+    if (res.accepted || res.status === 'processing') {
+      stopChecking()
       ElMessage.success('医生已接诊，即将进入问诊')
       setTimeout(() => {
         router.push({
-          path: '/inquiry/chat',
+          path: ROUTES.INQUIRY_CHAT,
           query: {
-            consultationId: consultationId,
+            consultationId: consultationId.value,
             doctorId: doctorInfo.value.id,
             doctorName: doctorInfo.value.name
           }
@@ -235,11 +258,10 @@ const stopChecking = () => {
 }
 
 // 提醒医生
-const remindDoctor = async () => {
+const remindDoctorAction = async () => {
   reminding.value = true
   try {
-    // 实际项目中调用API
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    await remindDoctor(consultationId.value)
     ElMessage.success('已提醒医生，请耐心等待')
   } catch (error) {
     console.error('提醒医生失败:', error)
@@ -250,7 +272,7 @@ const remindDoctor = async () => {
 }
 
 // 取消问诊
-const cancelConsultation = async () => {
+const cancelConsultationAction = async () => {
   try {
     await ElMessageBox.confirm(
       '取消问诊后费用将原路退回，确定要取消吗？',
@@ -263,13 +285,12 @@ const cancelConsultation = async () => {
     )
 
     cancelling.value = true
-    // 实际项目中调用取消API
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    
+    await cancelConsultation(consultationId.value)
 
     ElMessage.success('问诊已取消，费用将原路退回')
-    router.push('/inquiry')
+    router.push(ROUTES.INQUIRY)
   } catch (error) {
-    // 用户取消操作
     if (error !== 'cancel') {
       console.error('取消问诊失败:', error)
       ElMessage.error('取消失败，请重试')
@@ -279,7 +300,6 @@ const cancelConsultation = async () => {
   }
 }
 
-// 格式化数量
 const formatCount = (count?: number): string => {
   if (!count) return '0'
   if (count >= 10000) {
@@ -288,13 +308,12 @@ const formatCount = (count?: number): string => {
   return count.toString()
 }
 
-// 返回
 const goBack = () => {
-  router.push('/inquiry')
+  router.push(ROUTES.INQUIRY)
 }
 
 onMounted(() => {
-  loadDoctorInfo()
+  loadConsultationInfo()
   startChecking()
 })
 

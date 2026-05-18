@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
@@ -15,6 +16,7 @@ import java.util.*;
 
 @Slf4j
 @Component
+@ConditionalOnProperty(name = "drugmall.mock.enabled", havingValue = "true")
 public class MockDataService {
 
     @Value("classpath:mock-data/admin-users.json")

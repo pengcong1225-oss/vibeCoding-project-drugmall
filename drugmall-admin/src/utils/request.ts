@@ -1,5 +1,5 @@
 import axios, { AxiosError, AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 
 // 创建axios实例
 const service: AxiosInstance = axios.create({
@@ -51,11 +51,12 @@ service.interceptors.response.use(
     console.error('Response error:', error)
     
     if (error.response) {
-      const { status, data } = error.response
-      
+      const { status, data: errData } = error.response
+      const errMsg = (errData as any)?.message
+
       switch (status) {
         case 400:
-          ElMessage.error(data?.message || '请求参数错误')
+          ElMessage.error(errMsg || '请求参数错误')
           break
         case 401:
           ElMessage.error('登录已过期，请重新登录')
@@ -69,7 +70,7 @@ service.interceptors.response.use(
           ElMessage.error('请求的资源不存在')
           break
         case 500:
-          ElMessage.error(data?.message || '服务器内部错误')
+          ElMessage.error(errMsg || '服务器内部错误')
           break
         default:
           ElMessage.error('网络错误')

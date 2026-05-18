@@ -1,10 +1,9 @@
 package com.drugmall.admin.controller;
 
 import com.drugmall.admin.common.Result;
-import com.drugmall.admin.config.MockDataService;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.drugmall.admin.entity.User;
+import com.drugmall.admin.service.UserService;
+import com.drugmall.admin.vo.PageResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,90 +12,98 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class UserController {
 
-    private final MockDataService mockDataService;
+    private final UserService userService;
 
     @GetMapping
-    public Result<ObjectNode> getUserList(
+    public Result<PageResult<User>> getUserList(
             @RequestParam(defaultValue = "1") int pageNum,
             @RequestParam(defaultValue = "10") int pageSize,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Integer status) {
-        ArrayNode users = (ArrayNode) mockDataService.get("admin-users");
-        if (users == null) return Result.success(mockDataService.getObjectMapper().createObjectNode());
-
-        ArrayNode filtered = mockDataService.filterByKeyword(users, keyword, "username", "nickname", "phone");
-        filtered = mockDataService.filterByIntField(filtered, "status", status);
-        return Result.success(mockDataService.paginate(filtered, pageNum, pageSize));
+        PageResult<User> result = userService.getUserList(pageNum, pageSize, keyword, status);
+        return Result.success(result);
     }
 
     @GetMapping("/{id}")
-    public Result<JsonNode> getUserDetail(@PathVariable String id) {
-        ArrayNode users = (ArrayNode) mockDataService.get("admin-users");
-        if (users != null) {
-            for (JsonNode user : users) {
-                if (id.equals(user.get("id").asText())) {
-                    return Result.success(user);
-                }
-            }
+    public Result<User> getUserDetail(@PathVariable Long id) {
+        User user = userService.getUserDetail(id);
+        if (user == null) {
+            return Result.error(404, "用户不存在");
         }
-        return Result.error(404, "用户不存在");
+        return Result.success(user);
     }
 
     @PostMapping
-    public Result<Object> createUser(@RequestBody JsonNode body) {
-        return Result.success(java.util.Map.of("id", String.valueOf(System.currentTimeMillis())));
+    public Result<Long> createUser(@RequestBody User user) {
+        // TODO: 实现创建用户逻辑，需要密码加密等
+        return Result.success();
     }
 
     @PutMapping("/{id}")
-    public Result<Void> updateUser(@PathVariable String id, @RequestBody JsonNode body) {
+    public Result<Void> updateUser(@PathVariable Long id, @RequestBody User user) {
+        // TODO: 实现更新用户逻辑
         return Result.success();
     }
 
     @DeleteMapping("/{id}")
-    public Result<Void> deleteUser(@PathVariable String id) {
+    public Result<Void> deleteUser(@PathVariable Long id) {
+        // TODO: 实现删除用户逻辑（逻辑删除）
         return Result.success();
     }
 
     @PatchMapping("/{id}/status")
-    public Result<Void> updateUserStatus(@PathVariable String id, @RequestBody JsonNode body) {
+    public Result<Void> updateUserStatus(@PathVariable Long id, @RequestBody StatusUpdateRequest request) {
+        boolean success = userService.updateUserStatus(id, request.getStatus());
+        if (!success) {
+            return Result.error(500, "更新失败");
+        }
         return Result.success();
     }
 
     @GetMapping("/{id}/orders")
-    public Result<ObjectNode> getUserOrders(
-            @PathVariable String id,
+    public Result<PageResult<?>> getUserOrders(
+            @PathVariable Long id,
             @RequestParam(defaultValue = "1") int pageNum,
             @RequestParam(defaultValue = "10") int pageSize) {
-        ArrayNode orders = (ArrayNode) mockDataService.get("orders", "orders");
-        if (orders == null) {
-            return Result.success(mockDataService.paginate(
-                    mockDataService.getObjectMapper().createArrayNode(), pageNum, pageSize));
-        }
-        ArrayNode userOrders = mockDataService.filterByField(orders, "userId", id);
-        return Result.success(mockDataService.paginate(userOrders, pageNum, pageSize));
+        // TODO: 实现获取用户订单逻辑
+        return Result.success(PageResult.of(java.util.Collections.emptyList(), 0, pageNum, pageSize));
     }
 
     @GetMapping("/auth/list")
-    public Result<ObjectNode> getAuthList(
+    public Result<PageResult<?>> getAuthList(
             @RequestParam(defaultValue = "1") int pageNum,
             @RequestParam(defaultValue = "10") int pageSize,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Integer status) {
-        ArrayNode records = (ArrayNode) mockDataService.get("user-auth", "records");
-        if (records == null) return Result.success(mockDataService.getObjectMapper().createObjectNode());
-
-        ArrayNode filtered = mockDataService.filterByKeyword(records, keyword, "username", "realName", "phone");
-        filtered = mockDataService.filterByIntField(filtered, "status", status);
-        return Result.success(mockDataService.paginate(filtered, pageNum, pageSize));
+        // TODO: 实现实名认证列表
+        return Result.success(PageResult.of(java.util.Collections.emptyList(), 0, pageNum, pageSize));
     }
 
     @GetMapping("/auth/stats")
-    public Result<JsonNode> getAuthStats() {
-        return Result.success(mockDataService.get("user-auth", "stats"));
+    public Result<?> getAuthStats() {
+        // TODO: 实现认证统计
+        return Result.success(java.util.Map.of("pending", 0, "passed", 0, "rejected", 0, "total", 0));
     }
 
     @PostMapping("/auth/{id}/audit")
-    public Result<Void> auditAuth(@PathVariable String id, @RequestBody JsonNode body) {
+    public Result<Void> auditAuth(@PathVariable Long id, @RequestBody AuditRequest request) {
+        // TODO: 实现审核逻辑
         return Result.success();
+    }
+
+    // 内部类用于接收请求体
+    static class StatusUpdateRequest {
+        private Integer status;
+        public Integer getStatus() { return status; }
+        public void setStatus(Integer status) { this.status = status; }
+    }
+
+    static class AuditRequest {
+        private Integer action;
+        private String reason;
+        public Integer getAction() { return action; }
+        public void setAction(Integer action) { this.action = action; }
+        public String getReason() { return reason; }
+        public void setReason(String reason) { this.reason = reason; }
     }
 }

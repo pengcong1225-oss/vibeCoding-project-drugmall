@@ -71,6 +71,24 @@
       </div>
     </div>
 
+    <!-- 常见症状快速入口 -->
+    <div class="symptom-section">
+      <div class="symptom-header">
+        <span class="symptom-title">您哪里不舒服？</span>
+        <span class="symptom-subtitle">选择症状，快速找到对应科室</span>
+      </div>
+      <div class="symptom-tags">
+        <button
+          v-for="symptom in commonSymptoms"
+          :key="symptom.value"
+          class="symptom-tag"
+          @click="selectSymptom(symptom)"
+        >
+          {{ symptom.label }}
+        </button>
+      </div>
+    </div>
+
     <!-- 找专家区域 -->
     <div class="expert-section">
       <div class="expert-header">
@@ -78,7 +96,7 @@
         <span class="expert-subtitle">知名专家 权威诊疗</span>
       </div>
 
-      <!-- 科室筛选 -->
+      <!-- 科室筛选 - 图标化 -->
       <div class="department-tabs">
         <button
           v-for="dept in departmentList"
@@ -86,10 +104,16 @@
           :class="['dept-tab', { active: selectedDepartment === dept.value }]"
           @click="selectDepartment(dept.value)"
         >
-          {{ dept.label }}
+          <div class="tab-icon" :style="{ background: dept.color + '15', color: dept.color }">
+            <el-icon><component :is="iconMap[dept.icon]" /></el-icon>
+          </div>
+          <span>{{ dept.label }}</span>
         </button>
         <button class="dept-tab more" @click="showAllDepartments = true">
-          全部<el-icon><ArrowDown /></el-icon>
+          <div class="tab-icon" style="background: #f5f5f5; color: #999">
+            <el-icon><Grid /></el-icon>
+          </div>
+          <span>全部</span>
         </button>
       </div>
 
@@ -172,7 +196,10 @@
           :class="['dept-option', { active: selectedDepartment === dept.value }]"
           @click="selectDepartment(dept.value); showAllDepartments = false"
         >
-          {{ dept.label }}
+          <div class="dept-icon" :style="{ background: dept.color + '15', color: dept.color }">
+            <el-icon><component :is="iconMap[dept.icon]" /></el-icon>
+          </div>
+          <span class="dept-label">{{ dept.label }}</span>
         </button>
       </div>
     </el-dialog>
@@ -249,9 +276,40 @@ import {
   FirstAidKit,
   Mug,
   ChatLineRound,
-  MoreFilled
+  MoreFilled,
+  Grid,
+  Sunny,
+  WindPower,
+  Female,
+  Food,
+  UserFilled,
+  ChatDotRound,
+  Male,
+  Scissor,
+  Bowl,
+  Headset,
+  View,
+  Apple
 } from '@element-plus/icons-vue'
+
+const iconMap: Record<string, any> = {
+  Grid,
+  Sunny,
+  WindPower,
+  Female,
+  Food,
+  UserFilled,
+  ChatDotRound,
+  Male,
+  FirstAidKit,
+  Scissor,
+  Bowl,
+  Headset,
+  View,
+  Apple
+}
 import DoctorCard from '@/components/consultation/DoctorCard.vue'
+import { ROUTES } from '@/constants/routes'
 import type { DoctorInfo } from '@/api/modules/inquiry'
 
 const router = useRouter()
@@ -277,30 +335,42 @@ const sortType = ref('comprehensive')
 // 默认头像
 const defaultAvatar = 'https://api.dicebear.com/7.x/avataaars/svg?seed=doctor'
 
-// 科室列表（横向滚动显示）
-const departmentList = ref([
-  { value: 'dermatology', label: '皮肤科' },
-  { value: 'respiratory', label: '呼吸内科' },
-  { value: 'gynecology', label: '妇产科' },
-  { value: 'digestive', label: '消化内科' },
+// 常见症状
+const commonSymptoms = ref([
+  { value: 'fever', label: '发烧', department: 'internal' },
+  { value: 'cough', label: '咳嗽', department: 'respiratory' },
+  { value: 'headache', label: '头痛', department: 'neurology' },
+  { value: 'stomachache', label: '腹痛', department: 'digestive' },
+  { value: 'skin', label: '皮肤问题', department: 'dermatology' },
+  { value: 'insomnia', label: '失眠', department: 'psychology' },
+  { value: 'allergy', label: '过敏', department: 'dermatology' },
+  { value: 'cold', label: '感冒', department: 'respiratory' },
 ])
 
-// 全部科室
+// 科室列表（横向滚动显示）
+const departmentList = ref([
+  { value: 'dermatology', label: '皮肤科', icon: 'Sunny', color: '#E6A23C' },
+  { value: 'respiratory', label: '呼吸内科', icon: 'WindPower', color: '#409EFF' },
+  { value: 'gynecology', label: '妇产科', icon: 'Female', color: '#F56C6C' },
+  { value: 'digestive', label: '消化内科', icon: 'Food', color: '#67C23A' },
+])
+
+// 全部科室（带图标和颜色）
 const allDepartments = ref([
-  { value: 'all', label: '全部科室' },
-  { value: 'dermatology', label: '皮肤科' },
-  { value: 'respiratory', label: '呼吸内科' },
-  { value: 'gynecology', label: '妇产科' },
-  { value: 'digestive', label: '消化内科' },
-  { value: 'pediatrics', label: '儿科' },
-  { value: 'psychology', label: '心理咨询' },
-  { value: 'andrology', label: '男科' },
-  { value: 'internal', label: '内科' },
-  { value: 'surgery', label: '外科' },
-  { value: 'tcm', label: '中医科' },
-  { value: 'ent', label: '耳鼻喉' },
-  { value: 'ophthalmology', label: '眼科' },
-  { value: 'stomatology', label: '口腔科' },
+  { value: 'all', label: '全部科室', icon: 'Grid', color: '#666' },
+  { value: 'dermatology', label: '皮肤科', icon: 'Sunny', color: '#E6A23C' },
+  { value: 'respiratory', label: '呼吸内科', icon: 'WindPower', color: '#409EFF' },
+  { value: 'gynecology', label: '妇产科', icon: 'Female', color: '#F56C6C' },
+  { value: 'digestive', label: '消化内科', icon: 'Food', color: '#67C23A' },
+  { value: 'pediatrics', label: '儿科', icon: 'UserFilled', color: '#FF9F43' },
+  { value: 'psychology', label: '心理咨询', icon: 'ChatDotRound', color: '#9B59B6' },
+  { value: 'andrology', label: '男科', icon: 'Male', color: '#3498DB' },
+  { value: 'internal', label: '内科', icon: 'FirstAidKit', color: '#E74C3C' },
+  { value: 'surgery', label: '外科', icon: 'Scissor', color: '#1ABC9C' },
+  { value: 'tcm', label: '中医科', icon: 'Bowl', color: '#D35400' },
+  { value: 'ent', label: '耳鼻喉', icon: 'Headset', color: '#16A085' },
+  { value: 'ophthalmology', label: '眼科', icon: 'View', color: '#2980B9' },
+  { value: 'stomatology', label: '口腔科', icon: 'Apple', color: '#C0392B' },
 ])
 
 // 排序选项
@@ -507,16 +577,19 @@ onMounted(() => {
 const loadDoctors = async () => {
   loading.value = true
   try {
-    // 实际项目中调用API
-    // const res = await getDoctorList({ department: selectedDepartment.value })
-
-    // 模拟API调用
-    await new Promise(resolve => setTimeout(resolve, 500))
-    doctorList.value = mockDoctors
-    hasMore.value = false
+    const res = await getDoctorList({
+      department: selectedDepartment.value,
+      keyword: searchKeyword.value
+    })
+    if (Array.isArray(res)) {
+      doctorList.value = res
+      hasMore.value = res.length >= 10
+    } else {
+      ElMessage.error('获取医生列表失败')
+    }
   } catch (error) {
     console.error('获取医生列表失败:', error)
-    ElMessage.error('获取医生列表失败')
+    ElMessage.error('获取医生列表失败，请稍后重试')
   } finally {
     loading.value = false
   }
@@ -537,6 +610,14 @@ const handleSearch = () => {
 const selectDepartment = (value: string) => {
   selectedDepartment.value = value
   loadDoctors()
+}
+
+// 选择症状
+const selectSymptom = (symptom: { value: string; label: string; department: string }) => {
+  selectedDepartment.value = symptom.department
+  searchKeyword.value = symptom.label
+  loadDoctors()
+  ElMessage.info(`已为您筛选「${symptom.label}」相关医生`)
 }
 
 // 选择排序
@@ -566,13 +647,12 @@ const useCoupon = () => {
   ElMessage.success('优惠券已领取')
 }
 
-// 快捷入口跳转
 const goToSafeMedicine = () => {
-  router.push('/category')
+  router.push(ROUTES.CATEGORY)
 }
 
 const goToTcmTea = () => {
-  router.push('/category')
+  router.push(ROUTES.CATEGORY)
 }
 
 const goToPsychology = () => {
@@ -840,6 +920,55 @@ const applyFilter = () => {
   }
 }
 
+// 常见症状区域
+.symptom-section {
+  background: $inquiry-card-bg;
+  padding: $spacing-md;
+  border-bottom: 1px solid rgba($inquiry-primary, 0.08);
+
+  .symptom-header {
+    margin-bottom: 12px;
+
+    .symptom-title {
+      font-size: $font-lg;
+      font-weight: 600;
+      color: $inquiry-text-primary;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .symptom-subtitle {
+      font-size: $font-sm;
+      color: $inquiry-text-tertiary;
+    }
+  }
+
+  .symptom-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+
+    .symptom-tag {
+      padding: 8px 16px;
+      background: $inquiry-bg;
+      border: 1px solid rgba($inquiry-primary, 0.15);
+      border-radius: 20px;
+      font-size: $font-sm;
+      color: $inquiry-text-secondary;
+      cursor: pointer;
+      transition: all 0.2s;
+
+      &:hover,
+      &:active {
+        background: rgba($inquiry-primary, 0.1);
+        color: $inquiry-primary;
+        border-color: rgba($inquiry-primary, 0.3);
+        transform: translateY(-1px);
+      }
+    }
+  }
+}
+
 // 找专家区域
 .expert-section {
   background: $inquiry-card-bg;
@@ -867,38 +996,59 @@ const applyFilter = () => {
 
   .department-tabs {
     display: flex;
-    gap: 10px;
+    gap: 12px;
     margin-bottom: 12px;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    padding: 4px 0;
 
     &::-webkit-scrollbar {
       display: none;
     }
 
     .dept-tab {
-      padding: 6px 14px;
-      background: $inquiry-bg;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      background: transparent;
       border: none;
-      border-radius: 16px;
-      font-size: 13px;
+      border-radius: 12px;
+      font-size: 12px;
       color: $inquiry-text-secondary;
       cursor: pointer;
       white-space: nowrap;
       transition: all 0.2s;
-      display: flex;
-      align-items: center;
-      gap: 4px;
+      min-width: 64px;
+
+      .tab-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        transition: transform 0.2s;
+      }
 
       &.active {
-        background: rgba($inquiry-primary, 0.1);
-        color: $inquiry-primary;
-        font-weight: 500;
+        .tab-icon {
+          transform: scale(1.1);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        span {
+          color: $inquiry-primary;
+          font-weight: 500;
+        }
       }
 
       &.more {
-        background: transparent;
-        border: 1px solid rgba($inquiry-primary, 0.2);
+        .tab-icon {
+          border: 1px dashed #ddd;
+        }
       }
 
       &:active {
@@ -1013,25 +1163,57 @@ const applyFilter = () => {
 
 // 全部科室弹窗
 .all-departments {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
   padding: $spacing-md;
 
   .dept-option {
-    padding: 8px 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 16px 8px;
     background: $inquiry-bg;
     border: 1px solid transparent;
-    border-radius: 16px;
-    font-size: 13px;
-    color: $inquiry-text-secondary;
+    border-radius: 12px;
     cursor: pointer;
     transition: all 0.2s;
+
+    .dept-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      transition: transform 0.2s;
+    }
+
+    .dept-label {
+      font-size: 13px;
+      color: $inquiry-text-secondary;
+      white-space: nowrap;
+    }
 
     &.active {
       background: rgba($inquiry-primary, 0.1);
       border-color: $inquiry-primary;
-      color: $inquiry-primary;
+
+      .dept-label {
+        color: $inquiry-primary;
+        font-weight: 500;
+      }
+    }
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+
+      .dept-icon {
+        transform: scale(1.1);
+      }
     }
 
     &:active {

@@ -23,7 +23,7 @@
       <div class="nav-title-area">
         <h1 class="nav-title">{{ patientInfo.name }}</h1>
         <span class="nav-status" :class="{ 'online': imConnected, 'offline': !imConnected }">
-          {{ imConnected ? '在线' : '离线' }}
+          {{ imConnected ? '已接通' : '连接中...' }}
         </span>
       </div>
       <button class="nav-end" @click="endConsultation" :disabled="consultationInfo.status === 'completed'">
@@ -256,7 +256,7 @@
                 class="input-field"
                 placeholder="请输入消息..."
                 rows="1"
-                :disabled="sending || !imConnected"
+                :disabled="sending"
                 @keydown.enter.exact.prevent="sendMessage"
                 @input="autoResize"
                 @focus="inputFocused = true"
@@ -956,30 +956,179 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { imService } from '@/utils/im'
+import { getUserSig } from '@/api/im'
+import { useDoctorStore } from '@/stores/doctor'
+import { completeConsultation, getDoctorConsultationDetail, getRequestedDrugs, sendConsultationMessage, getConsultationMessages } from '@/api/consultation'
+import { getPatientDetail } from '@/api/patient'
 
 const route = useRoute()
 const router = useRouter()
+const doctorStore = useDoctorStore()
 
-// 路由参数
 const consultationId = route.params.id as string || '1'
 const patientId = route.query.patientId as string || '1'
 
-// 响应式断点
+// IM通讯使用的患者用户ID（从问诊详情中获取）
+let imPatientUserId: string = patientId
+
+// 加载问诊详情
+async function loadConsultationDetail() {
+  try {
+    const detail = await getDoctorConsultationDetail(consultationId)
+    
+    if (detail) {
+      // 更新问诊信息
+      consultationInfo.value = {
+        id: detail.id,
+        patientId: detail.patientId,
+        patientName: detail.patientName,
+        status: detail.status,
+        type: detail.type,
+        symptom: detail.symptom || '' // 症状描述
+      }
+      
+      // 重要：获取患者的user_id用于IM通讯
+      if (detail.patientUserId) {
+        imPatientUserId = detail.patientUserId
+        console.log('[Chat] 使用患者用户ID进行IM通讯:', imPatientUserId)
+      } else {
+        console.warn('[Chat] 未获取到patientUserId，使用patientId作为fallback:', patientId)
+      }
+      
+      console.log('[Chat] 问诊详情加载成功:', detail)
+      
+      // 先设置基本信息
+      patientInfo.value = {
+        id: detail.patientId,
+        name: detail.patientName,
+        gender: detail.patientGender,
+        age: detail.patientAge,
+        avatar: detail.patientAvatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=patient',
+        tags: [],
+        allergyHistory: [],
+        chronicDiseases: [],
+        historyCount: 0
+      }
+      
+      // 再获取患者详细信息
+      try {
+        const patientDetail = await getPatientDetail(detail.patientId)
+        
+        if (patientDetail) {
+          // 更新完整的患者信息
+          patientInfo.value = {
+            id: patientDetail.id,
+            name: patientDetail.name,
+            gender: patientDetail.gender,
+            age: patientDetail.age,
+            avatar: patientDetail.avatar || patientInfo.value.avatar,
+            tags: patientDetail.tags || [],
+            allergyHistory: patientDetail.allergies ? patientDetail.allergies.split(',') : [],
+            chronicDiseases: patientDetail.medicalHistory ? patientDetail.medicalHistory.split(',') : [],
+            historyCount: patientDetail.visitCount || 0
+          }
+          
+          console.log('[Chat] 患者详情加载成功:', patientDetail)
+        }
+      } catch (error: any) {
+        console.warn('[Chat] 加载患者详情失败，使用基本信息:', error)
+        // 即使患者详情加载失败，也继续使用问诊详情中的基本信息
+      }
+      
+      // 更新预问诊信息（从问诊详情的symptom字段解析，用患者档案补充过敏/慢病史）
+      if (detail.symptom) {
+        // 解析 symptom 字段（格式: "症状描述 | 时长:xxx | 过敏:xxx | 用药:xxx"）
+        const parts = detail.symptom.split(' | ')
+        preInquiry.value.chiefComplaint = parts[0]
+        inquiryInfo.value.chiefComplaint = parts[0]
+
+        // 提取时长、过敏、用药信息
+        const durationPart = parts.find(p => p.startsWith('时长:'))
+        const allergyPart = parts.find(p => p.startsWith('过敏:'))
+        const medPart = parts.find(p => p.startsWith('用药:'))
+
+        // 从 symptom 字段提取的症状详情
+        if (durationPart || allergyPart || medPart) {
+          const parsedSymptoms = []
+          if (durationPart) parsedSymptoms.push('患病时长：' + durationPart.replace('时长:', ''))
+          preInquiry.value.symptoms = parsedSymptoms.length > 0 ? parsedSymptoms : preInquiry.value.symptoms
+          preInquiry.value.medicationHistory = medPart ? medPart.replace('用药:', '') : ''
+          preInquiry.value.allergyHistory = allergyPart ? allergyPart.replace('过敏:', '') : ''
+        }
+      }
+
+      // 用患者档案的真实过敏史和慢病史覆盖（如果有的话）
+      if (patientInfo.value.allergyHistory?.length > 0) {
+        preInquiry.value.allergyHistory = patientInfo.value.allergyHistory.join('、')
+      }
+      if (patientInfo.value.chronicDiseases?.length > 0) {
+        preInquiry.value.pastHistory = patientInfo.value.chronicDiseases.join('、') + '病史'
+      }
+      
+      // 加载患者申请的药品列表
+      try {
+        console.log('[Chat] 开始加载患者申请的药品, 问诊ID:', detail.id)
+        const drugs = await getRequestedDrugs(detail.id)
+        console.log('[Chat] API返回的药品数据:', drugs)
+        console.log('[Chat] 药品数据类型:', typeof drugs, Array.isArray(drugs))
+        
+        if (drugs && drugs.length > 0) {
+          console.log('[Chat] 找到', drugs.length, '个药品, 第一个药品:', drugs[0])
+          
+          // 将后端Drug对象转换为前端SubmittedMedicine格式
+          submittedMedicines.value = drugs.map(drug => {
+            // 后端返回的字段名是 productName，需要兼容处理
+            const drugName = (drug as any).productName || drug.name || '未知药品'
+            console.log('[Chat] 转换药品:', { productName: (drug as any).productName, name: drug.name, drugName })
+            
+            return {
+              name: drugName,
+              spec: drug.specification || '',
+              quantity: 1, // 默认数量，后续可以从处方申请表单获取
+              patientNote: '', // 患者备注，可能需要额外字段
+              approved: false,
+              rejected: false,
+              replaced: false
+            }
+          })
+          console.log('[Chat] ✅ 患者用药申请已加载:', submittedMedicines.value.length, '个药品')
+          console.log('[Chat] 药品详情:', JSON.stringify(submittedMedicines.value, null, 2))
+        } else {
+          console.log('[Chat] ⚠️ 该问诊没有患者申请的药品, drugs:', drugs)
+        }
+      } catch (error: any) {
+        console.error('[Chat]  加载患者申请药品失败:', error)
+        console.error('[Chat] 错误详情:', error.message, error.response)
+        // 不显示错误提示，因为可能确实没有申请药品
+      }
+      
+      console.log('[Chat] 问诊详情加载成功:', detail)
+    }
+  } catch (error: any) {
+    console.error('[Chat] 加载问诊详情失败:', error)
+    showToast('加载问诊详情失败', 'error')
+  }
+}
+
 const isMobile = ref(false)
 const checkMobile = () => {
   isMobile.value = window.innerWidth < 1024
 }
 
-// 状态
 const loading = ref(false)
 const sending = ref(false)
 const inputMessage = ref('')
 const messages = ref<any[]>([])
 const messageListRef = ref<HTMLElement>()
+const pollingTimer = ref<ReturnType<typeof setInterval> | null>(null)
 const error = ref('')
 const imConnected = ref(false)
 
-// UI状态
+// IM事件处理函数引用（用于正确移除监听）
+let handleSdkReady: (() => void) | null = null
+let handleSdkNotReady: (() => void) | null = null
+
 const sidebarCollapsed = ref(false)
 const preInquiryCollapsed = ref(false)
 const activeWorkspace = ref('prescription')
@@ -998,7 +1147,6 @@ const recordedBlob = ref<Blob | null>(null)
 const fileInput = ref<HTMLInputElement>()
 const rejectReason = ref('')
 
-// Toast通知系统
 interface ToastItem { id: number; message: string; type: string }
 const toasts = ref<ToastItem[]>([])
 let toastIdCounter = 0
@@ -1011,7 +1159,6 @@ function showToast(message: string, type: string = 'info') {
 }
 function removeToast(id: number) { toasts.value = toasts.value.filter(t => t.id !== id) }
 
-// 工作区标签
 const workspaceTabs = [
   { key: 'prescription', label: '处方审核', icon: 'prescription' },
   { key: 'record', label: '病历开具', icon: 'record' },
@@ -1019,7 +1166,6 @@ const workspaceTabs = [
   { key: 'exam', label: '检查建议', icon: 'exam' }
 ]
 
-// 患者信息
 const patientInfo = ref({
   id: patientId,
   name: (route.query.patientName as string) || '张三',
@@ -1032,14 +1178,12 @@ const patientInfo = ref({
   historyCount: 5
 })
 
-// 问诊信息
 const inquiryInfo = ref({
   type: '图文问诊',
   submitTime: '2024-01-15 09:30',
   chiefComplaint: '头痛、发热3天'
 })
 
-// 预问诊信息
 const preInquiry = ref({
   chiefComplaint: '头痛、发热3天',
   symptoms: [
@@ -1050,13 +1194,12 @@ const preInquiry = ref({
   ],
   medicationHistory: '服用过布洛芬，效果不明显',
   allergyHistory: '青霉素过敏',
-  pastHistory: '高血压病史5年，糖尿病病史3年', // 患者提供的既往史
+  pastHistory: '高血压病史5年，糖尿病病史3年',
   images: ['https://example.com/img1.jpg', 'https://example.com/img2.jpg']
 })
 
 const previewImages = ref<string[]>([])
 
-// 快捷回复
 const quickReplies = [
   '您好，请问有什么不适？',
   '建议您去做个检查',
@@ -1065,48 +1208,42 @@ const quickReplies = [
   '如有不适请及时复诊'
 ]
 
-// 问诊信息
 const consultationInfo = ref({
   id: consultationId,
   patientId: patientId,
   patientName: patientInfo.value.name,
   status: 'processing',
-  type: '图文问诊'
+  type: '图文问诊',
+  symptom: '' // 症状描述
 })
 
-// 头像
-const doctorAvatar = 'https://api.dicebear.com/7.x/avataaars/svg?seed=doctor'
+// 从doctorStore获取医生信息
+const doctorAvatar = computed(() => {
+  return doctorStore.doctorInfo?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=doctor'
+})
 const defaultAvatar = 'https://api.dicebear.com/7.x/avataaars/svg?seed=default'
 
-// ==================== 计算属性 ====================
 const canSend = computed(() => {
-  return inputMessage.value.trim().length > 0 && !sending.value && imConnected.value
+  return inputMessage.value.trim().length > 0 && !sending.value
 })
 
 const canSubmitPrescription = computed(() => {
   return prescriptionForm.value.diagnosis && totalMedicineCount.value > 0
 })
 
-// 计算已审核的患者提交药品数量
 const approvedSubmittedCount = computed(() => {
   return submittedMedicines.value.filter(m => m.approved && !m.rejected && !m.replaced).length
 })
 
-// 待审核的药品列表
 const pendingMedicines = computed(() => {
   return submittedMedicines.value.filter(m => !m.approved && !m.rejected && !m.replaced)
 })
 
-// 计算总药品数量（医生添加 + 患者审核通过）
-// 计算总药品数量（医生添加 + 患者提交但未驳回/替换的药品）
-// 患者提交的药品默认占用额度，只有通过/替换/驳回才能释放
 const totalMedicineCount = computed(() => {
   const activeSubmittedCount = submittedMedicines.value.filter(m => !m.rejected && !m.replaced).length
   return prescriptionMedicines.value.length + activeSubmittedCount
 })
 
-// ==================== 表单数据 ====================
-// 患者提交药品
 interface SubmittedMedicine {
   name: string
   spec: string
@@ -1118,16 +1255,10 @@ interface SubmittedMedicine {
   replacedWith?: string
 }
 
-const submittedMedicines = ref<SubmittedMedicine[]>([
-  { name: '阿莫西林胶囊', spec: '250mg*24粒', quantity: 2, patientNote: '之前吃过这个药', approved: false, rejected: false, replaced: false },
-  { name: '布洛芬缓释胶囊', spec: '300mg*20粒', quantity: 1, approved: false, rejected: false, replaced: false }
-])
+const submittedMedicines = ref<SubmittedMedicine[]>([])
 
-// 处方表单
-// 处方药品列表
 const prescriptionMedicines = ref<any[]>([])
 
-// 药品表单
 const medicineForm = ref({
   name: '',
   spec: '',
@@ -1139,7 +1270,6 @@ const medicineForm = ref({
   timing: [] as string[]
 })
 
-// 服用时间选项
 const timingOptions = [
   { label: '饭前', value: 'before_meal' },
   { label: '饭后', value: 'after_meal' },
@@ -1149,7 +1279,6 @@ const timingOptions = [
   { label: '晨起', value: 'morning' }
 ]
 
-// 药品数据库
 const medicineDatabase = [
   { name: '阿莫西林胶囊', spec: '0.5g*24粒', defaultUsage: '每日3次，每次1粒，饭后', usageTimes: 3, usageDose: 1, usageUnit: '粒', timing: ['after_meal'] },
   { name: '布洛芬缓释胶囊', spec: '0.3g*20粒', defaultUsage: '必要时服用，每次1粒', usageTimes: 1, usageDose: 1, usageUnit: '粒', timing: ['after_meal'] },
@@ -1407,7 +1536,7 @@ function toggleTiming(value: string) {
 
 // ==================== 工具函数 ====================
 function getAvatar(msg: any) {
-  return msg.role === 'doctor' ? doctorAvatar : patientInfo.value.avatar
+  return msg.role === 'doctor' ? doctorAvatar.value : patientInfo.value.avatar
 }
 
 function formatContent(content: string) {
@@ -1475,35 +1604,146 @@ async function initIM() {
   try {
     loading.value = true
     error.value = ''
-    await checkAPIAvailability()
-    imConnected.value = true
-    loadInitialMessages()
+
+    const doctorId = doctorStore.doctorInfo?.id || route.query.doctorId as string || 'DOC001'
+    console.log('[Chat] 开始初始化IM, doctorId:', doctorId)
+    
+    const success = await imService.init(doctorId, 'doctor')
+    console.log('[Chat] IM初始化结果:', success)
+
+    if (!success) {
+      console.error('[Chat] IM SDK初始化失败')
+      throw new Error('IM SDK初始化失败')
+    }
+
+    // 监听SDK Ready状态变化
+    handleSdkReady = () => {
+      console.log('[Chat] IM SDK已就绪')
+      imConnected.value = true
+    }
+    imService.on('onSdkReady', handleSdkReady)
+
+    // 监听SDK断开连接
+    handleSdkNotReady = () => {
+      console.warn('[Chat] IM SDK连接断开')
+      imConnected.value = false
+      showToast('IM连接已断开', 'warning')
+    }
+    imService.on('onSdkNotReady', handleSdkNotReady)
+
+    // 监听消息接收
+    imService.on('onMessageReceived', handleNewMessage)
+
+    messages.value = []
+    const now = new Date()
+    addSystemMessage(`${consultationInfo.value.type} · ${now.toLocaleDateString('zh-CN')} ${now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })} · 问诊开始`)
+
+    // 优先从后端 API 加载消息（保证两端数据一致）
+    let hasMessages = false
+    try {
+      const apiMessages = await getConsultationMessages(consultationId)
+      console.log('[Chat] 从后端API获取到消息数量:', apiMessages?.length || 0)
+
+      if (apiMessages && apiMessages.length > 0) {
+        hasMessages = true
+        for (const msg of apiMessages) {
+          messages.value.push({
+            id: msg.id,
+            content: msg.content,
+            role: msg.sender === 'doctor' ? 'doctor' : 'patient',
+            time: msg.time || new Date().toLocaleTimeString('zh-CN'),
+            avatar: msg.sender === 'doctor' ? doctorAvatar.value : patientInfo.value.avatar
+          })
+        }
+      }
+    } catch (apiError: any) {
+      console.error('[Chat] 从后端API加载消息失败:', apiError)
+    }
+
+    // 如果后端API没有消息，尝试从 TIM SDK 加载
+    if (!hasMessages) {
+      const conversationId = `C2C_patient_${imPatientUserId}`
+      console.log('[Chat] 尝试从TIM加载消息, conversationId:', conversationId)
+
+      try {
+        const msgList = await imService.getMessageList(conversationId, 20)
+        console.log('[Chat] 从TIM获取到消息数量:', msgList?.length || 0)
+
+        if (msgList && msgList.length > 0) {
+          hasMessages = true
+          for (const msg of msgList) {
+            const chatMsg = imService.convertToChatMessage(
+              imService.convertMessage(msg),
+              patientInfo.value.avatar,
+              doctorAvatar.value
+            )
+            messages.value.push({
+              id: chatMsg.id,
+              content: chatMsg.content,
+              role: chatMsg.type,
+              time: chatMsg.time,
+              avatar: chatMsg.avatar
+            })
+          }
+        }
+      } catch (timError: any) {
+        console.warn('[Chat] 从TIM加载消息失败:', timError.message)
+      }
+    }
+
+    // 如果都没有消息，加载默认消息
+    if (!hasMessages) {
+      console.log('[Chat] 没有历史消息，加载默认消息')
+      messages.value.push({
+        id: 'm1',
+        content: `医生您好，我最近${preInquiry.value.chiefComplaint || consultationInfo.value.symptom || '有些不适'}，请问应该怎么办？`,
+        role: 'patient',
+        time: new Date().toLocaleTimeString('zh-CN')
+      })
+    }
+
+    // 标记TIM消息已读
+    try {
+      const conversationId = `C2C_patient_${imPatientUserId}`
+      await imService.setMessageRead(conversationId)
+    } catch (e: any) {
+      console.warn('[Chat] 标记已读失败:', e.message)
+    }
+
+    scrollToBottom()
   } catch (e: any) {
     console.error('[Chat] 初始化失败:', e)
     error.value = e.message || '连接失败'
     imConnected.value = false
-    loadInitialMessages()
+    loadFallbackMessages()
   } finally {
     loading.value = false
   }
 }
 
-async function checkAPIAvailability(): Promise<void> {
-  try {
-    const res = await fetch('/api/v1/im/messages/send', {
-      method: 'OPTIONS',
-      headers: { 'Content-Type': 'application/json' }
-    })
-    console.log('[Chat] API可用性检测成功:', res.status)
-  } catch (e) {
-    console.warn('[Chat] API检测失败，使用离线模式')
+function handleNewMessage(msg: any) {
+  if (!msg) return
+  const converted = imService.convertMessage(msg)
+  // 去重：检查是否已存在相同ID的消息
+  if (messages.value.some(m => m.id === converted.id)) {
+    console.log('[Chat] 跳过重复消息:', converted.id)
+    return
   }
+  const chatMsg = imService.convertToChatMessage(converted, patientInfo.value.avatar, doctorAvatar.value)
+
+  messages.value.push({
+    id: chatMsg.id,
+    content: chatMsg.content,
+    role: chatMsg.type,
+    time: chatMsg.time,
+    avatar: chatMsg.avatar
+  })
+  scrollToBottom()
 }
 
-function loadInitialMessages() {
+function loadFallbackMessages() {
   messages.value = []
   const now = new Date()
-  // 简化的接诊开始系统消息
   addSystemMessage(`${consultationInfo.value.type} · ${now.toLocaleDateString('zh-CN')} ${now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })} · 问诊开始`)
 
   messages.value.push({
@@ -1519,37 +1759,51 @@ function loadInitialMessages() {
 // ==================== 消息收发 ====================
 async function sendMessage() {
   const text = inputMessage.value.trim()
-  if (!text || sending.value || !imConnected.value) return
+  if (!text || sending.value) return
 
   sending.value = true
   inputMessage.value = ''
 
-  messages.value.push({
-    id: 'MSG_' + Date.now(),
+  const tempId = 'temp_' + Date.now()
+  const tempMsg = {
+    id: tempId,
     content: text,
     role: 'doctor',
-    time: new Date().toLocaleTimeString('zh-CN')
-  })
+    time: new Date().toLocaleTimeString('zh-CN'),
+    avatar: doctorAvatar.value
+  }
+  messages.value.push(tempMsg)
   scrollToBottom()
 
+  // 优先通过后端 API 持久化消息（保证两端数据同步）
   try {
-    const res = await fetch('/api/v1/im/messages/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId: 'doctor_001',
-        userType: 'doctor',
-        conversationId: `C2C_patient_${patientId}`,
-        type: 'text',
-        content: text
-      })
-    })
-    if (!res.ok) console.warn('[Chat] 发送请求返回非200状态')
-  } catch (e: any) {
-    console.warn('[Chat] 发送请求异常:', e.message)
-  } finally {
-    sending.value = false
+    const result = await sendConsultationMessage(consultationId, { type: 'text', content: text })
+    console.log('[Chat] 消息已通过后端API保存')
+    // 用后端返回的真实ID替换临时ID
+    if (result && result.id) {
+      const idx = messages.value.findIndex(m => m.id === tempId)
+      if (idx !== -1) {
+        messages.value[idx].id = result.id
+      }
+    }
+  } catch (apiError: any) {
+    console.error('[Chat] 后端API保存消息失败:', apiError)
   }
+
+  // 同时通过 TIM SDK 实时推送（如果已连接）
+  if (imConnected.value) {
+    try {
+      const conversationId = `C2C_patient_${imPatientUserId}`
+      await imService.sendTextMessage(conversationId, text)
+      console.log('[Chat] TIM实时推送成功')
+    } catch (timError: any) {
+      console.warn('[Chat] TIM推送失败（消息已通过API保存）:', timError.message)
+    }
+  } else {
+    console.warn('[Chat] IM未连接，消息仅通过API保存')
+  }
+
+  sending.value = false
 }
 
 function sendQuickReply(reply: string) {
@@ -1565,14 +1819,63 @@ function scrollToBottom() {
   })
 }
 
+// 定时轮询后端 API 获取新消息（保证两端消息同步，不依赖 TIM 实时推送）
+async function pollNewMessages() {
+  try {
+    const apiMessages = await getConsultationMessages(consultationId)
+    if (!apiMessages || !apiMessages.length) return
+
+    for (const m of apiMessages) {
+      // 去重：只追加本地没有的消息
+      if (messages.value.some(local => local.id === m.id)) continue
+
+      messages.value.push({
+        id: m.id,
+        content: m.content,
+        role: m.sender === 'doctor' ? 'doctor' : 'patient',
+        time: m.time || new Date().toLocaleTimeString('zh-CN'),
+        avatar: m.sender === 'doctor' ? doctorAvatar.value : patientInfo.value.avatar
+      })
+    }
+    scrollToBottom()
+  } catch (e: any) {
+    console.warn('[Chat] 轮询新消息失败:', e.message)
+  }
+}
+
+function startPolling() {
+  stopPolling()
+  pollingTimer.value = setInterval(pollNewMessages, 5000)
+}
+
+function stopPolling() {
+  if (pollingTimer.value) {
+    clearInterval(pollingTimer.value)
+    pollingTimer.value = null
+  }
+}
+
 function retryInit() { initIM() }
 function goBack() { router.push('/consultation') }
 
-function endConsultation() {
-  if (confirm('确定要结束本次问诊吗？结束后将无法继续发送消息。')) {
+async function endConsultation() {
+  if (!confirm('确定要结束本次问诊吗？结束后将无法继续发送消息。')) {
+    return
+  }
+
+  try {
+    // 调用后端API结束问诊
+    await completeConsultation(consultationId)
+    
+    // 更新本地状态
     consultationInfo.value.status = 'completed'
     addSystemMessage('问诊已结束')
     showToast('问诊已结束', 'success')
+    
+    console.log('[Chat] 问诊已结束:', consultationId)
+  } catch (error: any) {
+    console.error('[Chat] 结束问诊失败:', error)
+    showToast('结束问诊失败: ' + (error.message || '未知错误'), 'error')
   }
 }
 
@@ -2162,7 +2465,14 @@ function importHistoryPrescription(record: any) {
 onMounted(() => {
   checkMobile()
   window.addEventListener('resize', checkMobile)
-  initIM()
+  
+  // 先加载问诊详情，再初始化IM，然后开始轮询
+  loadConsultationDetail().then(() => {
+    initIM().then(() => startPolling())
+  }).catch(() => {
+    // 即使加载失败，也尝试初始化IM
+    initIM().then(() => startPolling())
+  })
 
   // 加载草稿
   const recordDraft = localStorage.getItem(`medical_record_draft_${patientId}`)
@@ -2186,8 +2496,17 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  stopPolling()
   window.removeEventListener('resize', checkMobile)
   stopRecording()
+  if (handleSdkReady) {
+    imService.off('onSdkReady', handleSdkReady)
+  }
+  if (handleSdkNotReady) {
+    imService.off('onSdkNotReady', handleSdkNotReady)
+  }
+  imService.off('onMessageReceived', handleNewMessage)
+  imService.destroy()
 })
 
 watch(activeWorkspace, (newVal) => {

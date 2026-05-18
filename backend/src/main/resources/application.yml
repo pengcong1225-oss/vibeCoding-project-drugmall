@@ -2,17 +2,42 @@ server:
   port: 8080
   servlet:
     context-path: /api
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+  tomcat:
+    uri-encoding: UTF-8
 
 spring:
   application:
     name: drugmall-backend
+  main:
+    allow-circular-references: true
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+  http:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
 
-  # 数据源配置（使用模拟数据，不需要真实数据库）
+  # SQL初始化配置
+  sql:
+    init:
+      mode: never
+      schema-locations: classpath:sql/init/schema.sql
+      data-locations: classpath:sql/init/data.sql
+      continue-on-error: true
+
+  # 数据源配置
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/drugmall?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+    url: jdbc:mysql://localhost:3306/drugmall?useUnicode=true&characterEncoding=UTF-8&useSSL=false&serverTimezone=Asia/Shanghai
     username: root
-    password: root
+    password: qwer1234
 
   # Redis配置
   data:
@@ -36,7 +61,7 @@ mybatis-plus:
   type-aliases-package: com.drugmall.entity
   global-config:
     db-config:
-      id-type: auto
+      id-type: assign_id
       logic-delete-field: isDeleted
       logic-delete-value: 1
       logic-not-delete-value: 0
@@ -73,9 +98,9 @@ logging:
 
 # 应用自定义配置
 drugmall:
-  # 模拟数据配置
+  # 模拟数据配置（false: 关闭Mock，数据来源数据库）
   mock:
-    enabled: true
+    enabled: false
     data-path: classpath:mock-data/
 
 # 腾讯云IM配置

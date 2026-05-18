@@ -62,9 +62,10 @@ public class UserController {
     }
 
     @PostMapping("/avatar")
-    @Operation(summary = "上传头像", description = "上传用户头像")
-    public Result<String> uploadAvatar(@RequestBody String avatarBase64) {
-        return Result.success(userService.uploadAvatar(CURRENT_USER_ID, avatarBase64));
+    @Operation(summary = "上传头像", description = "上传用户头像（multipart/form-data）")
+    public Result<String> uploadAvatar(
+            @Parameter(description = "头像文件") @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        return Result.success(userService.uploadAvatar(CURRENT_USER_ID, file));
     }
 
     @PostMapping("/real-name-auth")
@@ -193,8 +194,8 @@ public class UserController {
 
     @PostMapping("/coupons/receive")
     @Operation(summary = "领取优惠券", description = "领取指定优惠券")
-    public Result<Void> receiveCoupon(
-            @Parameter(description = "优惠券ID") @RequestParam String couponId) {
+    public Result<Void> receiveCoupon(@RequestBody java.util.Map<String, String> body) {
+        String couponId = body.get("couponId");
         userService.receiveCoupon(CURRENT_USER_ID, couponId);
         return Result.success();
     }
@@ -202,18 +203,21 @@ public class UserController {
     @GetMapping("/coupons/available")
     @Operation(summary = "获取可用优惠券", description = "获取当前订单可用的优惠券")
     public Result<List<CouponVO>> getAvailableCoupons(
-            @Parameter(description = "订单金额") @RequestParam String amount) {
-        return Result.success(userService.getAvailableCoupons(CURRENT_USER_ID, amount));
+            @Parameter(description = "订单金额") @RequestParam("orderAmount") String orderAmount) {
+        return Result.success(userService.getAvailableCoupons(CURRENT_USER_ID, orderAmount));
     }
 
     // ============== 浏览历史 ==============
 
     @GetMapping("/browse-history")
-    @Operation(summary = "获取浏览历史", description = "获取药品浏览历史")
-    public Result<List<BrowseHistoryVO>> getBrowseHistory(
+    @Operation(summary = "获取浏览历史", description = "获取药品浏览历史（分页）")
+    public Result<java.util.Map<String, Object>> getBrowseHistory(
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer page,
             @Parameter(description = "每页数量") @RequestParam(defaultValue = "10") Integer size) {
-        return Result.success(userService.getBrowseHistory(CURRENT_USER_ID, page, size));
+        java.util.Map<String, Object> result = new java.util.HashMap<>();
+        result.put("list", userService.getBrowseHistory(CURRENT_USER_ID, page, size));
+        result.put("total", userService.getBrowseHistoryCount(CURRENT_USER_ID));
+        return Result.success(result);
     }
 
     @PostMapping("/browse-history")

@@ -1,12 +1,10 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { Fold, Expand, FullScreen, Bell, ArrowDown, User, Setting, SwitchButton } from '@element-plus/icons-vue'
 
-const props = defineProps<{
-  isCollapse: boolean
-}>()
+defineProps<{ isCollapse: boolean }>()
 
 const emit = defineEmits(['toggle-collapse'])
 

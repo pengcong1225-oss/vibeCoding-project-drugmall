@@ -3,6 +3,7 @@ package com.drugmall.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.TableField;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -18,38 +19,33 @@ public class OrderItem implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    @TableId(type = IdType.ASSIGN_ID)
-    private String id;
+    @TableId(type = IdType.AUTO)
+    private Long id;
 
-    private String orderId;
+    @TableField("order_id")
+    private Long orderId;
 
-    private String drugId;
+    @TableField("product_id")
+    private Long productId;
 
-    private String name;
+    @TableField("product_name")
+    private String productName;
+
+    @TableField("product_image")
+    private String productImage;
 
     private String specification;
 
-    private String manufacturer;
-
-    private String image;
-
     private BigDecimal price;
-
-    private BigDecimal originalPrice;
 
     private Integer quantity;
 
-    private Boolean isRx;
+    @TableField("total_amount")
+    private BigDecimal totalAmount;
 
-    private String disease;
-
-    private String usage;
-
-    private BigDecimal subtotal;
-
+    @TableField("review_status")
     private String reviewStatus;
 
-    private String reviewId;
-
+    @TableField("create_time")
     private LocalDateTime createTime;
 }

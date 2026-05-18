@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useDoctorStore } from '@/stores/doctor'
 import Tabbar from '@/components/Tabbar/index.vue'
@@ -18,12 +18,41 @@ const quickActions = [
   { icon: 'more', name: '更多功能', path: '#' }
 ]
 
-const todoItems = [
-  { icon: 'warning', color: 'orange', title: '待回复患者咨询', count: '3条待回复', action: '去回复' },
-  { icon: 'prescription', color: 'blue', title: '待审核处方', count: '2张待审核', action: '去审核' },
-  { icon: 'file', color: 'gray', title: '待完善病历', count: '1份待完善', action: '去完善' },
-  { icon: 'clock', color: 'red', title: '即将过期随访', count: '1个 2小时后', action: '去随访' }
-]
+// 使用真实数据替换硬编码
+const todoItems = computed(() => [
+  { 
+    icon: 'warning', 
+    color: 'orange', 
+    title: '待回复患者咨询', 
+    count: `${doctorStore.todayStats.pending}条待回复`, 
+    action: '去回复',
+    path: '/consultation?tab=pending'
+  },
+  { 
+    icon: 'prescription', 
+    color: 'blue', 
+    title: '待审核处方', 
+    count: '待开发', 
+    action: '去审核',
+    path: '#'
+  },
+  { 
+    icon: 'file', 
+    color: 'gray', 
+    title: '待完善病历', 
+    count: '待开发', 
+    action: '去完善',
+    path: '#'
+  },
+  { 
+    icon: 'clock', 
+    color: 'red', 
+    title: '即将过期随访', 
+    count: '待开发', 
+    action: '去随访',
+    path: '#'
+  }
+])
 
 const patientMessages = [
   { name: '李女士', time: '10:23', count: 1, message: '医生，我最近头疼得厉害，睡眠也不好...' },
@@ -156,7 +185,13 @@ onMounted(() => {
           </span>
         </div>
         <div class="todo-list">
-          <div v-for="(item, index) in todoItems" :key="index" class="todo-item">
+          <div 
+            v-for="(item, index) in todoItems" 
+            :key="index" 
+            class="todo-item"
+            @click="item.path !== '#' && goToPage(item.path)"
+            :style="{ cursor: item.path !== '#' ? 'pointer' : 'default' }"
+          >
             <div class="todo-icon" :class="item.color">
               <svg v-if="item.icon === 'warning'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>

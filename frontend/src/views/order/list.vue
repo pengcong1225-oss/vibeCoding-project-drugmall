@@ -7,18 +7,19 @@ import OrderCard from '@/components/OrderCard/index.vue'
 import Empty from '@/components/Empty/index.vue'
 import Loading from '@/components/Loading/index.vue'
 import { getOrders, cancelOrder, deleteOrder, confirmReceipt } from '@/api/modules/order'
+import { OrderStatus } from '@/constants'
+import { ROUTES } from '@/constants/routes'
 import type { Order } from '@/types'
 
 const router = useRouter()
 const route = useRoute()
 
-// 状态筛选
 const statusTabs = [
   { label: '全部', value: '', count: 0 },
-  { label: '待付款', value: 'pending', count: 0 },
-  { label: '待发货', value: 'paid', count: 0 },
-  { label: '待收货', value: 'shipped', count: 0 },
-  { label: '待评价', value: 'completed', count: 0 }
+  { label: '待付款', value: OrderStatus.PENDING, count: 0 },
+  { label: '待发货', value: OrderStatus.PAID, count: 0 },
+  { label: '待收货', value: OrderStatus.SHIPPED, count: 0 },
+  { label: '待评价', value: OrderStatus.COMPLETED, count: 0 }
 ]
 
 const currentStatus = ref('')
@@ -187,7 +188,7 @@ const handleTabChange = (index: number) => {
 
 // 订单操作处理
 const handlePay = (order: Order) => {
-  router.push(`/order/pay?id=${order.id}`)
+  router.push(`${ROUTES.ORDER_PAY}?id=${order.id}`)
 }
 
 const handleCancel = async (order: Order) => {
@@ -338,7 +339,7 @@ const loadMore = () => {
       <Empty description="暂无相关订单" :image-size="160">
         <template #extra>
           <div class="empty-actions">
-            <el-button type="primary" round @click="$router.push('/home')">
+            <el-button type="primary" round @click="$router.push(ROUTES.HOME)">
               去逛逛
             </el-button>
             <el-button round @click="refreshOrders">

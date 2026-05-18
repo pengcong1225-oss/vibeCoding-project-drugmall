@@ -12,9 +12,14 @@ import java.util.List;
 public interface PrescriptionService {
 
     /**
-     * 获取处方列表
+     * 获取处方列表（医生视角）
      */
     List<DoctorPrescriptionVO> listPrescriptions(String doctorId, String status);
+
+    /**
+     * 获取患者处方列表（患者视角，按patientId过滤）
+     */
+    List<DoctorPrescriptionVO> listPatientPrescriptions(String patientId, String status);
 
     /**
      * 获取处方详情

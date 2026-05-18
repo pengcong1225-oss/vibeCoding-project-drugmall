@@ -364,7 +364,142 @@ CREATE TABLE `dm_prescription_item` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='处方明细表';
 
 -- =============================================
--- 八、优惠券相关表
+-- 九、门店相关表
+-- =============================================
+
+-- 9.1 门店表
+DROP TABLE IF EXISTS `dm_store`;
+CREATE TABLE `dm_store` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '门店ID',
+  `store_code` VARCHAR(50) NOT NULL COMMENT '门店编码',
+  `store_name` VARCHAR(200) NOT NULL COMMENT '门店名称',
+  `logo` VARCHAR(500) DEFAULT NULL COMMENT '门店Logo',
+  `logo_text` VARCHAR(50) DEFAULT NULL COMMENT 'Logo文字',
+  `logo_color` VARCHAR(20) DEFAULT NULL COMMENT 'Logo背景色',
+  `rating` DECIMAL(2,1) DEFAULT 5.0 COMMENT '评分',
+  `monthly_sales` INT DEFAULT 0 COMMENT '月销量',
+  `address` VARCHAR(300) NOT NULL COMMENT '门店地址',
+  `phone` VARCHAR(20) NOT NULL COMMENT '联系电话',
+  `business_hours` VARCHAR(100) DEFAULT NULL COMMENT '营业时间',
+  `is_open` TINYINT DEFAULT 1 COMMENT '是否营业 0-休息 1-营业',
+  `is_24hours` TINYINT DEFAULT 0 COMMENT '是否24小时营业 0-否 1-是',
+  `latitude` DECIMAL(10,7) DEFAULT NULL COMMENT '纬度',
+  `longitude` DECIMAL(10,7) DEFAULT NULL COMMENT '经度',
+  `description` TEXT COMMENT '门店简介',
+  `business_scope` VARCHAR(500) DEFAULT NULL COMMENT '经营范围',
+  `license_no` VARCHAR(100) DEFAULT NULL COMMENT '经营许可证号',
+  `is_insurance` TINYINT DEFAULT 0 COMMENT '是否医保定点 0-否 1-是',
+  `is_chain` TINYINT DEFAULT 0 COMMENT '是否连锁品牌 0-否 1-是',
+  `is_self_operated` TINYINT DEFAULT 0 COMMENT '是否自营 0-否 1-是',
+  `delivery_time` INT DEFAULT 30 COMMENT '预计配送时间(分钟)',
+  `min_delivery_amount` DECIMAL(10,2) DEFAULT 0.00 COMMENT '最低配送金额',
+  `delivery_fee` DECIMAL(10,2) DEFAULT 0.00 COMMENT '配送费',
+  `status` TINYINT DEFAULT 1 COMMENT '状态 0-停用 1-正常',
+  `sort_order` INT DEFAULT 0 COMMENT '排序',
+  `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `is_deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除 0-未删除 1-已删除',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_store_code` (`store_code`),
+  KEY `idx_status` (`status`),
+  KEY `idx_is_open` (`is_open`),
+  KEY `idx_rating` (`rating`),
+  KEY `idx_monthly_sales` (`monthly_sales`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='门店表';
+
+-- 9.2 门店资质认证表
+DROP TABLE IF EXISTS `dm_store_certification`;
+CREATE TABLE `dm_store_certification` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '认证ID',
+  `store_id` BIGINT NOT NULL COMMENT '门店ID',
+  `cert_name` VARCHAR(100) NOT NULL COMMENT '资质名称',
+  `cert_type` VARCHAR(50) DEFAULT NULL COMMENT '资质类型',
+  `cert_no` VARCHAR(100) DEFAULT NULL COMMENT '证书编号',
+  `issue_date` DATE DEFAULT NULL COMMENT '发证日期',
+  `expire_date` DATE DEFAULT NULL COMMENT '到期日期',
+  `cert_image` VARCHAR(500) DEFAULT NULL COMMENT '证书图片',
+  `status` TINYINT DEFAULT 1 COMMENT '状态 0-过期 1-有效',
+  `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_store_id` (`store_id`),
+  KEY `idx_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='门店资质认证表';
+
+-- 9.3 门店服务承诺表
+DROP TABLE IF EXISTS `dm_store_promise`;
+CREATE TABLE `dm_store_promise` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '承诺ID',
+  `store_id` BIGINT NOT NULL COMMENT '门店ID',
+  `promise_text` VARCHAR(200) NOT NULL COMMENT '承诺内容',
+  `promise_type` VARCHAR(50) DEFAULT NULL COMMENT '承诺类型',
+  `sort_order` INT DEFAULT 0 COMMENT '排序',
+  `status` TINYINT DEFAULT 1 COMMENT '状态 0-禁用 1-启用',
+  `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_store_id` (`store_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='门店服务承诺表';
+
+-- 9.4 门店药品库存表
+DROP TABLE IF EXISTS `dm_store_inventory`;
+CREATE TABLE `dm_store_inventory` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '库存ID',
+  `store_id` BIGINT NOT NULL COMMENT '门店ID',
+  `product_id` BIGINT NOT NULL COMMENT '药品ID',
+  `stock` INT NOT NULL DEFAULT 0 COMMENT '库存数量',
+  `warning_stock` INT DEFAULT 10 COMMENT '库存预警值',
+  `price` DECIMAL(10,2) NOT NULL COMMENT '门店售价',
+  `original_price` DECIMAL(10,2) DEFAULT NULL COMMENT '原价',
+  `discount` INT DEFAULT 0 COMMENT '折扣百分比',
+  `is_available` TINYINT DEFAULT 1 COMMENT '是否可售 0-不可售 1-可售',
+  `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_store_product` (`store_id`, `product_id`),
+  KEY `idx_store_id` (`store_id`),
+  KEY `idx_product_id` (`product_id`),
+  KEY `idx_is_available` (`is_available`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='门店药品库存表';
+
+-- 9.5 门店标签表
+DROP TABLE IF EXISTS `dm_store_tag`;
+CREATE TABLE `dm_store_tag` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '标签ID',
+  `store_id` BIGINT NOT NULL COMMENT '门店ID',
+  `tag_text` VARCHAR(50) NOT NULL COMMENT '标签文字',
+  `tag_type` VARCHAR(20) DEFAULT 'info' COMMENT '标签类型 primary/success/warning/danger/info',
+  `sort_order` INT DEFAULT 0 COMMENT '排序',
+  `status` TINYINT DEFAULT 1 COMMENT '状态 0-禁用 1-启用',
+  `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_store_id` (`store_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='门店标签表';
+
+-- 9.6 门店评价表
+DROP TABLE IF EXISTS `dm_store_review`;
+CREATE TABLE `dm_store_review` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '评价ID',
+  `store_id` BIGINT NOT NULL COMMENT '门店ID',
+  `user_id` BIGINT NOT NULL COMMENT '用户ID',
+  `order_id` BIGINT DEFAULT NULL COMMENT '订单ID',
+  `rating` TINYINT NOT NULL COMMENT '评分 1-5星',
+  `content` VARCHAR(500) DEFAULT NULL COMMENT '评价内容',
+  `images` TEXT COMMENT '评价图片JSON',
+  `is_anonymous` TINYINT DEFAULT 0 COMMENT '是否匿名 0-否 1-是',
+  `status` TINYINT DEFAULT 1 COMMENT '状态 0-隐藏 1-显示',
+  `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_store_id` (`store_id`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_rating` (`rating`),
+  KEY `idx_create_time` (`create_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='门店评价表';
+
+-- =============================================
+-- 十、优惠券相关表
 -- =============================================
 
 -- 8.1 优惠券表

@@ -8,6 +8,7 @@ import {
   WarningFilled, Medal, Clock, Phone
 } from '@element-plus/icons-vue'
 import { useCartStore } from '@/stores/cart'
+import { ROUTES, getStoreRoute, getInquiryCheckoutRoute } from '@/constants/routes'
 
 const route = useRoute()
 const router = useRouter()
@@ -179,20 +180,18 @@ const loadDrugData = async () => {
   loading.value = false
 }
 
-// 返回上一页
 const goBack = () => {
   if (storeId.value && !fromCategory.value) {
-    router.push(`/store/${storeId.value}`)
+    router.push(getStoreRoute(storeId.value))
   } else {
     router.back()
   }
 }
 
-// 搜索店内商品
 const handleSearch = () => {
   if (searchKeyword.value.trim()) {
     router.push({
-      path: '/search',
+      path: ROUTES.SEARCH,
       query: {
         keyword: searchKeyword.value,
         storeId: storeId.value
@@ -201,50 +200,41 @@ const handleSearch = () => {
   }
 }
 
-// 收藏/取消收藏
 const toggleFavorite = () => {
   isFavorite.value = !isFavorite.value
   ElMessage.success(isFavorite.value ? '已收藏' : '已取消收藏')
 }
 
-// 更多操作
 const handleMore = () => {
   ElMessage.info('更多功能开发中')
 }
 
-// 切换Tab
 const switchTab = (tabId: string) => {
   activeTab.value = tabId
 }
 
-// 切换轮播
 const changeSwiper = (index: number) => {
   currentSwiperIndex.value = index
 }
 
-// 去咨询
 const goConsult = () => {
-  router.push('/inquiry/pre')
+  router.push(ROUTES.INQUIRY_PRE)
 }
 
-// 进店
 const goStore = () => {
   if (storeId.value) {
-    router.push(`/store/${storeId.value}`)
+    router.push(getStoreRoute(storeId.value))
   }
 }
 
-// 去购物车
 const goCart = () => {
-  router.push('/cart')
+  router.push(ROUTES.CART)
 }
 
-// 显示购物车弹窗
 const showCart = () => {
   showCartPopup.value = true
 }
 
-// 加入购物车
 const addToCart = async () => {
   try {
     await cartStore.addItem({
@@ -266,7 +256,6 @@ const addToCart = async () => {
   }
 }
 
-// 立即购买
 const buyNow = () => {
   if (drug.value.stock <= 0) {
     ElMessage.warning('商品库存不足')
@@ -288,11 +277,9 @@ const buyNow = () => {
     storeName: store.value.name
   }
   localStorage.setItem('drugOrderData', JSON.stringify(orderData))
-  // 跳转到新的结算页
-  router.push('/inquiry/checkout/0')
+  router.push(getInquiryCheckoutRoute(0))
 }
 
-// 数量调整
 const decreaseQuantity = () => {
   if (quantity.value > 1) {
     quantity.value--
@@ -307,17 +294,14 @@ const increaseQuantity = () => {
   }
 }
 
-// 组合加购
 const addComboToCart = () => {
   ElMessage.success('组合已加入购物车')
 }
 
-// 去问诊
 const goDoctorConsult = () => {
-  router.push('/inquiry/pre')
+  router.push(ROUTES.INQUIRY_PRE)
 }
 
-// 查看全部问答
 const viewAllQA = () => {
   activeTab.value = 'doctor'
 }

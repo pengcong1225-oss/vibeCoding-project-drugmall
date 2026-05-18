@@ -103,6 +103,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft, Loading } from '@element-plus/icons-vue'
 import { getConsultationDetail, type DoctorInfo } from '@/api/modules/inquiry'
+import { getInquiryCheckoutRoute } from '@/constants/routes'
 
 const route = useRoute()
 const router = useRouter()
@@ -263,11 +264,10 @@ const goToCheckout = () => {
 
   paying.value = true
   
-  // 模拟加载
   setTimeout(() => {
     paying.value = false
     router.push({
-      path: `/inquiry/checkout/${consultationId}`,
+      path: getInquiryCheckoutRoute(consultationId),
       query: {
         ...route.query,
         orderNo: orderInfo.value.orderNo,

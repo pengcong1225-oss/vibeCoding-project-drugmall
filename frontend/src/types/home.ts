@@ -25,6 +25,7 @@ export interface HomeSection {
   visible: boolean
   sortOrder: number
   config: Record<string, any>
+  tabIds?: string[]
   components: HomeComponent[]
 }
 

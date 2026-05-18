@@ -3,8 +3,8 @@
     <!-- 滑动长方形卡片列表 -->
     <div class="shortcuts-slider" ref="sliderRef">
       <div
-        v-for="item in shortcuts"
-        :key="item.id"
+        v-for="(item, index) in shortcuts"
+        :key="index"
         class="shortcut-card"
         @click="$emit('click', item)"
       >
@@ -26,10 +26,8 @@
 import { ref } from 'vue'
 
 export interface ShortcutItem {
-  id: number
   name: string
   subtitle: string
-  image: string
   doctorAvatar?: string
 }
 

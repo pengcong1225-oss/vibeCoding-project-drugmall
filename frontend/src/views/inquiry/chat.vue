@@ -163,7 +163,7 @@
           v-model="inputMessage"
           class="text-input"
           placeholder="请详细描述您的病情"
-          :disabled="!imConnected || isLoading"
+          :disabled="isLoading"
           rows="1"
           @input="autoResize"
           @keyup.enter.prevent="handleSendMessage"
@@ -217,11 +217,16 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft, CircleCheck, Timer, ChatDotRound, Loading } from '@element-plus/icons-vue'
 import WeChatBubble from '@/components/chat/WeChatBubble.vue'
+import { useIMStore } from '@/stores/im'
+import { useUserStore } from '@/stores/user'
+import { ROUTES } from '@/constants/routes'
+import { sendConsultationMessage, getConsultationMessages } from '@/api/modules/inquiry'
 
 const router = useRouter()
 const route = useRoute()
+const imStore = useIMStore()
+const userStore = useUserStore()
 
-// 路由参数
 const consultationId = ref((route.query.id as string) || (route.query.consultationId as string) || '1')
 const doctorId = ref((route.query.doctorId as string) || 'DOC001')
 const doctorName = ref((route.query.doctorName as string) || '刘贞君')
@@ -232,14 +237,11 @@ const specialty = ref('擅长中西医结合诊疗银屑病，痤疮，湿疹，
 const price = ref((route.query.price as string) || '19.9')
 const waitTime = ref(12)
 
-// 当前步骤
 const currentStep = ref(1)
 
-// 头像
 const patientAvatar = 'https://api.dicebear.com/7.x/avataaars/svg?seed=patient'
 const doctorAvatar = 'https://api.dicebear.com/7.x/avataaars/svg?seed=doctor1'
 
-// 状态
 const inputMessage = ref('')
 const messageListRef = ref<HTMLElement>()
 const messages = ref<Array<{
@@ -256,16 +258,15 @@ const messages = ref<Array<{
 const isLoading = ref(false)
 const isSending = ref(false)
 const error = ref('')
-const imConnected = ref(true)
+const imConnected = ref(false)
+const pollingTimer = ref<ReturnType<typeof setInterval> | null>(null)
 const showQuickReplies = ref(false)
 const agreementVisible = ref(false)
 
-// 图片预览
 const previewVisible = ref(false)
 const previewImages = ref<string[]>([])
 const previewIndex = ref(0)
 
-// 快捷回复
 const quickReplies = ref([
   '半夜咽痒咳嗽，持续1周',
   '皮肤瘙痒，有红疹',
@@ -275,12 +276,10 @@ const quickReplies = ref([
   '其他症状'
 ])
 
-// 计算属性
 const canSend = computed(() => {
   return inputMessage.value.trim().length > 0 && !isSending.value && imConnected.value
 })
 
-// 滚动到底部
 const scrollToBottom = async () => {
   await nextTick()
   if (messageListRef.value) {
@@ -288,53 +287,46 @@ const scrollToBottom = async () => {
   }
 }
 
-// 格式化日期
 const formatDate = (date: Date): string => {
   const hours = String(date.getHours()).padStart(2, '0')
   const minutes = String(date.getMinutes()).padStart(2, '0')
   return `${hours}:${minutes}`
 }
 
-// 返回上一页
 const goBack = () => {
-  router.push('/inquiry')
+  router.push(ROUTES.INQUIRY)
 }
 
-// 查看咨询记录
 const viewRecords = () => {
   ElMessage.info('咨询记录功能开发中')
 }
 
-// 显示知情同意书
 const showAgreement = () => {
   agreementVisible.value = true
 }
 
-// 发送快捷回复
 const sendQuickReply = (reply: string) => {
   inputMessage.value = reply
   showQuickReplies.value = false
   handleSendMessage()
 }
 
-// 自动调整输入框高度
 const autoResize = (e: Event) => {
   const textarea = e.target as HTMLTextAreaElement
   textarea.style.height = 'auto'
   textarea.style.height = Math.min(textarea.scrollHeight, 100) + 'px'
 }
 
-// 发送消息
 const handleSendMessage = async () => {
   const content = inputMessage.value.trim()
-  if (!content || !canSend.value) return
+  if (!content) return
+  if (isSending.value) return
 
   inputMessage.value = ''
   isSending.value = true
 
-  // 添加消息到列表
-  const message = {
-    id: 'MSG_' + Date.now(),
+  const tempMsg = {
+    id: 'temp_' + Date.now(),
     content,
     type: 'text' as const,
     from: 'patient',
@@ -342,79 +334,181 @@ const handleSendMessage = async () => {
     time: formatDate(new Date()),
     status: 'sent' as const
   }
-  messages.value.push(message)
+  messages.value.push(tempMsg)
   scrollToBottom()
 
-  // 更新步骤
   if (currentStep.value < 4) {
     currentStep.value = 4
   }
 
+  // 优先通过后端 API 持久化消息（保证两端数据同步）
   try {
-    // 模拟发送成功
-    await new Promise(resolve => setTimeout(resolve, 300))
-    message.status = 'read'
-
-    // 模拟医生回复
-    setTimeout(() => {
-      simulateDoctorReply()
-    }, 1500)
-  } catch (e: any) {
-    console.error('发送消息失败:', e)
-    message.status = 'failed'
+    const result = await sendConsultationMessage(consultationId.value, { type: 'text', content })
+    tempMsg.status = 'read'
+    console.log('[Chat] 消息已通过后端API保存')
+    // 用后端返回的真实ID替换临时ID
+    if (result && result.id) {
+      const idx = messages.value.findIndex(m => m.id === tempMsg.id)
+      if (idx !== -1) {
+        messages.value[idx].id = result.id
+      }
+    }
+  } catch (apiError: any) {
+    console.error('[Chat] 后端API保存消息失败:', apiError)
+    tempMsg.status = 'failed'
     ElMessage.error('发送失败，请重试')
-  } finally {
     isSending.value = false
+    return
   }
+
+  // 同时通过 TIM SDK 实时推送（如果已连接）
+  if (imConnected.value) {
+    try {
+      await imStore.sendTextMessage(content)
+      console.log('[Chat] TIM实时推送成功')
+    } catch (timError: any) {
+      console.warn('[Chat] TIM推送失败（消息已通过API保存）:', timError)
+    }
+  }
+
+  isSending.value = false
 }
 
-// 模拟医生回复
-const simulateDoctorReply = () => {
-  const replies = [
-    '您好，请详细描述一下您的症状。',
-    '了解了，这种情况持续多久了？',
-    '建议您可以先做一些基础检查。',
-    '这个症状需要进一步观察，建议您及时就医。',
-    '我给您开一些药，您按说明服用。',
-    '平时要注意休息，避免熬夜。'
-  ]
-  const randomReply = replies[Math.floor(Math.random() * replies.length)]
-
-  const reply = {
-    id: 'MSG_' + Date.now(),
-    content: randomReply,
-    type: 'text' as const,
-    from: 'doctor',
-    isSelf: false,
-    time: formatDate(new Date()),
-    status: 'read' as const
-  }
-  messages.value.push(reply)
-  scrollToBottom()
-}
-
-// 预览图片
 const handlePreviewImage = (url: string) => {
   previewImages.value = [url]
   previewIndex.value = 0
   previewVisible.value = true
 }
 
-// 查看处方
 const handleViewPrescription = (data?: any) => {
   console.log('查看处方:', data)
   ElMessage.info('查看处方详情')
 }
 
-// 初始化
+const handleNewMessage = (msgList: any[]) => {
+  if (!Array.isArray(msgList)) return
+  for (const timMsg of msgList) {
+    const msgId = timMsg.id || timMsg.ID || ('msg_' + Date.now())
+    // 去重：检查是否已存在相同ID的消息
+    if (messages.value.some(m => m.id === msgId)) {
+      console.log('[Chat] 跳过重复消息:', msgId)
+      continue
+    }
+    const content = timMsg.content || timMsg.payload?.text || '[消息]'
+    const isPrescription = content.includes('【电子处方】')
+
+    const msg = {
+      id: msgId,
+      content,
+      type: isPrescription ? 'prescription' as const : 'text' as const,
+      from: timMsg.from || 'doctor',
+      isSelf: false,
+      time: timMsg.time || formatDate(new Date()),
+      status: 'read' as const,
+      cardData: isPrescription ? parsePrescriptionContent(content) : undefined
+    }
+    messages.value.push(msg)
+    scrollToBottom()
+  }
+}
+
+function parsePrescriptionContent(content: string) {
+  const lines = content.split('\n')
+  const diagnosis = lines.find(l => l.startsWith('诊断：'))?.replace('诊断：', '') || ''
+  const drugs: string[] = []
+  let totalAmount = ''
+  
+  for (const line of lines) {
+    if (/^\d+\./.test(line)) {
+      drugs.push(line)
+    }
+    if (line.startsWith('合计：')) {
+      totalAmount = line.replace('合计：', '')
+    }
+  }
+  
+  return { diagnosis, drugs, totalAmount }
+}
+
 const initIM = async () => {
   try {
     isLoading.value = true
     error.value = ''
 
-    // 模拟IM初始化
-    await new Promise(resolve => setTimeout(resolve, 500))
+    if (!userStore.isLoggedIn) {
+      error.value = '请先登录'
+      isLoading.value = false
+      return
+    }
+
+    await imStore.initialize()
+
+    const userId = userStore.userInfo?.id?.toString() || '1'
+    await imStore.login(userId, 'patient')
+
     imConnected.value = true
+
+    imStore.on('MESSAGE_RECEIVED', handleNewMessage)
+
+    // 优先从后端 API 加载消息（保证两端数据一致）
+    let hasMessages = false
+    try {
+      const apiMessages = await getConsultationMessages(consultationId.value)
+      console.log('[Chat] 从后端API获取到消息数量:', apiMessages?.length || 0)
+
+      if (apiMessages && apiMessages.length > 0) {
+        hasMessages = true
+        messages.value = apiMessages.map((m: any) => {
+          const isPrescription = m.content?.includes('【电子处方】')
+          return {
+            id: m.id,
+            content: m.content,
+            type: isPrescription ? 'prescription' as const : (m.type === 'image' ? 'image' : 'text') as const,
+            url: m.url,
+            from: m.sender || 'doctor',
+            isSelf: m.sender === 'patient',
+            time: m.time || formatDate(new Date()),
+            status: 'read' as const,
+            cardData: isPrescription ? parsePrescriptionContent(m.content) : undefined
+          }
+        })
+      }
+    } catch (apiError: any) {
+      console.error('[Chat] 从后端API加载消息失败:', apiError)
+    }
+
+    // 如果后端API没有消息，尝试从 TIM SDK 加载
+    if (!hasMessages) {
+      const targetDoctorId = doctorId.value
+      const conversationId = `C2C_doctor_${targetDoctorId}`
+
+      try {
+        await imStore.enterConversation(conversationId)
+
+        const storeMessages = imStore.messages
+        if (storeMessages && storeMessages.length > 0) {
+          hasMessages = true
+          messages.value = storeMessages.map((m: any) => {
+            const isPrescription = m.content?.includes('【电子处方】')
+            return {
+              id: m.id,
+              content: m.content,
+              type: isPrescription ? 'prescription' as const : (m.type === 'image' ? 'image' : 'text') as const,
+              url: m.url,
+              from: m.from,
+              isSelf: m.isSelf,
+              time: m.time,
+              status: m.status,
+              cardData: isPrescription ? parsePrescriptionContent(m.content) : undefined
+            }
+          })
+        }
+      } catch (timError: any) {
+        console.warn('[Chat] 从TIM加载消息失败:', timError.message)
+      }
+    }
+
+    await scrollToBottom()
     isLoading.value = false
 
   } catch (e: any) {
@@ -425,17 +519,60 @@ const initIM = async () => {
   }
 }
 
-// 重试初始化
+// 定时轮询后端 API 获取新消息（保证两端消息同步，不依赖 TIM 实时推送）
+async function pollNewMessages() {
+  try {
+    const apiMessages = await getConsultationMessages(consultationId.value)
+    if (!apiMessages || !apiMessages.length) return
+
+    for (const m of apiMessages) {
+      // 去重：只追加本地没有的消息
+      if (messages.value.some(local => local.id === m.id)) continue
+
+      const isPrescription = m.content?.includes('【电子处方】')
+      messages.value.push({
+        id: m.id,
+        content: m.content,
+        type: isPrescription ? 'prescription' as const : (m.type === 'image' ? 'image' : 'text') as const,
+        url: m.url,
+        from: m.sender || 'doctor',
+        isSelf: m.sender === 'patient',
+        time: m.time || formatDate(new Date()),
+        status: 'read' as const,
+        cardData: isPrescription ? parsePrescriptionContent(m.content) : undefined
+      })
+    }
+    scrollToBottom()
+  } catch (e: any) {
+    // 轮询失败静默处理，不影响用户体验
+    console.warn('[Chat] 轮询新消息失败:', e.message)
+  }
+}
+
+function startPolling() {
+  stopPolling()
+  pollingTimer.value = setInterval(pollNewMessages, 5000)
+}
+
+function stopPolling() {
+  if (pollingTimer.value) {
+    clearInterval(pollingTimer.value)
+    pollingTimer.value = null
+  }
+}
+
 const retryInit = () => {
   initIM()
 }
 
 onMounted(() => {
-  initIM()
+  initIM().then(() => startPolling())
 })
 
 onUnmounted(() => {
-  // 清理工作
+  stopPolling()
+  imStore.off('MESSAGE_RECEIVED', handleNewMessage)
+  imStore.logout()
 })
 </script>
 

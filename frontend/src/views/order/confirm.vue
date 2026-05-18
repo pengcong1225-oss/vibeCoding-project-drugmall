@@ -2,10 +2,22 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import {
+  ArrowLeft,
+  Location,
+  Plus,
+  ArrowRight,
+  Van,
+  Clock,
+  Message,
+  Delete,
+  CircleCheckFilled
+} from '@element-plus/icons-vue'
 import { useCartStore } from '@/stores/cart'
 import { useUserStore } from '@/stores/user'
 import { createOrder } from '@/api/modules/order'
 import { getAddressList, addAddress as apiAddAddress, deleteAddress as apiDeleteAddress } from '@/api/modules/address'
+import { ROUTES } from '@/constants/routes'
 import type { CartItem } from '@/stores/cart'
 import type { UserAddress } from '@/types'
 
@@ -20,8 +32,8 @@ const submitting = ref(false)
 // 配送方式
 const deliveryType = ref<'delivery' | 'self_pickup' | 'same_day'>('delivery')
 
-// 配送时间选择
-const deliveryTime = ref('')
+// 配送时间选择 - 默认尽快送达
+const deliveryTime = ref('asap')
 const deliveryTimeOptions = [
   { label: '尽快送达', value: 'asap' },
   { label: '今天 09:00-11:00', value: '09:00-11:00' },
@@ -50,6 +62,16 @@ const selectedAddress = ref<UserAddress | null>(null)
 const addressList = ref<UserAddress[]>([])
 const addressDialogVisible = ref(false)
 const isAddingAddress = ref(false)
+
+// 优惠券面板
+const showCouponPanel = ref(false)
+
+// 选择优惠券
+const selectCoupon = (coupon: typeof availableCoupons.value[0]) => {
+  if (coupon.id !== '' && goodsTotal.value < coupon.minAmount) return
+  selectedCoupon.value = coupon.id
+  showCouponPanel.value = false
+}
 
 // 新增地址表单
 const newAddressForm = ref({
@@ -215,7 +237,7 @@ const submitOrder = async () => {
     if (res) {
       ElMessage.success('订单提交成功')
       cartStore.clearCart()
-      router.push(`/order/pay?id=${res.id}`)
+      router.push(`${ROUTES.ORDER_PAY}?id=${res.id}`)
     }
   } catch (error) {
     ElMessage.error('订单提交失败，请重试')
@@ -227,7 +249,7 @@ const submitOrder = async () => {
 onMounted(() => {
   if (checkoutItems.value.length === 0) {
     ElMessage.warning('购物车为空，请先添加商品')
-    router.replace('/home')
+    router.replace(ROUTES.HOME)
   }
   loadAddressList()
 })
@@ -306,14 +328,17 @@ onMounted(() => {
       <!-- 配送时间 -->
       <div v-if="deliveryType !== 'self_pickup'" class="section">
         <div class="section-title">配送时间</div>
-        <el-select v-model="deliveryTime" placeholder="请选择配送时间" style="width: 100%">
-          <el-option
+        <div class="time-options">
+          <div
             v-for="option in deliveryTimeOptions"
             :key="option.value"
-            :label="option.label"
-            :value="option.value"
-          />
-        </el-select>
+            :class="['time-option', { active: deliveryTime === option.value, recommended: option.value === 'asap' }]"
+            @click="deliveryTime = option.value"
+          >
+            <span class="time-label">{{ option.label }}</span>
+            <span v-if="option.value === 'asap'" class="recommend-tag">推荐</span>
+          </div>
+        </div>
       </div>
 
       <!-- 自提门店信息 -->
@@ -357,6 +382,11 @@ onMounted(() => {
               </h4>
               <p class="item-spec">{{ item.specification }}</p>
               <p class="item-manufacturer">{{ item.manufacturer }}</p>
+              <!-- 处方药提示 -->
+              <div v-if="item.isRx" class="rx-notice">
+                <el-icon><Warning /></el-icon>
+                <span>处方药需凭处方购买</span>
+              </div>
             </div>
             <div class="item-price-qty">
               <span class="price">¥{{ item.price.toFixed(2) }}</span>
@@ -367,18 +397,47 @@ onMounted(() => {
       </div>
 
       <!-- 优惠券 -->
-      <div class="section">
-        <div class="section-title">优惠券</div>
-        <el-select v-model="selectedCoupon" placeholder="选择优惠券" style="width: 100%">
-          <el-option
+      <div class="section coupon-section">
+        <div class="section-title" @click="showCouponPanel = true">
+          <span>优惠券</span>
+          <span v-if="selectedCoupon" class="coupon-selected">
+            {{ availableCoupons.find(c => c.id === selectedCoupon)?.name }}
+          </span>
+          <span v-else class="coupon-hint">{{ availableCoupons.filter(c => c.id && goodsTotal >= c.minAmount).length }}张可用</span>
+          <el-icon class="arrow-icon"><ArrowRight /></el-icon>
+        </div>
+      </div>
+
+      <!-- 优惠券面板 -->
+      <el-drawer
+        v-model="showCouponPanel"
+        title="选择优惠券"
+        size="80%"
+      >
+        <div class="coupon-list">
+          <div
             v-for="coupon in availableCoupons"
             :key="coupon.id"
-            :label="coupon.id ? `${coupon.name}${goodsTotal >= coupon.minAmount ? ' (可用)' : ` (满${coupon.minAmount}可用)`}` : coupon.name"
-            :value="coupon.id"
-            :disabled="coupon.id !== '' && goodsTotal < coupon.minAmount"
-          />
-        </el-select>
-      </div>
+            :class="['coupon-item', { 
+              active: selectedCoupon === coupon.id, 
+              disabled: coupon.id !== '' && goodsTotal < coupon.minAmount 
+            }]"
+            @click="selectCoupon(coupon)"
+          >
+            <div class="coupon-left">
+              <span class="coupon-value">{{ coupon.id ? `¥${coupon.value}` : '不使用' }}</span>
+            </div>
+            <div class="coupon-right">
+              <span class="coupon-name">{{ coupon.name }}</span>
+              <span v-if="coupon.minAmount > 0" class="coupon-limit">满{{ coupon.minAmount }}可用</span>
+            </div>
+            <div class="coupon-check">
+              <el-icon v-if="selectedCoupon === coupon.id"><CircleCheckFilled /></el-icon>
+              <el-icon v-else><CircleCheck /></el-icon>
+            </div>
+          </div>
+        </div>
+      </el-drawer>
 
       <!-- 订单备注 -->
       <div class="section">
@@ -678,6 +737,49 @@ onMounted(() => {
   }
 }
 
+// 配送时间选项
+.time-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-sm;
+
+  .time-option {
+    display: flex;
+    align-items: center;
+    gap: $spacing-xs;
+    padding: 8px 16px;
+    border: 1px solid $border-light;
+    border-radius: $radius-md;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: $font-sm;
+    color: $text-secondary;
+
+    .recommend-tag {
+      padding: 2px 6px;
+      background: $error;
+      color: $text-white;
+      font-size: 10px;
+      border-radius: $radius-sm;
+    }
+
+    &:hover {
+      border-color: $primary;
+    }
+
+    &.active {
+      border-color: $primary;
+      background: rgba($primary, 0.05);
+      color: $primary;
+      font-weight: 500;
+    }
+
+    &.recommended {
+      border-color: rgba($error, 0.3);
+    }
+  }
+}
+
 // 配送方式
 .delivery-type {
   display: flex;
@@ -866,6 +968,22 @@ onMounted(() => {
         font-size: $font-sm;
         color: $text-tertiary;
       }
+
+      .rx-notice {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin-top: $spacing-xs;
+        padding: 4px 8px;
+        background: rgba($error, 0.08);
+        border-radius: $radius-sm;
+        font-size: $font-xs;
+        color: $error;
+
+        .el-icon {
+          font-size: 12px;
+        }
+      }
     }
 
     .item-price-qty {
@@ -930,6 +1048,90 @@ onMounted(() => {
         font-size: $font-md;
         font-weight: 500;
       }
+    }
+  }
+}
+
+// 优惠券区域
+.coupon-section {
+  .section-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+
+    .coupon-selected {
+      color: $error;
+      font-weight: 500;
+      font-size: $font-sm;
+    }
+
+    .coupon-hint {
+      color: $text-tertiary;
+      font-size: $font-sm;
+    }
+
+    .arrow-icon {
+      color: $text-tertiary;
+      font-size: 14px;
+    }
+  }
+}
+
+// 优惠券列表
+.coupon-list {
+  padding: $spacing-md;
+
+  .coupon-item {
+    display: flex;
+    align-items: center;
+    gap: $spacing-md;
+    padding: $spacing-md;
+    border: 1px solid $border-light;
+    border-radius: $radius-md;
+    margin-bottom: $spacing-md;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &.active {
+      border-color: $primary;
+      background: rgba($primary, 0.05);
+    }
+
+    &.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .coupon-left {
+      min-width: 60px;
+
+      .coupon-value {
+        font-size: $font-xl;
+        font-weight: bold;
+        color: $error;
+      }
+    }
+
+    .coupon-right {
+      flex: 1;
+
+      .coupon-name {
+        font-size: $font-md;
+        color: $text-primary;
+        display: block;
+        margin-bottom: $spacing-xs;
+      }
+
+      .coupon-limit {
+        font-size: $font-xs;
+        color: $text-tertiary;
+      }
+    }
+
+    .coupon-check {
+      color: $primary;
+      font-size: 20px;
     }
   }
 }

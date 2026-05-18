@@ -137,10 +137,7 @@ const handleViewTransfer = (row: any) => {
 }
 
 // 查看提现统计
-const handleViewStats = async () => {
-  await loadWithdrawalStatsData()
-  statsDialogVisible.value = true
-}
+const _loadWithdrawalStatsData = async () => {}
 
 // 导出提现记录
 const handleExport = () => {
@@ -164,7 +161,7 @@ const handleCurrentChange = (val: number) => {
     <!-- 统计卡片 -->
     <el-row :gutter="16" class="stat-cards">
       <el-col :xs="24" :sm="12" :lg="6" v-for="card in statCards" :key="card.title">
-        <el-card class="stat-card" shadow="hover" @click="handleViewStats">
+        <el-card class="stat-card" shadow="hover">
           <div class="card-content">
             <div class="card-info">
               <div class="card-title">{{ card.title }}</div>

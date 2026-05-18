@@ -2,6 +2,7 @@ package com.drugmall.im.service.impl;
 
 import com.drugmall.im.config.TencentIMConfig;
 import com.drugmall.im.service.IMUserSigService;
+import com.drugmall.im.service.TencentIMRestService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -11,6 +12,7 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.zip.Deflater;
 
 /**
@@ -25,14 +27,49 @@ public class IMUserSigServiceImpl implements IMUserSigService {
     @Autowired
     private TencentIMConfig imConfig;
 
+    @Autowired
+    private TencentIMRestService tencentIMRestService;
+
+    private final ConcurrentHashMap<String, Boolean> importedAccounts = new ConcurrentHashMap<>();
+
     @Override
     public String generateUserSig(String userId, String userType) {
-        String imUserId = generateIMUserId(userType, userId);
+        String imUserId;
+        if ("admin".equals(userType)) {
+            imUserId = userId;
+        } else {
+            imUserId = generateIMUserId(userType, userId);
+        }
 
         if (imConfig.getMockMode()) {
             return generateMockUserSig(imUserId);
         } else {
+            // 管理员账号不需要导入，直接生成UserSig
+            if (!"admin".equals(userType)) {
+                importAccountIfNeeded(imUserId);
+            }
             return generateRealUserSig(imUserId, imConfig.getExpireTime());
+        }
+    }
+
+    private void importAccountIfNeeded(String imUserId) {
+        if (importedAccounts.containsKey(imUserId)) {
+            return;
+        }
+        try {
+            boolean success = tencentIMRestService.accountImport(imUserId, null, null);
+            if (success) {
+                importedAccounts.put(imUserId, true);
+                log.info("导入IM账号成功: {}", imUserId);
+            } else {
+                log.warn("导入IM账号失败或账号已存在: {}", imUserId);
+                // 即使导入失败，也标记为已处理，避免重复尝试
+                importedAccounts.put(imUserId, false);
+            }
+        } catch (Exception e) {
+            log.warn("导入IM账号异常: {}, 错误: {}，将继续生成UserSig", imUserId, e.getMessage());
+            // 标记为已处理，避免重复尝试导致持续报错
+            importedAccounts.put(imUserId, false);
         }
     }
 

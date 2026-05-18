@@ -11,10 +11,10 @@ import {
   confirmReceipt as apiConfirmReceipt,
   deleteOrder as apiDeleteOrder
 } from '@/api/modules/order'
-import type { Order, OrderStatus, OrderStats, OrderQueryParams, CreateOrderParams, PayParams, PayType } from '@/types'
+import { OrderStatus } from '@/constants'
+import type { Order, OrderStatus as OrderStatusType, OrderStats, OrderQueryParams, CreateOrderParams, PayParams, PayType } from '@/types'
 
 export const useOrderStore = defineStore('order', () => {
-  // State
   const orders = ref<Order[]>([])
   const currentOrder = ref<Order | null>(null)
   const orderStats = ref<OrderStats>({
@@ -30,11 +30,10 @@ export const useOrderStore = defineStore('order', () => {
   const hasMore = ref(true)
   const total = ref(0)
 
-  // Getters
-  const pendingOrders = computed(() => orders.value.filter(o => o.status === 'pending'))
-  const paidOrders = computed(() => orders.value.filter(o => o.status === 'paid'))
-  const shippedOrders = computed(() => orders.value.filter(o => o.status === 'shipped'))
-  const completedOrders = computed(() => orders.value.filter(o => o.status === 'completed'))
+  const pendingOrders = computed(() => orders.value.filter(o => o.status === OrderStatus.PENDING))
+  const paidOrders = computed(() => orders.value.filter(o => o.status === OrderStatus.PAID))
+  const shippedOrders = computed(() => orders.value.filter(o => o.status === OrderStatus.SHIPPED))
+  const completedOrders = computed(() => orders.value.filter(o => o.status === OrderStatus.COMPLETED))
 
   // Actions
   // 获取订单列表
@@ -97,10 +96,10 @@ export const useOrderStore = defineStore('order', () => {
       // 更新本地状态
       const order = orders.value.find(o => o.id === orderId)
       if (order) {
-        order.status = 'cancelled'
+        order.status = OrderStatus.CANCELLED
       }
       if (currentOrder.value?.id === orderId) {
-        currentOrder.value.status = 'cancelled'
+        currentOrder.value.status = OrderStatus.CANCELLED
       }
       ElMessage.success('订单已取消')
     } catch (error) {
@@ -121,12 +120,12 @@ export const useOrderStore = defineStore('order', () => {
       // 更新本地状态
       const order = orders.value.find(o => o.id === orderId)
       if (order) {
-        order.status = 'paid'
+        order.status = OrderStatus.PAID
         order.payType = payType
         order.payTime = res.payTime
       }
       if (currentOrder.value?.id === orderId) {
-        currentOrder.value.status = 'paid'
+        currentOrder.value.status = OrderStatus.PAID
         currentOrder.value.payType = payType
         currentOrder.value.payTime = res.payTime
       }

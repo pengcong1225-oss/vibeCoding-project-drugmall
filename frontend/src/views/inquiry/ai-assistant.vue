@@ -139,12 +139,16 @@
 import { ref, nextTick, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowLeft, Service, Position, Document } from '@element-plus/icons-vue'
+import { aiAssistantApi } from '@/api/modules/ai-assistant'
+import { getDoctorList } from '@/api/modules/inquiry'
+import { ElMessage } from 'element-plus'
 
 const router = useRouter()
 const chatSectionRef = ref<HTMLElement>()
 const inputMessage = ref('')
 const loading = ref(false)
 const selectedDept = ref('')
+const currentSessionId = ref('')
 
 interface Message {
   type: 'user' | 'assistant'
@@ -234,68 +238,75 @@ function sendMessage() {
   const content = inputMessage.value.trim()
   if (!content || loading.value) return
 
-  // 添加用户消息
   messages.value.push({ type: 'user', content })
   inputMessage.value = ''
   loading.value = true
 
   scrollToBottom()
 
-  // 模拟AI分析
-  setTimeout(() => {
-    const response = generateAIResponse(content)
-    messages.value.push(response)
+  aiAssistantApi.chat({
+    message: content,
+    sessionId: currentSessionId.value || undefined
+  }).then(res => {
+    const response = res as any
+    if (response.sessionId) {
+      currentSessionId.value = response.sessionId
+    }
+    const aiMessage: Message = {
+      type: 'assistant',
+      content: response.content || '抱歉，我暂时无法回答这个问题，请稍后再试。',
+      departments: [],
+      doctors: []
+    }
+    if (response.drugs && response.drugs.length > 0) {
+      aiMessage.departments = [{ code: 'internal', name: '内科' }]
+      fetchDoctorsByDepartment('internal')
+    }
+    messages.value.push(aiMessage)
     loading.value = false
     scrollToBottom()
-  }, 1500)
+  }).catch(error => {
+    console.error('AI对话失败:', error)
+    ElMessage.error('AI服务暂时不可用，请稍后再试')
+    loading.value = false
+    messages.value.push({
+      type: 'assistant',
+      content: '抱歉，AI服务暂时不可用。请尝试描述更详细的症状，或选择科室直接咨询。',
+      departments: [],
+      doctors: []
+    })
+    scrollToBottom()
+  })
 }
 
-function generateAIResponse(userInput: string): Message {
-  const input = userInput.toLowerCase()
-
-  // 根据关键词推荐科室
-  let recommendedDepts: Department[] = []
-  let recommendedDoctors: Doctor[] = []
-
-  if (input.includes('发烧') || input.includes('感冒') || input.includes('咳嗽') || input.includes('孩子')) {
-    recommendedDepts = [{ code: 'pediatrics', name: '儿科' }, { code: 'internal', name: '内科' }]
-    recommendedDoctors = [mockDoctors[1]] // 儿科医生
-  } else if (input.includes('皮肤') || input.includes('疹') || input.includes('痒') || input.includes('痘')) {
-    recommendedDepts = [{ code: 'dermatology', name: '皮肤科' }]
-    recommendedDoctors = [mockDoctors[0]] // 皮肤科医生
-  } else if (input.includes('睡') || input.includes('焦虑') || input.includes('抑郁') || input.includes('心理')) {
-    recommendedDepts = [{ code: 'psychology', name: '心理咨询' }]
-    recommendedDoctors = [mockDoctors[2]] // 心理医生
-  } else if (input.includes('胃') || input.includes('肚子') || input.includes('肠') || input.includes('消化')) {
-    recommendedDepts = [{ code: 'internal', name: '消化内科' }, { code: 'tcm', name: '中医科' }]
-  } else if (input.includes('头') || input.includes('痛') || input.includes('晕')) {
-    recommendedDepts = [{ code: 'internal', name: '神经内科' }, { code: 'internal', name: '内科' }]
-  } else {
-    // 默认推荐
-    recommendedDepts = mockDepartments.slice(0, 4)
-    recommendedDoctors = mockDoctors.slice(0, 2)
-  }
-
-  return {
-    type: 'assistant',
-    content: `根据您描述的"${userInput}"，我为您分析可能涉及的科室和医生：`,
-    departments: recommendedDepts,
-    doctors: recommendedDoctors
+async function fetchDoctorsByDepartment(department: string) {
+  try {
+    const doctors = await getDoctorList({ department })
+    if (Array.isArray(doctors) && doctors.length > 0) {
+      const lastMsg = messages.value[messages.value.length - 1]
+      if (lastMsg && lastMsg.type === 'assistant') {
+        lastMsg.doctors = doctors.slice(0, 3).map((d: any) => ({
+          id: d.id,
+          name: d.name,
+          title: d.title,
+          hospital: d.hospital,
+          department: d.department,
+          avatar: d.avatar || '',
+          specialty: d.specialty || '',
+          price: d.price || 0,
+          waitTime: d.waitTime || 0
+        }))
+      }
+      scrollToBottom()
+    }
+  } catch (error) {
+    console.error('获取医生列表失败:', error)
   }
 }
 
 function selectDept(dept: Department) {
   selectedDept.value = dept.code
-  // 根据科室筛选医生
-  const filteredDoctors = mockDoctors.filter(d => d.department.includes(dept.name.replace('科', '')))
-  if (filteredDoctors.length > 0) {
-    messages.value.push({
-      type: 'assistant',
-      content: `为您推荐${dept.name}的医生：`,
-      doctors: filteredDoctors
-    })
-    scrollToBottom()
-  }
+  fetchDoctorsByDepartment(dept.code)
 }
 
 function selectDoctor(doctor: Doctor) {

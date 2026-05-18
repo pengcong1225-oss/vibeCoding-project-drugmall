@@ -128,6 +128,52 @@
             </div>
           </div>
 
+          <!-- 为你优选 -->
+          <div class="section-block recommend-section">
+            <div class="section-header">
+              <h3 class="section-title">为你优选</h3>
+            </div>
+            <div class="horizontal-product-scroll">
+              <div
+                v-for="product in recommendProducts"
+                :key="product.id"
+                class="horizontal-product-item"
+                @click="goToDrugDetail(product.id)"
+              >
+                <div class="product-image-wrapper">
+                  <img v-if="product.image" :src="product.image" :alt="product.name" />
+                  <div v-else class="image-placeholder-grid" :style="{ backgroundColor: product.imageColor || '#3B8CFF' }">
+                    <span>{{ product.imageText || product.name?.slice(0, 2) }}</span>
+                  </div>
+                  <div v-if="product.isRx" class="rx-badge">处方药</div>
+                  <div v-if="product.doctor" class="doctor-badge">
+                    <el-icon><FirstAidKit /></el-icon>
+                    <span>问三甲医生</span>
+                  </div>
+                </div>
+                <div class="product-info-grid">
+                  <div class="product-name-grid">{{ product.name }}</div>
+                  <div class="product-price-row">
+                    <span class="price-symbol">¥</span>
+                    <span class="price-value">
+                      <span class="integer">{{ Math.floor(product.price) }}</span>
+                      <span class="decimal">.{{ (product.price % 1).toFixed(2).slice(2) }}</span>
+                    </span>
+                    <div class="add-btn-small" @click.stop="addToCart(product)">
+                      <el-icon><Plus /></el-icon>
+                    </div>
+                  </div>
+                  <div v-if="product.discount" class="discount-text">已优惠¥{{ product.discount }}</div>
+                </div>
+              </div>
+            </div>
+            <!-- 轮播指示器 -->
+            <div class="carousel-dots">
+              <span class="dot active"></span>
+              <span class="dot"></span>
+            </div>
+          </div>
+
           <!-- Banner轮播图 -->
           <div class="banner-section">
             <div class="banner-carousel">
@@ -195,7 +241,10 @@
                   <div class="product-name-grid">{{ product.name }}</div>
                   <div class="product-price-row">
                     <span class="price-symbol">¥</span>
-                    <span class="price-value">{{ product.price?.toFixed(1) }}</span>
+                    <span class="price-value">
+                      <span class="integer">{{ Math.floor(product.price) }}</span>
+                      <span class="decimal">.{{ (product.price % 1).toFixed(2).slice(2) }}</span>
+                    </span>
                     <div class="add-btn-small" @click.stop="addToCart(product)">
                       <el-icon><Plus /></el-icon>
                     </div>
@@ -277,7 +326,10 @@
                   <div class="product-name-grid">{{ product.name }}</div>
                   <div class="product-price-row">
                     <span class="price-symbol">¥</span>
-                    <span class="price-value">{{ product.price }}</span>
+                    <span class="price-value">
+                      <span class="integer">{{ Math.floor(product.price) }}</span>
+                      <span class="decimal">.{{ (product.price % 1).toFixed(2).slice(2) }}</span>
+                    </span>
                     <div class="add-btn-small" @click.stop="addToCart(product)">
                       <el-icon><Plus /></el-icon>
                     </div>
@@ -331,19 +383,19 @@
             </div>
           </div>
 
-          <!-- 为你优选 -->
-          <div class="section-block recommend-section">
+          <!-- 推荐商品瀑布流 -->
+          <div class="section-block waterfall-section">
             <div class="section-header">
-              <h3 class="section-title">为你优选</h3>
+              <h3 class="section-title">推荐商品</h3>
             </div>
-            <div class="horizontal-product-scroll">
+            <div class="waterfall-grid">
               <div
-                v-for="product in recommendProducts"
+                v-for="product in waterfallProducts"
                 :key="product.id"
-                class="horizontal-product-item"
+                class="waterfall-item"
                 @click="goToDrugDetail(product.id)"
               >
-                <div class="product-image-wrapper">
+                <div class="waterfall-image-wrapper">
                   <img v-if="product.image" :src="product.image" :alt="product.name" />
                   <div v-else class="image-placeholder-grid" :style="{ backgroundColor: product.imageColor || '#3B8CFF' }">
                     <span>{{ product.imageText || product.name?.slice(0, 2) }}</span>
@@ -354,9 +406,10 @@
                     <span>问三甲医生</span>
                   </div>
                 </div>
-                <div class="product-info-grid">
-                  <div class="product-name-grid">{{ product.name }}</div>
-                  <div class="product-price-row">
+                <div class="waterfall-info">
+                  <div class="waterfall-name">{{ product.name }}</div>
+                  <div v-if="product.subtitle" class="waterfall-subtitle">{{ product.subtitle }}</div>
+                  <div class="waterfall-price-row">
                     <span class="price-symbol">¥</span>
                     <span class="price-value">{{ product.price }}</span>
                     <div class="add-btn-small" @click.stop="addToCart(product)">
@@ -364,13 +417,9 @@
                     </div>
                   </div>
                   <div v-if="product.discount" class="discount-text">已优惠¥{{ product.discount }}</div>
+                  <div v-if="product.sales" class="sales-text">{{ product.sales }}</div>
                 </div>
               </div>
-            </div>
-            <!-- 轮播指示器 -->
-            <div class="carousel-dots">
-              <span class="dot active"></span>
-              <span class="dot"></span>
             </div>
           </div>
 
@@ -387,100 +436,110 @@
 
       <!-- 全部商品内容 -->
       <template v-if="activeTab === 'products'">
-        <div class="products-content">
-          <!-- 左侧分类栏 -->
-          <div class="category-sidebar">
-            <div
-              v-for="cat in categories"
-              :key="cat.id"
-              :class="['category-item', { active: activeCategory === cat.id }]"
-              @click="handleCategoryChange(cat.id)"
-            >
-              <el-icon v-if="cat.icon" class="cat-icon">
-                <component :is="cat.icon" />
-              </el-icon>
-              <span class="cat-name">{{ cat.name }}</span>
-              <span v-if="cat.badge" class="cat-badge">{{ cat.badge }}</span>
+        <div class="products-content-v3">
+          <!-- 健康卡横幅 -->
+          <div class="health-card-banner">
+            <div class="health-card-left">
+              <span class="health-card-tag">美团·健康卡</span>
+              <span class="health-card-title">开通后预计<span class="highlight">可省34元/月</span></span>
+              <span class="health-card-desc">享购药返现15%、健康专享价等5大权益</span>
             </div>
+            <span class="health-card-link">了解更多 <el-icon><ArrowRight /></el-icon></span>
           </div>
 
-          <!-- 右侧商品区 -->
-          <div class="product-area">
-            <!-- 健康卡推广横幅 -->
-            <div class="health-card-banner">
-              <div class="banner-left">
-                <div class="banner-title">
-                  <span class="brand">美团·健康卡</span>
+          <!-- 主体布局：左侧分类 + 右侧商品 -->
+          <div class="products-layout">
+            <!-- 左侧分类导航 -->
+            <div class="category-sidebar">
+              <div
+                v-for="cat in sidebarCategories"
+                :key="cat.id"
+                :class="['sidebar-cat-item', { active: activeCategory === cat.id }]"
+                @click="handleCategoryChange(cat.id)"
+              >
+                <div class="cat-icon" v-if="cat.icon">
+                  <el-icon><component :is="cat.icon" /></el-icon>
                 </div>
-                <div class="banner-desc">开通后预计可省34元/月</div>
-              </div>
-              <div class="banner-right">
-                <span class="link-text">了解更多</span>
-                <el-icon><ArrowRight /></el-icon>
+                <span class="cat-label">{{ cat.name }}</span>
+                <span class="cat-badge" v-if="cat.badge">{{ cat.badge }}</span>
               </div>
             </div>
 
-            <!-- 排序栏 -->
-            <div class="sort-bar">
-              <div
-                v-for="sort in sortOptions"
-                :key="sort.key"
-                :class="['sort-item', { active: activeSort === sort.key }]"
-                @click="handleSortChange(sort.key)"
-              >
-                <span>{{ sort.label }}</span>
-                <el-icon v-if="sort.hasArrow" class="sort-arrow">
-                  <ArrowDown v-if="sort.key !== 'price' || priceSortAsc" />
-                  <ArrowUp v-else />
-                </el-icon>
-              </div>
-            </div>
-
-            <!-- 商品列表 -->
-            <div class="product-list" ref="productListRef" @scroll="handleProductScroll">
-              <div
-                v-for="product in filteredProducts"
-                :key="product.id"
-                class="product-item"
-                @click="goToDrugDetail(product.id)"
-              >
-                <div class="product-image">
-                  <img v-if="product.image" :src="product.image" :alt="product.name" />
-                  <div v-else class="image-placeholder" :style="{ backgroundColor: product.imageColor || '#3B8CFF' }">
-                    <span>{{ product.imageText || product.name?.slice(0, 2) }}</span>
-                  </div>
-                </div>
-                <div class="product-info">
-                  <div class="product-tags">
-                    <span v-for="tag in product.tags" :key="tag" class="symptom-tag">{{ tag }}</span>
-                  </div>
-                  <div class="product-name">{{ product.name }}</div>
-                  <div class="product-spec">{{ product.specification }}</div>
-                  <div class="product-footer">
-                    <div class="price-section">
-                      <div class="current-price">
-                        <span class="symbol">¥</span>
-                        <span class="value">{{ product.price?.toFixed(2) }}</span>
-                      </div>
-                      <div v-if="product.cashback" class="cashback-tag">
-                        最高返现{{ product.cashback }}元
-                      </div>
-                    </div>
-                    <div class="add-btn" @click.stop="addToCart(product)">
-                      <el-icon><Plus /></el-icon>
-                    </div>
-                  </div>
+            <!-- 右侧商品列表 -->
+            <div class="product-list-area">
+              <!-- 子分类滚动指示器 -->
+              <div class="category-scroll-indicator">
+                <div
+                  v-for="subCat in currentSubCategories"
+                  :key="subCat.key"
+                  :class="['sub-cat-item', { active: activeSubCategory === subCat.key }]"
+                  @click="activeSubCategory = subCat.key"
+                >
+                  {{ subCat.label }}
                 </div>
               </div>
 
-              <!-- 医生咨询入口 -->
-              <div class="doctor-entry">
-                <div class="doctor-info">
-                  <el-icon><FirstAidKit /></el-icon>
-                  <span class="doctor-text">问三甲医生</span>
-                  <span class="doctor-badge">24h</span>
+              <!-- 排序栏 -->
+              <div class="sort-bar">
+                <div
+                  v-for="sort in sortOptions"
+                  :key="sort.key"
+                  :class="['sort-item', { active: activeSort === sort.key }]"
+                  @click="handleSortChange(sort.key)"
+                >
+                  <span>{{ sort.label }}</span>
+                  <el-icon v-if="sort.hasArrow" class="sort-arrow">
+                    <ArrowDown v-if="sort.key !== 'price' || priceSortAsc" />
+                    <ArrowUp v-else />
+                  </el-icon>
                 </div>
-                <el-icon><ArrowRight /></el-icon>
+              </div>
+
+              <!-- 商品列表 -->
+              <div class="product-list" ref="productListRef" @scroll="handleProductScroll">
+                <div
+                  v-for="product in filteredProducts"
+                  :key="product.id"
+                  class="product-list-item"
+                  @click="goToDrugDetail(product.id)"
+                >
+                  <div class="product-item-image">
+                    <img v-if="product.image" :src="product.image" :alt="product.name" />
+                    <div v-else class="image-placeholder-list" :style="{ backgroundColor: product.imageColor || '#E8F5E9' }">
+                      <span>{{ product.imageText || product.name?.slice(0, 2) }}</span>
+                    </div>
+                  </div>
+                  <div class="product-item-info">
+                    <div class="product-item-tags" v-if="product.tags && product.tags.length">
+                      <span
+                        v-for="(tag, idx) in product.tags.slice(0, 3)"
+                        :key="idx"
+                        class="product-tag"
+                      >{{ tag }}</span>
+                    </div>
+                    <div class="product-item-name" :title="product.name">{{ product.name }}</div>
+                    <div class="product-item-spec" v-if="product.specification">{{ product.specification }}</div>
+                    <div class="product-item-bottom">
+                      <div class="product-item-price-row">
+                        <span class="price-symbol">¥</span>
+                        <span class="price-value">
+                      <span class="integer">{{ Math.floor(product.price) }}</span>
+                      <span class="decimal">.{{ (product.price % 1).toFixed(2).slice(2) }}</span>
+                    </span>
+                        <span v-if="product.originalPrice" class="original-price">¥{{ product.originalPrice }}</span>
+                      </div>
+                      <div class="product-item-actions">
+                        <div v-if="product.cashback" class="cashback-tag">
+                          <el-icon><ArrowDown /></el-icon>
+                          最高返现{{ product.cashback }}元
+                        </div>
+                        <div class="add-cart-btn" @click.stop="addToCart(product)">
+                          <el-icon><Plus /></el-icon>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -489,96 +548,125 @@
 
       <!-- 商家内容 -->
       <template v-if="activeTab === 'merchant'">
-        <div class="merchant-content">
-          <!-- 商家地址 -->
-          <div class="merchant-section">
-            <div class="section-item">
-              <el-icon class="section-icon"><Location /></el-icon>
-              <div class="section-content">
-                <p class="section-text">{{ store?.address || '北京市朝阳区建国路88号' }}</p>
+        <div class="merchant-content-v2">
+          <!-- 商家概览卡片 -->
+          <div class="merchant-overview-card">
+            <div class="overview-header">
+              <h3 class="overview-title">商家信息</h3>
+              <div class="overview-rating">
+                <el-icon><StarFilled /></el-icon>
+                <span>4.8分</span>
               </div>
-              <div class="section-actions">
-                <el-icon class="action-icon"><Position /></el-icon>
-                <el-icon class="action-icon"><Phone /></el-icon>
+            </div>
+            <div class="overview-stats">
+              <div class="stat-item">
+                <span class="stat-value">26</span>
+                <span class="stat-label">条评价</span>
+              </div>
+              <div class="stat-divider"></div>
+              <div class="stat-item">
+                <span class="stat-value">100+</span>
+                <span class="stat-label">月售</span>
+              </div>
+              <div class="stat-divider"></div>
+              <div class="stat-item">
+                <span class="stat-value">15min</span>
+                <span class="stat-label">平均配送</span>
               </div>
             </div>
           </div>
 
-          <!-- 商家资质 -->
-          <div class="merchant-section">
-            <div class="section-item" @click="showQualification">
-              <el-icon class="section-icon"><CircleCheck /></el-icon>
-              <div class="section-content">
-                <p class="section-text">查看商家资质</p>
+          <!-- 地址与联系 -->
+          <div class="merchant-info-card">
+            <div class="info-item" @click="openMap">
+              <div class="info-left">
+                <div class="info-icon location">
+                  <el-icon><Location /></el-icon>
+                </div>
+                <div class="info-content">
+                  <div class="info-title">商家地址</div>
+                  <div class="info-desc">{{ store?.address || '北京市朝阳区建国路88号' }}</div>
+                </div>
+              </div>
+              <el-icon class="arrow-icon"><ArrowRight /></el-icon>
+            </div>
+            <div class="info-divider"></div>
+            <div class="info-item" @click="callMerchant">
+              <div class="info-left">
+                <div class="info-icon phone">
+                  <el-icon><Phone /></el-icon>
+                </div>
+                <div class="info-content">
+                  <div class="info-title">联系电话</div>
+                  <div class="info-desc">020-8888-8888</div>
+                </div>
               </div>
               <el-icon class="arrow-icon"><ArrowRight /></el-icon>
             </div>
           </div>
 
-          <!-- 商家评价 -->
-          <div class="merchant-section">
-            <div class="section-item" @click="showReviews">
-              <el-icon class="section-icon"><ChatDotRound /></el-icon>
-              <div class="section-content">
-                <p class="section-text">评价 (26条)</p>
-              </div>
-              <el-icon class="arrow-icon"><ArrowRight /></el-icon>
-            </div>
-          </div>
-
-          <!-- 配送服务 -->
-          <div class="merchant-section">
-            <div class="section-item">
-              <el-icon class="section-icon"><Van /></el-icon>
-              <div class="section-content">
-                <p class="section-text">
-                  配送服务：<span class="highlight-tag">美团专送</span> 提供高品质配送服务
-                </p>
+          <!-- 配送信息 -->
+          <div class="merchant-info-card">
+            <div class="info-item">
+              <div class="info-left">
+                <div class="info-icon delivery">
+                  <el-icon><Van /></el-icon>
+                </div>
+                <div class="info-content">
+                  <div class="info-title">配送服务</div>
+                  <div class="info-desc">美团专送 · 约15分钟送达</div>
+                </div>
               </div>
             </div>
-            <div class="section-item">
-              <el-icon class="section-icon"><Clock /></el-icon>
-              <div class="section-content">
-                <p class="section-text">配送时间：07:45-21:10</p>
+            <div class="info-divider"></div>
+            <div class="info-item">
+              <div class="info-left">
+                <div class="info-icon time">
+                  <el-icon><Clock /></el-icon>
+                </div>
+                <div class="info-content">
+                  <div class="info-title">营业时间</div>
+                  <div class="info-desc">07:45 - 21:10</div>
+                </div>
               </div>
             </div>
-          </div>
-
-          <!-- 商家服务 -->
-          <div class="merchant-section">
-            <div class="section-item">
-              <el-icon class="section-icon"><Service /></el-icon>
-              <div class="section-content">
-                <p class="section-text">商家服务</p>
-              </div>
-              <div class="service-tags">
-                <span class="service-tag">到店自取(享优惠)</span>
+            <div class="info-divider"></div>
+            <div class="info-item">
+              <div class="info-left">
+                <div class="info-icon service">
+                  <el-icon><Service /></el-icon>
+                </div>
+                <div class="info-content">
+                  <div class="info-title">商家服务</div>
+                  <div class="info-tags">
+                    <span class="mini-tag">到店自取</span>
+                    <span class="mini-tag">售后无忧</span>
+                    <span class="mini-tag">极速退款</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
           <!-- 优惠活动 -->
-          <div class="merchant-section">
-            <div class="promo-list">
-              <div class="promo-item">
-                <span class="promo-label">减</span>
-                <span class="promo-text">满49减5;满69减10;满99减15;满129减20</span>
+          <div class="merchant-info-card">
+            <div class="card-header">
+              <h4 class="card-title">优惠活动</h4>
+            </div>
+            <div class="promo-list-v2">
+              <div class="promo-item-v2">
+                <span class="promo-tag red">满减</span>
+                <span class="promo-desc">满49减5</span>
               </div>
-              <div class="promo-item">
-                <span class="promo-label discount">折</span>
-                <span class="promo-text">折扣商品1.67折起</span>
+              <div class="promo-item-v2">
+                <span class="promo-tag yellow">领券</span>
+                <span class="promo-desc">5元*2张券</span>
               </div>
-              <div class="promo-item">
-                <span class="promo-label delivery">减</span>
-                <span class="promo-text">购买指定商品减配送费</span>
+              <div class="promo-item-v2">
+                <span class="promo-tag green">配送</span>
+                <span class="promo-desc">美团专送约15分钟</span>
               </div>
             </div>
-          </div>
-
-          <!-- 商家公告 -->
-          <div class="merchant-notice">
-            <el-icon class="notice-icon"><InfoFilled /></el-icon>
-            <p class="notice-text">感恩信赖，如需咨询请您拨打客服电话，宏泰竭诚为您服务，祝您早日安康！</p>
           </div>
         </div>
       </template>
@@ -591,15 +679,9 @@
           <div class="icon-circle">
             <el-icon><ChatDotRound /></el-icon>
           </div>
-          <span class="icon-label">客服</span>
+          <span class="icon-label">去咨询</span>
         </div>
-        <div class="cart-icon-item" @click="goToStore">
-          <div class="icon-circle">
-            <el-icon><Shop /></el-icon>
-          </div>
-          <span class="icon-label">店铺</span>
-        </div>
-        <div class="cart-icon-item cart-icon-wrapper" @click="goToCart">
+        <div class="cart-icon-item cart-icon-wrapper" @click="showCartPopup = true">
           <div class="icon-circle cart-circle">
             <el-icon><ShoppingCart /></el-icon>
             <span v-if="cartStore.totalCount > 0" class="cart-badge">{{ cartStore.totalCount }}</span>
@@ -610,9 +692,51 @@
       <div class="cart-center">
         <span class="delivery-fee">配送费¥1.5</span>
       </div>
-      <div class="cart-right">
-        <span class="min-order">¥20起送</span>
+      <div class="cart-right" @click="goToCheckout">
+        <span class="min-order" :class="{ active: cartStore.totalCount > 0 }">¥20起送</span>
       </div>
+    </div>
+
+    <!-- 购物车弹出层 -->
+    <div v-if="showCartPopup" class="cart-popup-overlay" @click="showCartPopup = false">
+      <div class="cart-popup" @click.stop>
+        <div class="cart-popup-header">
+          <h3>已选商品</h3>
+          <span class="clear-btn" @click="clearCart">
+            <el-icon><Delete /></el-icon>
+            清空
+          </span>
+        </div>
+        <div class="cart-popup-list">
+          <div v-for="item in cartStore.items" :key="item.drugId" class="cart-popup-item">
+            <div class="item-info">
+              <span class="item-name">{{ item.name }}</span>
+              <span class="item-spec">{{ item.specification }}</span>
+            </div>
+            <div class="item-price">¥{{ item.price }}</div>
+            <div class="item-quantity">
+              <span class="qty-btn" @click="updateCartItem(item.drugId, item.quantity - 1)">-</span>
+              <span class="qty-value">{{ item.quantity }}</span>
+              <span class="qty-btn" @click="updateCartItem(item.drugId, item.quantity + 1)">+</span>
+            </div>
+          </div>
+        </div>
+        <div class="cart-popup-footer">
+          <div class="total-info">
+            <span class="total-label">合计:</span>
+            <span class="total-price">¥{{ cartStore.totalPrice?.toFixed(2) }}</span>
+          </div>
+          <button class="checkout-btn" @click="goToCheckout">去结算</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 问医生悬浮按钮 -->
+    <div class="ask-doctor-fab" @click="handleAskDoctor">
+      <div class="fab-icon">
+        <el-icon><ChatDotRound /></el-icon>
+      </div>
+      <span class="fab-text">问医生</span>
     </div>
   </div>
 </template>
@@ -643,10 +767,18 @@ import {
   Van,
   Clock,
   Service,
-  InfoFilled
+  InfoFilled,
+  Delete,
+  StarFilled,
+  Warning,
+  WindPower,
+  Sunny,
+  Food,
+  View
 } from '@element-plus/icons-vue'
 import { getStoreDetail, getStoreDrugs, type StoreInfo, type StoreDrug } from '@/api/modules/store'
 import { useCartStore } from '@/stores/cart'
+import { ROUTES, getStoreDrugRoute, getInquiryCheckoutRoute } from '@/constants/routes'
 
 const route = useRoute()
 const router = useRouter()
@@ -663,6 +795,8 @@ const activeSort = ref('default')
 const priceSortAsc = ref(true)
 const activeQuickSection = ref('coudan')
 const activePriceFilter = ref('all')
+const showCartPopup = ref(false)
+const activeSubCategory = ref('all')
 
 // Tab导航
 const tabs = [
@@ -685,19 +819,66 @@ const homeCategories = [
   { id: 'all', name: '全部分类', iconText: '全', bgColor: 'linear-gradient(135deg, #B2BEC3 0%, #DFE6E9 100%)' }
 ]
 
-// 分类数据
-const categories = [
-  { id: 'all', name: '全部商品' },
-  { id: 'tight', name: '感冒用药' },
-  { id: 'urgent', name: '清热解毒' },
-  { id: 'avoid', name: '五官用药' },
-  { id: 'pregnant', name: '胃肠科药' },
-  { id: 'rx', name: '处方药' },
-  { id: 'recognize', name: '儿科用药' },
-  { id: 'standard', name: '妇科用药' },
-  { id: 'pill', name: '男科用药' },
-  { id: 'charm', name: '性福生活' }
+// 左侧分类导航数据
+const sidebarCategories = [
+  { id: 'recommend', name: '推荐', icon: 'Star' },
+  { id: 'allergy', name: '过敏季', icon: 'Warning' },
+  { id: 'activity', name: '活动', icon: 'Ticket' },
+  { id: 'health', name: '健康卡', icon: 'FirstAidKit' },
+  { id: 'frequent', name: '常买', icon: 'ShoppingCart' },
+  { id: 'other', name: '其他', icon: 'More', badge: '1' },
+  { id: 'cold', name: '感冒呼吸系统', icon: 'WindPower' },
+  { id: 'asthma', name: '咳喘用药', icon: 'Cloudy' },
+  { id: 'clear', name: '清热解毒', icon: 'Sunny' },
+  { id: 'stomach', name: '肠胃不适', icon: 'Food' },
+  { id: 'sex', name: '性福生活', icon: 'Love' },
+  { id: 'five', name: '五官用药', icon: 'View' }
 ]
+
+// 子分类数据
+const subCategoriesMap: Record<string, { key: string; label: string }[]> = {
+  cold: [
+    { key: 'all', label: '全部' },
+    { key: 'ganmao', label: '感冒' },
+    { key: 'fashao', label: '发烧' },
+    { key: 'kesou', label: '咳嗽' },
+    { key: 'bihou', label: '鼻喉' }
+  ],
+  stomach: [
+    { key: 'all', label: '全部' },
+    { key: 'weitong', label: '胃痛' },
+    { key: 'fuxie', label: '腹泻' },
+    { key: 'xiaohua', label: '消化不良' },
+    { key: 'bianmi', label: '便秘' }
+  ],
+  five: [
+    { key: 'all', label: '全部' },
+    { key: 'yan', label: '眼科' },
+    { key: 'er', label: '耳科' },
+    { key: 'bi', label: '鼻科' },
+    { key: 'hou', label: '喉科' }
+  ],
+  sex: [
+    { key: 'all', label: '全部' },
+    { key: 'biyun', label: '避孕' },
+    { key: 'zhuangyang', label: '壮阳' },
+    { key: 'fuke', label: '妇科' }
+  ],
+  clear: [
+    { key: 'all', label: '全部' },
+    { key: 'banlan', label: '板蓝根' },
+    { key: 'xiaoyan', label: '消炎' },
+    { key: 'qingre', label: '清热' }
+  ],
+  default: [
+    { key: 'all', label: '全部' }
+  ]
+}
+
+// 当前子分类
+const currentSubCategories = computed(() => {
+  return subCategoriesMap[activeCategory.value] || subCategoriesMap.default
+})
 
 // 排序选项
 const sortOptions = [
@@ -727,6 +908,45 @@ const mockProducts: StoreDrug[] = [
   },
   {
     id: '2',
+    name: '[江中]复方草珊瑚含片(不含蔗糖)0.44g*12片*4板/盒',
+    specification: '0.44g*12片*4板/盒',
+    price: 7.80,
+    originalPrice: 12.00,
+    stock: 200,
+    sales: 890,
+    isRx: false,
+    image: 'https://img.alicdn.com/imgextra/i1/2928278100/O1CN01wKJPxT1VubCqX5K1P_!!2928278100.jpg',
+    tags: ['清利咽喉', '急性咽喉炎', '咽喉肿痛'],
+    cashback: 1.17
+  },
+  {
+    id: '3',
+    name: '[碧凯]保妇康栓1.74g*8粒/盒',
+    specification: '1.74g*8粒/盒',
+    price: 40.80,
+    originalPrice: 52.00,
+    stock: 80,
+    sales: 650,
+    isRx: false,
+    image: 'https://img.alicdn.com/imgextra/i3/2928278100/O1CN01YqW1ZU1VubCqX5K1Q_!!2928278100.jpg',
+    tags: ['保妇康栓选碧凯', '碧凯牌保妇康栓'],
+    cashback: 6.12
+  },
+  {
+    id: '4',
+    name: '[嘉应]双料喉风散2.2g/瓶/盒',
+    specification: '2.2g/瓶/盒',
+    price: 18.50,
+    originalPrice: 25.00,
+    stock: 150,
+    sales: 420,
+    isRx: false,
+    image: 'https://img.alicdn.com/imgextra/i2/2928278100/O1CN01jJpZ1V1VubCqX5K1R_!!2928278100.jpg',
+    tags: ['口腔糜烂', '消肿利咽', '咽喉肿痛'],
+    cashback: 2.78
+  },
+  {
+    id: '5',
     name: '肠炎宁片',
     specification: '0.42g*24片/盒',
     price: 28.50,
@@ -739,7 +959,7 @@ const mockProducts: StoreDrug[] = [
     cashback: 4.28
   },
   {
-    id: '3',
+    id: '6',
     name: '诺氟沙星胶囊',
     specification: '0.1g*24粒/盒',
     price: 15.80,
@@ -750,6 +970,58 @@ const mockProducts: StoreDrug[] = [
     image: 'https://img.alicdn.com/imgextra/i3/2928278100/O1CN01YqW1ZU1VubCqX5K1Q_!!2928278100.jpg',
     tags: ['肠道感染', '细菌性痢疾'],
     cashback: 2.37
+  },
+  {
+    id: '7',
+    name: '[三九]感冒灵颗粒10g*9袋/盒',
+    specification: '10g*9袋/盒',
+    price: 12.80,
+    originalPrice: 18.00,
+    stock: 300,
+    sales: 3500,
+    isRx: false,
+    image: 'https://img.alicdn.com/imgextra/i1/2928278100/O1CN01wKJPxT1VubCqX5K1P_!!2928278100.jpg',
+    tags: ['感冒', '头痛', '发热'],
+    cashback: 1.92
+  },
+  {
+    id: '8',
+    name: '[白云山]板蓝根颗粒10g*20袋/包',
+    specification: '10g*20袋/包',
+    price: 15.50,
+    originalPrice: 20.00,
+    stock: 250,
+    sales: 2800,
+    isRx: false,
+    image: 'https://img.alicdn.com/imgextra/i4/2928278100/O1CN01mJpZ1V1VubCqX5K1T_!!2928278100.jpg',
+    tags: ['清热解毒', '凉血利咽'],
+    cashback: 2.33
+  },
+  {
+    id: '9',
+    name: '[京都念慈菴]蜜炼川贝枇杷膏300ml/瓶',
+    specification: '300ml/瓶',
+    price: 45.00,
+    originalPrice: 58.00,
+    stock: 120,
+    sales: 1500,
+    isRx: false,
+    image: 'https://img.alicdn.com/imgextra/i4/2928278100/O1CN01mJpZ1V1VubCqX5K1T_!!2928278100.jpg',
+    tags: ['咳嗽', '咽喉不适'],
+    cashback: 6.75
+  },
+  {
+    id: '10',
+    name: '[新乐敦]复方门冬维甘滴眼液',
+    specification: '13ml/瓶',
+    price: 24.00,
+    originalPrice: 32.00,
+    stock: 180,
+    sales: 960,
+    isRx: false,
+    image: 'https://img.alicdn.com/imgextra/i1/2928278100/O1CN01KqW1ZU1VubCqX5K1S_!!2928278100.jpg',
+    tags: ['眼疲劳', '干涩'],
+    cashback: 3.60
   }
 ]
 
@@ -897,6 +1169,66 @@ const xingfuProducts = ref([
   }
 ])
 
+// 瀑布流推荐商品
+const waterfallProducts = ref([
+  {
+    id: 'w1',
+    name: '[养寿堂]强力枇杷露250ml/瓶/盒',
+    subtitle: '支气管炎咳嗽',
+    price: 28,
+    discount: 2,
+    image: 'https://img.alicdn.com/imgextra/i4/2928278100/O1CN01mq1p5s1VubCqX5LEJ_!!2928278100.jpg',
+    isRx: false,
+    sales: '优惠仅剩2件'
+  },
+  {
+    id: 'w2',
+    name: '[三金]西瓜霜润喉片0.6g*36片/盒',
+    subtitle: '清音利咽 声音嘶哑',
+    price: 9.05,
+    image: 'https://img.alicdn.com/imgextra/i1/2928278100/O1CN01KqW1ZU1VubCqX5K1S_!!2928278100.jpg',
+    isRx: false,
+    sales: '月售1'
+  },
+  {
+    id: 'w3',
+    name: '[太极]川贝清肺糖浆180ml/瓶/盒',
+    subtitle: '咽痛 干咳 咽干',
+    price: 23.5,
+    image: 'https://img.alicdn.com/imgextra/i3/2928278100/O1CN01YqW1ZU1VubCqX5K1Q_!!2928278100.jpg',
+    isRx: false,
+    sales: '月售1'
+  },
+  {
+    id: 'w4',
+    name: '[京都念慈菴]枇杷糖45g(2.5g*18粒)/盒',
+    subtitle: '蓝帽认证 甘草提取液 清咽',
+    price: 14.6,
+    image: 'https://img.alicdn.com/imgextra/i2/2928278100/O1CN01jJpZ1V1VubCqX5K1R_!!2928278100.jpg',
+    isRx: false,
+    doctor: true,
+    sales: '已售11'
+  },
+  {
+    id: 'w5',
+    name: '[三九]感冒灵颗粒10g*9袋/盒',
+    subtitle: '解热镇痛 感冒头痛',
+    price: 12.8,
+    image: 'https://img.alicdn.com/imgextra/i1/2928278100/O1CN01wKJPxT1VubCqX5K1P_!!2928278100.jpg',
+    isRx: false,
+    sales: '月售200+'
+  },
+  {
+    id: 'w6',
+    name: '[白云山]板蓝根颗粒10g*20袋/包',
+    subtitle: '清热解毒 凉血利咽',
+    price: 15.5,
+    image: 'https://img.alicdn.com/imgextra/i4/2928278100/O1CN01mJpZ1V1VubCqX5K1T_!!2928278100.jpg',
+    isRx: false,
+    sales: '月售500+'
+  }
+])
+
 // 为你优选商品（按照图片样式）
 const recommendProducts = ref([
   {
@@ -929,27 +1261,29 @@ const filteredProducts = computed(() => {
   let result = [...products.value]
 
   // 根据分类筛选
-  if (activeCategory.value !== 'all') {
+  if (activeCategory.value !== 'all' && activeCategory.value !== 'recommend') {
     result = result.filter(p => {
       switch (activeCategory.value) {
-        case 'tight':
-          return p.tags?.includes('感冒') || p.tags?.includes('咳嗽') || p.name?.includes('感冒')
-        case 'pregnant':
-          return p.tags?.includes('肠胃') || p.tags?.includes('腹泻') || p.name?.includes('肠胃') || p.name?.includes('肠炎')
-        case 'charm':
+        case 'cold':
+          return p.tags?.includes('感冒') || p.tags?.includes('咳嗽') || p.name?.includes('感冒') || p.name?.includes('咳')
+        case 'stomach':
+          return p.tags?.includes('肠胃') || p.tags?.includes('腹泻') || p.name?.includes('肠胃') || p.name?.includes('肠炎') || p.name?.includes('保妇')
+        case 'sex':
           return p.tags?.includes('性福') || p.name?.includes('避孕')
-        case 'avoid':
-          return p.tags?.includes('五官') || p.name?.includes('眼') || p.name?.includes('鼻')
-        case 'urgent':
-          return p.tags?.includes('清热') || p.name?.includes('清热') || p.name?.includes('解毒')
-        case 'rx':
-          return p.isRx
-        case 'recognize':
-          return p.name?.includes('儿童') || p.tags?.includes('儿童')
-        case 'standard':
-          return p.name?.includes('妇科') || p.tags?.includes('妇科')
-        case 'pill':
-          return p.name?.includes('男科') || p.tags?.includes('男科')
+        case 'five':
+          return p.tags?.includes('五官') || p.name?.includes('眼') || p.name?.includes('鼻') || p.name?.includes('喉') || p.name?.includes('复方')
+        case 'clear':
+          return p.tags?.includes('清热') || p.name?.includes('清热') || p.name?.includes('解毒') || p.name?.includes('草珊瑚')
+        case 'allergy':
+          return p.tags?.includes('过敏') || p.name?.includes('过敏')
+        case 'asthma':
+          return p.tags?.includes('咳喘') || p.name?.includes('咳喘') || p.name?.includes('哮喘')
+        case 'health':
+          return true
+        case 'frequent':
+          return (p.sales || 0) > 500
+        case 'activity':
+          return p.originalPrice && p.originalPrice > p.price
         default:
           return true
       }
@@ -998,19 +1332,7 @@ const loadStoreData = async () => {
     await fetchProducts()
   } catch (error) {
     console.error('加载店铺数据失败:', error)
-    store.value = {
-      id: storeId,
-      name: '宏泰大药房（恒大山水城店）',
-      rating: 4.9,
-      isOpen: true,
-      deliveryTime: 15,
-      minDelivery: 20,
-      distance: '1.2km',
-      address: '北京市朝阳区建国路88号',
-      phone: '010-12345678',
-      tags: ['品牌连锁', '4年老店']
-    }
-    products.value = mockProducts
+    ElMessage.error('加载店铺信息失败，请稍后重试')
   } finally {
     loading.value = false
   }
@@ -1028,11 +1350,11 @@ const fetchProducts = async () => {
         cashback: +(p.price * 0.15).toFixed(2)
       }))
     } else {
-      products.value = mockProducts
+      ElMessage.warning('暂无商品')
     }
   } catch (error) {
     console.error('获取商品列表失败:', error)
-    products.value = mockProducts
+    ElMessage.error('获取商品列表失败，请稍后重试')
   }
 }
 
@@ -1060,6 +1382,7 @@ const handleTabChange = (key: string) => {
 // 分类切换
 const handleCategoryChange = (id: string) => {
   activeCategory.value = id
+  activeSubCategory.value = 'all'
 }
 
 // 排序切换
@@ -1097,30 +1420,44 @@ const addToCart = async (product: any) => {
   }
 }
 
-// 跳转药品详情
 const goToDrugDetail = (drugId: string) => {
   const storeId = route.params.id as string
-  router.push(`/store/${storeId}/drug/${drugId}`)
+  router.push(getStoreDrugRoute(storeId, drugId))
 }
 
-// 跳转购物车
 const goToCart = () => {
-  router.push('/cart')
+  router.push(ROUTES.CART)
 }
 
-// 跳转结算
 const goToCheckout = () => {
   if (cartStore.totalCount === 0) {
     ElMessage.warning('购物车为空')
     return
   }
-  // 跳转到新的结算页
-  router.push('/inquiry/checkout/0')
+  showCartPopup.value = false
+  router.push(getInquiryCheckoutRoute(0))
 }
 
-// 去咨询
+const updateCartItem = async (drugId: string, quantity: number) => {
+  if (quantity <= 0) {
+    await cartStore.removeItem(drugId)
+  } else {
+    await cartStore.updateQuantity(drugId, quantity)
+  }
+}
+
+const clearCart = async () => {
+  await cartStore.clearCart()
+  ElMessage.success('购物车已清空')
+}
+
 const goToConsult = () => {
-  router.push('/inquiry')
+  router.push(ROUTES.INQUIRY)
+}
+
+// 问医生
+const handleAskDoctor = () => {
+  ElMessage.info('问医生功能开发中')
 }
 
 // 店铺首页
@@ -1794,6 +2131,7 @@ $radius-full: 9999px;
             overflow: hidden;
             margin-bottom: $spacing-xs;
             min-height: 32px;
+            word-break: break-all;
           }
 
           .product-price-row {
@@ -1807,11 +2145,19 @@ $radius-full: 9999px;
             }
 
             .price-value {
-              font-size: $font-md;
-              font-weight: 600;
-              color: $price-red;
-              flex: 1;
-            }
+                  font-size: $font-md;
+                  font-weight: 600;
+                  color: $price-red;
+                  flex: 1;
+
+                  // 整数和小数部分区分
+                  .integer {
+                    font-size: $font-lg;
+                  }
+                  .decimal {
+                    font-size: $font-xs;
+                  }
+                }
 
             .add-btn-small {
               width: 22px;
@@ -2017,351 +2363,543 @@ $radius-full: 9999px;
       border-radius: $radius-sm;
     }
   }
-}
 
-// 全部商品内容
-.products-content {
-  display: flex;
-  height: calc(100vh - 200px);
-  overflow: hidden;
-}
+  // 瀑布流布局
+  .waterfall-section {
+    .waterfall-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: $spacing-md;
 
-// 左侧分类栏
-.category-sidebar {
-  width: 80px;
-  background: $bg-light;
-  overflow-y: auto;
-  flex-shrink: 0;
+      .waterfall-item {
+        cursor: pointer;
 
-  &::-webkit-scrollbar {
-    display: none;
+        .waterfall-image-wrapper {
+          position: relative;
+          width: 100%;
+          aspect-ratio: 1;
+          border-radius: $radius-md;
+          overflow: hidden;
+          margin-bottom: $spacing-xs;
+          background: $bg-gray;
+
+          img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+          }
+
+          .image-placeholder-grid {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: $text-white;
+            font-size: $font-sm;
+            font-weight: 600;
+          }
+
+          .rx-badge {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            background: rgba(0, 0, 0, 0.6);
+            color: $text-white;
+            font-size: 10px;
+            padding: 1px 4px;
+            border-radius: $radius-sm;
+          }
+
+          .doctor-badge {
+            position: absolute;
+            bottom: 4px;
+            right: 4px;
+            background: $primary;
+            color: $text-white;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: $radius-sm;
+            display: flex;
+            align-items: center;
+            gap: 2px;
+
+            .el-icon {
+              font-size: 10px;
+            }
+          }
+        }
+
+        .waterfall-info {
+          .waterfall-name {
+            font-size: $font-xs;
+            color: $text-primary;
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            margin-bottom: 2px;
+            word-break: break-all;
+          }
+
+          .waterfall-subtitle {
+            font-size: 10px;
+            color: $text-tertiary;
+            margin-bottom: $spacing-xs;
+            line-height: 1.3;
+          }
+
+          .waterfall-price-row {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+
+            .price-symbol {
+              font-size: $font-xs;
+              color: $price-red;
+            }
+
+            .price-value {
+              font-size: $font-md;
+              font-weight: 600;
+              color: $price-red;
+              flex: 1;
+
+              .integer {
+                font-size: $font-lg;
+              }
+              .decimal {
+                font-size: $font-xs;
+              }
+            }
+
+            .add-btn-small {
+              width: 22px;
+              height: 22px;
+              background: $accent;
+              border-radius: 50%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              cursor: pointer;
+              color: $text-white;
+
+              .el-icon {
+                font-size: 14px;
+                font-weight: bold;
+              }
+            }
+          }
+
+          .discount-text {
+            font-size: 10px;
+            color: $text-tertiary;
+            margin-top: 2px;
+          }
+
+          .sales-text {
+            font-size: 10px;
+            color: $text-tertiary;
+            margin-top: 2px;
+          }
+        }
+      }
+    }
   }
+}
 
-  .category-item {
+// 全部商品内容V3
+.products-content-v3 {
+  background: $bg-gray;
+  min-height: calc(100vh - 200px);
+
+  // 健康卡横幅
+  .health-card-banner {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    padding: $spacing-md $spacing-sm;
-    cursor: pointer;
-    position: relative;
-    transition: all 0.2s;
-    min-height: 60px;
+    justify-content: space-between;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    padding: 12px 16px;
+    margin: 0 12px 12px;
+    border-radius: 8px;
 
-    &:hover {
-      background: rgba($primary, 0.05);
-    }
-
-    &.active {
-      background: $bg-white;
-      color: $primary;
-
-      &::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 3px;
-        height: 20px;
-        background: $primary;
-        border-radius: 0 2px 2px 0;
-      }
-    }
-
-    .cat-icon {
-      font-size: $font-lg;
-      margin-bottom: 2px;
-    }
-
-    .cat-name {
-      font-size: $font-xs;
-      text-align: center;
-      line-height: 1.2;
-    }
-
-    .cat-badge {
-      position: absolute;
-      top: 8px;
-      right: 8px;
-      min-width: 14px;
-      height: 14px;
-      background: $price-red;
-      color: $text-white;
-      font-size: 10px;
-      border-radius: 7px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0 3px;
-    }
-  }
-}
-
-// 右侧商品区
-.product-area {
-  flex: 1;
-  background: $bg-white;
-  overflow-y: auto;
-  padding: $spacing-md;
-
-  &::-webkit-scrollbar {
-    display: none;
-  }
-}
-
-// 健康卡推广横幅
-.health-card-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: linear-gradient(90deg, rgba($primary, 0.08) 0%, rgba($primary, 0.04) 100%);
-  border: 1px solid rgba($primary, 0.15);
-  border-radius: $radius-md;
-  padding: $spacing-md;
-  margin-bottom: $spacing-md;
-
-  .banner-left {
-    .banner-title {
-      .brand {
-        font-size: $font-sm;
-        font-weight: 600;
-        color: $primary;
-      }
-    }
-
-    .banner-desc {
-      font-size: $font-xs;
-      color: $text-secondary;
-      margin-top: 2px;
-    }
-  }
-
-  .banner-right {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-    color: $primary;
-    font-size: $font-sm;
-    cursor: pointer;
-
-    .el-icon {
-      font-size: $font-xs;
-    }
-  }
-}
-
-// 排序栏
-.sort-bar {
-  display: flex;
-  align-items: center;
-  gap: $spacing-lg;
-  margin-bottom: $spacing-md;
-  padding-bottom: $spacing-sm;
-  border-bottom: 1px solid $border-light;
-
-  .sort-item {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-    font-size: $font-sm;
-    color: $text-secondary;
-    cursor: pointer;
-    transition: color 0.2s;
-
-    &:hover {
-      color: $text-primary;
-    }
-
-    &.active {
-      color: $primary;
-      font-weight: 500;
-    }
-
-    .sort-arrow {
-      font-size: $font-xs;
-    }
-  }
-}
-
-// 商品列表
-.product-list {
-  .product-item {
-    display: flex;
-    gap: $spacing-md;
-    padding: $spacing-md 0;
-    border-bottom: 1px solid $border-light;
-    cursor: pointer;
-
-    &:last-child {
-      border-bottom: none;
-    }
-
-    .product-image {
-      width: 90px;
-      height: 90px;
-      border-radius: $radius-sm;
-      overflow: hidden;
-      flex-shrink: 0;
-      background: $bg-gray;
-
-      img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-      }
-
-      .image-placeholder {
-        width: 100%;
-        height: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: $text-white;
-        font-size: $font-lg;
-        font-weight: 600;
-      }
-    }
-
-    .product-info {
-      flex: 1;
+    .health-card-left {
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
-      min-height: 90px;
+      gap: 4px;
 
-      .product-tags {
-        display: flex;
-        gap: $spacing-xs;
-        margin-bottom: $spacing-xs;
-
-        .symptom-tag {
-          font-size: $font-xs;
-          color: $primary;
-          background: rgba($primary, 0.1);
-          padding: 1px 6px;
-          border-radius: $radius-sm;
-        }
-      }
-
-      .product-name {
-        font-size: $font-md;
-        color: $text-primary;
+      .health-card-tag {
+        font-size: 12px;
+        color: #FFD700;
         font-weight: 500;
-        line-height: 1.4;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
       }
 
-      .product-spec {
-        font-size: $font-xs;
-        color: $text-tertiary;
-        margin-top: 2px;
+      .health-card-title {
+        font-size: 14px;
+        color: #fff;
+        font-weight: 500;
+
+        .highlight {
+          color: #FFD700;
+          font-weight: 600;
+        }
       }
 
-      .product-footer {
+      .health-card-desc {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.7);
+      }
+    }
+
+    .health-card-link {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      color: #FFD700;
+      cursor: pointer;
+
+      .el-icon {
+        font-size: 12px;
+      }
+    }
+  }
+
+  // 主体布局
+  .products-layout {
+    display: flex;
+    gap: 12px;
+    padding: 0 12px 12px;
+
+    // 左侧分类导航
+    .category-sidebar {
+      width: 80px;
+      flex-shrink: 0;
+      background: $bg-white;
+      border-radius: 8px;
+      padding: 8px 0;
+      max-height: calc(100vh - 280px);
+      overflow-y: auto;
+
+      &::-webkit-scrollbar {
+        display: none;
+      }
+
+      .sidebar-cat-item {
         display: flex;
-        align-items: flex-end;
-        justify-content: space-between;
-        margin-top: $spacing-xs;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        padding: 10px 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+        position: relative;
 
-        .price-section {
-          .current-price {
-            color: $price-red;
+        .cat-icon {
+          width: 24px;
+          height: 24px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: $text-secondary;
 
-            .symbol {
-              font-size: $font-xs;
-            }
-
-            .value {
-              font-size: $font-xl;
-              font-weight: 600;
-            }
-          }
-
-          .cashback-tag {
-            font-size: $font-xs;
-            color: $warning;
-            background: rgba($warning, 0.1);
-            padding: 1px 6px;
-            border-radius: $radius-sm;
-            margin-top: 2px;
-            display: inline-block;
+          .el-icon {
+            font-size: 16px;
           }
         }
 
-        .add-btn {
-          width: 28px;
-          height: 28px;
-          background: $accent;
+        .cat-label {
+          font-size: 11px;
+          color: $text-secondary;
+          text-align: center;
+          line-height: 1.2;
+        }
+
+        .cat-badge {
+          position: absolute;
+          top: 6px;
+          right: 6px;
+          width: 14px;
+          height: 14px;
+          background: $price-red;
+          color: #fff;
+          font-size: 10px;
           border-radius: 50%;
           display: flex;
           align-items: center;
           justify-content: center;
+        }
+
+        &.active {
+          background: rgba($primary, 0.08);
+          border-radius: 6px;
+
+          .cat-icon {
+            color: $primary;
+          }
+
+          .cat-label {
+            color: $primary;
+            font-weight: 500;
+          }
+        }
+
+        &:hover:not(.active) {
+          background: $bg-light;
+        }
+      }
+    }
+
+    // 右侧商品列表区域
+    .product-list-area {
+      flex: 1;
+      min-width: 0;
+
+      // 分类滚动指示器
+      .category-scroll-indicator {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 0;
+        margin-bottom: 8px;
+        overflow-x: auto;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+
+        &::-webkit-scrollbar {
+          display: none;
+        }
+
+        .sub-cat-item {
+          flex-shrink: 0;
+          padding: 4px 12px;
+          font-size: 12px;
+          color: $text-secondary;
+          background: $bg-white;
+          border-radius: $radius-full;
           cursor: pointer;
-          color: $text-white;
+          transition: all 0.2s;
+          border: 1px solid $border-light;
+
+          &:hover {
+            color: $primary;
+            border-color: $primary;
+          }
+
+          &.active {
+            color: $text-white;
+            background: $primary;
+            border-color: $primary;
+          }
+        }
+      }
+
+      // 排序栏
+      .sort-bar {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        padding: 10px 0;
+        margin-bottom: 8px;
+
+        .sort-item {
+          display: flex;
+          align-items: center;
+          gap: 2px;
+          font-size: 13px;
+          color: $text-secondary;
+          cursor: pointer;
+          transition: color 0.2s;
+
+          &:hover {
+            color: $text-primary;
+          }
+
+          &.active {
+            color: $primary;
+            font-weight: 500;
+          }
+
+          .sort-arrow {
+            font-size: 12px;
+          }
+        }
+      }
+
+      // 商品列表
+      .product-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+
+        .product-list-item {
+          display: flex;
+          gap: 12px;
+          background: $bg-white;
+          border-radius: 8px;
+          padding: 12px;
+          cursor: pointer;
           transition: all 0.2s;
 
           &:hover {
-            background: $accent-dark;
-            transform: scale(1.05);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
           }
 
-          &:active {
-            transform: scale(0.95);
+          .product-item-image {
+            width: 90px;
+            height: 90px;
+            flex-shrink: 0;
+            border-radius: 6px;
+            overflow: hidden;
+            background: $bg-light;
+
+            img {
+              width: 100%;
+              height: 100%;
+              object-fit: cover;
+            }
+
+            .image-placeholder-list {
+              width: 100%;
+              height: 100%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: $text-tertiary;
+              font-size: 14px;
+              font-weight: 500;
+            }
           }
 
-          .el-icon {
-            font-size: $font-md;
-            font-weight: bold;
+          .product-item-info {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+
+            .product-item-tags {
+              display: flex;
+              flex-wrap: wrap;
+              gap: 4px;
+              margin-bottom: 4px;
+
+              .product-tag {
+                font-size: 10px;
+                color: $primary;
+                background: rgba($primary, 0.08);
+                padding: 2px 6px;
+                border-radius: 4px;
+                border: 1px solid rgba($primary, 0.2);
+              }
+            }
+
+            .product-item-name {
+              font-size: 14px;
+              color: $text-primary;
+              font-weight: 500;
+              line-height: 1.4;
+              display: -webkit-box;
+              -webkit-line-clamp: 2;
+              -webkit-box-orient: vertical;
+              overflow: hidden;
+              margin-bottom: 4px;
+              word-break: break-all;
+
+              // 药品名称过长时显示完整名称的tooltip
+              &[title] {
+                cursor: help;
+              }
+            }
+
+            .product-item-spec {
+              font-size: 12px;
+              color: $text-tertiary;
+              margin-bottom: 8px;
+            }
+
+            .product-item-bottom {
+              display: flex;
+              align-items: flex-end;
+              justify-content: space-between;
+
+              .product-item-price-row {
+                display: flex;
+                align-items: baseline;
+                gap: 2px;
+
+                .price-symbol {
+                  font-size: 12px;
+                  color: $price-red;
+                }
+
+                .price-value {
+                  font-size: 20px;
+                  font-weight: 600;
+                  color: $price-red;
+                }
+
+                .original-price {
+                  font-size: 12px;
+                  color: $text-tertiary;
+                  text-decoration: line-through;
+                  margin-left: 4px;
+                }
+              }
+
+              .product-item-actions {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+
+                .cashback-tag {
+                  display: flex;
+                  align-items: center;
+                  gap: 2px;
+                  font-size: 10px;
+                  color: $warning;
+                  background: rgba($warning, 0.08);
+                  padding: 2px 6px;
+                  border-radius: 4px;
+
+                  .el-icon {
+                    font-size: 10px;
+                  }
+                }
+
+                .add-cart-btn {
+                  width: 28px;
+                  height: 28px;
+                  background: $accent;
+                  border-radius: 50%;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  cursor: pointer;
+                  color: #fff;
+                  transition: all 0.2s;
+
+                  &:hover {
+                    background: $accent-dark;
+                    transform: scale(1.05);
+                  }
+
+                  &:active {
+                    transform: scale(0.95);
+                  }
+
+                  .el-icon {
+                    font-size: 16px;
+                    font-weight: bold;
+                  }
+                }
+              }
+            }
           }
         }
       }
     }
-  }
-}
-
-// 医生咨询入口
-.doctor-entry {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: linear-gradient(90deg, rgba($primary, 0.06) 0%, rgba($primary, 0.03) 100%);
-  border: 1px solid rgba($primary, 0.12);
-  border-radius: $radius-md;
-  padding: $spacing-md;
-  margin-top: $spacing-md;
-  cursor: pointer;
-
-  .doctor-info {
-    display: flex;
-    align-items: center;
-    gap: $spacing-sm;
-
-    .el-icon {
-      font-size: $font-lg;
-      color: $primary;
-    }
-
-    .doctor-text {
-      font-size: $font-md;
-      color: $text-primary;
-      font-weight: 500;
-    }
-
-    .doctor-badge {
-      font-size: $font-xs;
-      color: $text-white;
-      background: $primary;
-      padding: 1px 6px;
-      border-radius: $radius-sm;
-    }
-  }
-
-  .el-icon {
-    color: $text-tertiary;
   }
 }
 
@@ -2460,73 +2998,335 @@ $radius-full: 9999px;
       font-size: $font-md;
       font-weight: 500;
       color: $text-tertiary;
+
+      &.active {
+        color: $primary;
+        font-weight: 600;
+      }
     }
   }
 }
 
-// 商家内容
-.merchant-content {
-  padding: $spacing-md;
+// 购物车弹出层
+.cart-popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 200;
+  display: flex;
+  align-items: flex-end;
+}
 
-  .merchant-section {
-    background: $bg-white;
-    border-radius: $radius-lg;
-    padding: $spacing-md;
-    margin-bottom: $spacing-md;
+.cart-popup {
+  width: 100%;
+  max-height: 70vh;
+  background: $bg-white;
+  border-radius: $radius-lg $radius-lg 0 0;
+  display: flex;
+  flex-direction: column;
 
-    .section-item {
+  .cart-popup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: $spacing-md $spacing-lg;
+    border-bottom: 1px solid $border-light;
+
+    h3 {
+      font-size: $font-md;
+      font-weight: 600;
+      color: $text-primary;
+    }
+
+    .clear-btn {
       display: flex;
       align-items: center;
-      gap: $spacing-sm;
-      padding: $spacing-sm 0;
+      gap: $spacing-xs;
+      font-size: $font-sm;
+      color: $text-tertiary;
       cursor: pointer;
 
-      &:first-child {
-        padding-top: 0;
+      .el-icon {
+        font-size: $font-sm;
       }
+    }
+  }
+
+  .cart-popup-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: $spacing-md $spacing-lg;
+
+    .cart-popup-item {
+      display: flex;
+      align-items: center;
+      gap: $spacing-md;
+      padding: $spacing-sm 0;
+      border-bottom: 1px solid $border-light;
 
       &:last-child {
-        padding-bottom: 0;
+        border-bottom: none;
       }
 
-      &:not(:last-child) {
-        border-bottom: 1px solid $border-light;
-      }
-
-      .section-icon {
-        font-size: $font-lg;
-        color: $text-tertiary;
-      }
-
-      .section-content {
+      .item-info {
         flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
 
-        .section-text {
+        .item-name {
           font-size: $font-sm;
           color: $text-primary;
-          line-height: 1.5;
+          font-weight: 500;
+        }
 
-          .highlight-tag {
-            background: rgba($primary, 0.1);
-            color: $primary;
-            padding: 1px 4px;
-            border-radius: $radius-sm;
-            font-size: $font-xs;
-          }
+        .item-spec {
+          font-size: $font-xs;
+          color: $text-tertiary;
         }
       }
 
-      .section-actions {
+      .item-price {
+        font-size: $font-sm;
+        color: $price-red;
+        font-weight: 500;
+      }
+
+      .item-quantity {
         display: flex;
-        gap: $spacing-md;
+        align-items: center;
+        gap: $spacing-sm;
 
-        .action-icon {
-          font-size: $font-lg;
-          color: $text-secondary;
+        .qty-btn {
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          background: $bg-gray;
+          display: flex;
+          align-items: center;
+          justify-content: center;
           cursor: pointer;
+          font-size: $font-md;
+          color: $text-primary;
+          user-select: none;
+        }
 
-          &:hover {
+        .qty-value {
+          font-size: $font-sm;
+          color: $text-primary;
+          min-width: 20px;
+          text-align: center;
+        }
+      }
+    }
+  }
+
+  .cart-popup-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: $spacing-md $spacing-lg;
+    border-top: 1px solid $border-light;
+    background: $bg-white;
+
+    .total-info {
+      display: flex;
+      align-items: center;
+      gap: $spacing-xs;
+
+      .total-label {
+        font-size: $font-sm;
+        color: $text-secondary;
+      }
+
+      .total-price {
+        font-size: $font-lg;
+        font-weight: 600;
+        color: $price-red;
+      }
+    }
+
+    .checkout-btn {
+      background: $primary;
+      color: $text-white;
+      border: none;
+      padding: $spacing-sm $spacing-xl;
+      border-radius: $radius-full;
+      font-size: $font-md;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+
+      &:hover {
+        background: $primary-dark;
+      }
+    }
+  }
+}
+
+// 商家内容V2
+.merchant-content-v2 {
+  padding: $spacing-md;
+  background: $bg-gray;
+  min-height: calc(100vh - 200px);
+
+  .merchant-overview-card {
+    background: $bg-white;
+    border-radius: $radius-lg;
+    padding: $spacing-lg;
+    margin-bottom: $spacing-md;
+
+    .overview-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: $spacing-lg;
+
+      .overview-title {
+        font-size: $font-lg;
+        font-weight: 600;
+        color: $text-primary;
+      }
+
+      .overview-rating {
+        display: flex;
+        align-items: center;
+        gap: $spacing-xs;
+        font-size: $font-md;
+        color: $warning;
+        font-weight: 600;
+
+        .el-icon {
+          font-size: $font-lg;
+        }
+      }
+    }
+
+    .overview-stats {
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+
+      .stat-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+
+        .stat-value {
+          font-size: $font-xl;
+          font-weight: 700;
+          color: $text-primary;
+        }
+
+        .stat-label {
+          font-size: $font-xs;
+          color: $text-tertiary;
+        }
+      }
+
+      .stat-divider {
+        width: 1px;
+        height: 30px;
+        background: $border-light;
+      }
+    }
+  }
+
+  .merchant-info-card {
+    background: $bg-white;
+    border-radius: $radius-lg;
+    padding: $spacing-md $spacing-lg;
+    margin-bottom: $spacing-md;
+
+    .card-header {
+      margin-bottom: $spacing-md;
+
+      .card-title {
+        font-size: $font-md;
+        font-weight: 600;
+        color: $text-primary;
+      }
+    }
+
+    .info-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: $spacing-sm 0;
+      cursor: pointer;
+
+      .info-left {
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
+
+        .info-icon {
+          width: 36px;
+          height: 36px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+
+          &.location {
+            background: rgba($info, 0.1);
+            color: $info;
+          }
+
+          &.phone {
+            background: rgba($primary, 0.1);
             color: $primary;
+          }
+
+          &.delivery {
+            background: rgba($warning, 0.1);
+            color: $warning;
+          }
+
+          &.time {
+            background: rgba($text-secondary, 0.1);
+            color: $text-secondary;
+          }
+
+          &.service {
+            background: rgba($price-red, 0.1);
+            color: $price-red;
+          }
+
+          .el-icon {
+            font-size: $font-md;
+          }
+        }
+
+        .info-content {
+          .info-title {
+            font-size: $font-sm;
+            color: $text-primary;
+            font-weight: 500;
+            margin-bottom: 2px;
+          }
+
+          .info-desc {
+            font-size: $font-xs;
+            color: $text-tertiary;
+          }
+
+          .info-tags {
+            display: flex;
+            gap: $spacing-xs;
+            margin-top: 4px;
+
+            .mini-tag {
+              font-size: 10px;
+              color: $primary;
+              background: rgba($primary, 0.1);
+              padding: 2px 8px;
+              border-radius: $radius-sm;
+            }
           }
         }
       }
@@ -2535,72 +3335,101 @@ $radius-full: 9999px;
         font-size: $font-md;
         color: $text-tertiary;
       }
-
-      .service-tags {
-        .service-tag {
-          background: rgba($primary, 0.1);
-          color: $primary;
-          font-size: $font-xs;
-          padding: 2px 8px;
-          border-radius: $radius-sm;
-        }
-      }
     }
 
-    .promo-list {
-      .promo-item {
+    .info-divider {
+      height: 1px;
+      background: $border-light;
+      margin: 0 $spacing-sm;
+    }
+
+    .promo-list-v2 {
+      .promo-item-v2 {
         display: flex;
         align-items: center;
         gap: $spacing-sm;
         padding: $spacing-xs 0;
 
-        .promo-label {
-          width: 18px;
-          height: 18px;
-          background: $price-red;
-          color: $text-white;
+        .promo-tag {
           font-size: 10px;
-          border-radius: $radius-sm;
-          display: flex;
-          align-items: center;
-          justify-content: center;
           font-weight: 600;
+          padding: 2px 6px;
+          border-radius: $radius-sm;
+          flex-shrink: 0;
 
-          &.discount {
-            background: $warning;
+          &.red {
+            background: rgba($price-red, 0.1);
+            color: $price-red;
           }
 
-          &.delivery {
-            background: $info;
+          &.yellow {
+            background: rgba($accent, 0.1);
+            color: $accent-dark;
+          }
+
+          &.green {
+            background: rgba($primary, 0.1);
+            color: $primary;
           }
         }
 
-        .promo-text {
+        .promo-desc {
           font-size: $font-sm;
-          color: $text-primary;
+          color: $text-secondary;
+          flex: 1;
+        }
+
+        .promo-value {
+          font-size: $font-sm;
+          color: $price-red;
+          font-weight: 500;
         }
       }
     }
   }
+}
 
-  .merchant-notice {
+// 问医生悬浮按钮
+.ask-doctor-fab {
+  position: fixed;
+  right: 16px;
+  bottom: 80px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  z-index: 100;
+  transition: transform 0.2s;
+
+  &:hover {
+    transform: scale(1.05);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+
+  .fab-icon {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, #00B42A 0%, #009A29 100%);
+    border-radius: 50%;
     display: flex;
-    gap: $spacing-sm;
-    background: $bg-white;
-    border-radius: $radius-lg;
-    padding: $spacing-md;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(0, 180, 42, 0.4);
 
-    .notice-icon {
-      font-size: $font-lg;
-      color: $primary;
-      flex-shrink: 0;
+    .el-icon {
+      font-size: 24px;
     }
+  }
 
-    .notice-text {
-      font-size: $font-sm;
-      color: $text-secondary;
-      line-height: 1.5;
-    }
+  .fab-text {
+    font-size: 10px;
+    color: #00B42A;
+    font-weight: 500;
   }
 }
 </style>

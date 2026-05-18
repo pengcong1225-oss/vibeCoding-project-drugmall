@@ -13,25 +13,16 @@
 
     <!-- 流程指示器 -->
     <div class="process-indicator">
-      <div class="process-step" :class="{ active: conversationStep < 5 }">
-        <div class="step-circle">1</div>
-        <span class="step-text">导诊助手</span>
-      </div>
-      <div class="process-line"></div>
-      <div class="process-step" :class="{ active: conversationStep >= 5 }">
-        <div class="step-circle">2</div>
-        <span class="step-text">支付诊费</span>
-      </div>
-      <div class="process-line"></div>
-      <div class="process-step">
-        <div class="step-circle">3</div>
-        <span class="step-text">医生接诊</span>
-      </div>
-      <div class="process-line"></div>
-      <div class="process-step">
-        <div class="step-circle">4</div>
-        <span class="step-text">问诊咨询</span>
-      </div>
+      <template v-for="(step, index) in consultationSteps" :key="step.step">
+        <div
+          class="process-step"
+          :class="{ active: conversationStep < 5 || (index === 1 && conversationStep >= 5) }"
+        >
+          <div class="step-circle">{{ step.step }}</div>
+          <span class="step-text">{{ step.name }}</span>
+        </div>
+        <div v-if="index < consultationSteps.length - 1" class="process-line"></div>
+      </template>
     </div>
 
     <!-- 科室信息卡片 -->
@@ -294,152 +285,14 @@ import {
   Refresh,
   Present
 } from '@element-plus/icons-vue'
+import { ROUTES } from '@/constants/routes'
 import { createConsultation } from '@/api/modules/inquiry'
 import { getPatients } from '@/api/modules/user'
+import { businessApi } from '@/api/modules/business'
 import type { Patient } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
-
-// 医生信息映射（用于自动分配）
-const doctorsMap: Record<string, any[]> = {
-  bone: [
-    { id: 'B001', name: '张建华', title: '主任医师', hospital: '北京协和医院', department: '骨科', specialty: '颈椎病、腰椎间盘突出、关节置换', price: 29.9 },
-    { id: 'B002', name: '李明', title: '副主任医师', hospital: '北京大学第三医院', department: '骨科', specialty: '运动损伤、骨折、骨质疏松', price: 19.9 }
-  ],
-  neurology: [
-    { id: 'N001', name: '王芳', title: '主任医师', hospital: '宣武医院', department: '神经内科', specialty: '失眠、头痛、脑血管病', price: 39.9 },
-    { id: 'N002', name: '刘强', title: '主治医师', hospital: '天坛医院', department: '神经内科', specialty: '帕金森病、面神经炎', price: 19.9 }
-  ],
-  respiratory: [
-    { id: 'R001', name: '邓健楠', title: '主治医师', hospital: '首都医科大学附属北京朝阳医院', department: '呼吸内科', specialty: '肺炎、哮喘、肺结核、支气管肺癌', price: 39.9 },
-    { id: 'R002', name: '陈晓', title: '副主任医师', hospital: '中日友好医院', department: '呼吸内科', specialty: '慢阻肺、呼吸衰竭', price: 29.9 }
-  ],
-  dermatology: [
-    { id: 'D001', name: '赵美丽', title: '主任医师', hospital: '北京空军总医院', department: '皮肤科', specialty: '湿疹、银屑病、痤疮', price: 39.9 }
-  ],
-  pediatrics: [
-    { id: 'P001', name: '孙丽', title: '主任医师', hospital: '北京儿童医院', department: '儿科', specialty: '小儿发热、咳嗽、腹泻', price: 29.9 }
-  ],
-  general: [
-    { id: 'G001', name: '周医生', title: '主治医师', hospital: '互联网医院', department: '全科', specialty: '常见病、多发病、慢性病管理', price: 9.9 },
-    { id: 'G002', name: '吴医生', title: '副主任医师', hospital: '互联网医院', department: '全科', specialty: '健康咨询、体检报告解读', price: 19.9 }
-  ]
-}
-
-// 科室信息映射
-const departmentInfoMap: Record<string, any> = {
-  bone: {
-    name: '骨科',
-    price: 4.9,
-    originalPrice: 19.9,
-    subsidy: 15,
-    symptoms: '关节炎、颈椎病、腰椎间盘突出、腰肌劳损、肩周炎、骨折后康复、骨质增生、腱鞘炎、骨质疏松、运动损伤、检查单解读',
-    responseTime: 9,
-    answerTime: 30,
-    example: '腰痛伴随腿发麻，1周，用膏药外贴，效果不明显。',
-    quickSymptoms: ['颈椎病', '腰痛', '腰椎间盘突出', '关节炎', '腰肌劳损', '关节痛', '关节扭伤', '外伤', '肩周炎', '骨折']
-  },
-  neurology: {
-    name: '神经内科',
-    price: 7.9,
-    originalPrice: 19.9,
-    subsidy: 12,
-    symptoms: '失眠、头痛、头晕、焦虑、抑郁状态、神经痛、脑血管病、帕金森病、认知功能障碍、面肌痉挛、面神经炎、检查单解读',
-    responseTime: 9,
-    answerTime: 30,
-    example: '失眠，1个月，未使用过药物，未线下就诊。',
-    quickSymptoms: ['头痛头晕', '失眠', '易醒', '偏头痛', '焦虑障碍', '多梦', '眩晕', '周围神经病', '头晕目眩', '记忆力减退']
-  },
-  dermatology: {
-    name: '皮肤科',
-    price: 19.9,
-    originalPrice: 39.9,
-    subsidy: 20,
-    symptoms: '湿疹、荨麻疹、痤疮、银屑病、白癜风、皮炎、皮肤瘙痒、脱发、色斑、痘痘、过敏',
-    responseTime: 5,
-    answerTime: 15,
-    example: '面部起红疹，瘙痒3天，未使用过药物。',
-    quickSymptoms: ['湿疹', '荨麻疹', '痤疮', '皮肤瘙痒', '过敏', '脱发', '痘痘', '色斑', '皮炎', '银屑病']
-  },
-  respiratory: {
-    name: '呼吸内科',
-    price: 9.9,
-    originalPrice: 29.9,
-    subsidy: 20,
-    symptoms: '咳嗽、咳痰、气喘、胸闷、胸痛、发热、感冒、支气管炎、肺炎、哮喘、慢阻肺',
-    responseTime: 8,
-    answerTime: 20,
-    example: '半夜咽痒咳嗽，持续1周，喝水可缓解，未用过药。',
-    quickSymptoms: ['咳嗽', '咳痰', '气喘', '胸闷', '发热', '感冒', '咽痛', '流鼻涕', '打喷嚏', '胸痛']
-  },
-  pediatrics: {
-    name: '儿科',
-    price: 9.9,
-    originalPrice: 29.9,
-    subsidy: 20,
-    symptoms: '小儿发热、咳嗽、腹泻、呕吐、湿疹、厌食、夜啼、多动症、发育迟缓、疫苗接种咨询',
-    responseTime: 6,
-    answerTime: 15,
-    example: '宝宝发热38.5度，持续2天，精神尚可，未用药。',
-    quickSymptoms: ['发热', '咳嗽', '腹泻', '呕吐', '湿疹', '厌食', '夜啼', '流鼻涕', '皮疹', '腹痛']
-  },
-  gynecology: {
-    name: '妇产科',
-    price: 19.9,
-    originalPrice: 49.9,
-    subsidy: 30,
-    symptoms: '月经不调、痛经、白带异常、阴道炎、盆腔炎、子宫肌瘤、卵巢囊肿、备孕咨询、孕期检查',
-    responseTime: 10,
-    answerTime: 25,
-    example: '月经推迟10天，伴有腹痛，未做过检查。',
-    quickSymptoms: ['月经不调', '痛经', '白带异常', '腹痛', '备孕咨询', '孕期检查', '阴道炎', '盆腔炎', '子宫肌瘤', '卵巢囊肿']
-  },
-  gastroenterology: {
-    name: '消化内科',
-    price: 9.9,
-    originalPrice: 29.9,
-    subsidy: 20,
-    symptoms: '胃痛、胃胀、反酸、恶心、呕吐、腹泻、便秘、消化不良、胃炎、胃溃疡、肠炎',
-    responseTime: 8,
-    answerTime: 20,
-    example: '胃痛伴反酸，持续3天，饭后加重，未用药。',
-    quickSymptoms: ['胃痛', '胃胀', '反酸', '恶心', '腹泻', '便秘', '消化不良', '呕吐', '腹胀', '食欲差']
-  },
-  psychology: {
-    name: '心理咨询',
-    price: 19.9,
-    originalPrice: 199,
-    subsidy: 179,
-    symptoms: '焦虑、抑郁、失眠、情绪低落、压力大、人际关系困扰、职场压力、婚姻家庭问题、自我成长',
-    responseTime: 5,
-    answerTime: 10,
-    example: '最近情绪低落，失眠2周，工作压力大。',
-    quickSymptoms: ['焦虑', '抑郁', '失眠', '情绪低落', '压力大', '人际关系', '职场压力', '婚姻问题', '自我成长', '注意力不集中']
-  },
-  tcm: {
-    name: '中医科',
-    price: 14.9,
-    originalPrice: 39.9,
-    subsidy: 25,
-    symptoms: '体质调理、脾胃虚弱、气血不足、失眠多梦、腰膝酸软、月经不调、慢性疲劳、亚健康调理',
-    responseTime: 12,
-    answerTime: 30,
-    example: '脾胃虚弱，食欲不振，乏力2个月，未系统调理。',
-    quickSymptoms: ['脾胃虚弱', '气血不足', '失眠多梦', '腰膝酸软', '乏力', '食欲不振', '便秘', '怕冷', '盗汗', '口干']
-  },
-  general: {
-    name: '全科',
-    price: 4.9,
-    originalPrice: 19.9,
-    subsidy: 15,
-    symptoms: '常见病、多发病、慢性病管理、健康咨询、体检报告解读、用药咨询、疫苗接种',
-    responseTime: 5,
-    answerTime: 15,
-    example: '体检发现血压偏高，140/90，无症状，未用药。',
-    quickSymptoms: ['高血压', '高血糖', '高血脂', '体检咨询', '用药咨询', '健康管理', '疫苗接种', '慢性病', '亚健康', '疲劳']
-  }
-}
 
 // 页面状态
 const departmentCode = ref('')
@@ -491,14 +344,31 @@ const maskPhone = (phone: string) => {
   return phone.substring(0, 3) + '****' + phone.substring(phone.length - 4)
 }
 
+const consultationSteps = ref<{ step: number; name: string }[]>([])
+
 // 加载科室信息
-const loadDepartmentInfo = () => {
+const loadDepartmentInfo = async () => {
   departmentCode.value = (route.params.departmentCode as string) || (route.query.department as string) || 'general'
-  const info = departmentInfoMap[departmentCode.value] || departmentInfoMap.general
   
-  departmentName.value = info.name
-  departmentInfo.value = info
-  currentSymptoms.value = info.quickSymptoms.slice(0, 9)
+  try {
+    const configRes = await businessApi.getDepartmentConfig(departmentCode.value)
+    if (configRes.data) {
+      departmentName.value = configRes.data.departmentCode === 'bone' ? '骨科' : 
+        configRes.data.departmentCode === 'neurology' ? '神经内科' : 
+        configRes.data.departmentCode === 'general' ? '全科' : 
+        configRes.data.departmentCode === 'dermatology' ? '皮肤科' : 
+        configRes.data.departmentCode === 'respiratory' ? '呼吸内科' : 
+        configRes.data.departmentCode === 'pediatrics' ? '儿科' : 
+        configRes.data.departmentCode === 'gynecology' ? '妇产科' : 
+        configRes.data.departmentCode === 'gastroenterology' ? '消化内科' : 
+        configRes.data.departmentCode === 'psychology' ? '心理咨询' : 
+        configRes.data.departmentCode === 'tcm' ? '中医科' : '全科'
+      departmentInfo.value = configRes.data
+      currentSymptoms.value = (configRes.data.quickSymptoms || []).slice(0, 9)
+    }
+  } catch (error) {
+    console.error('加载科室配置失败:', error)
+  }
 }
 
 // 加载患者档案
@@ -590,15 +460,31 @@ const confirmPatientSelection = () => {
 
 // 自动分配医生
 const assignDoctor = async () => {
-  // 模拟分配过程
   await new Promise(resolve => setTimeout(resolve, 1500))
 
-  const doctors = doctorsMap[departmentCode.value] || doctorsMap.general
-  // 根据症状关键词匹配合适的医生
-  const symptomKeywords = patientInfo.value.symptom
-  let matchedDoctor = doctors[0] // 默认第一个医生
+  const doctorsMap: Record<string, any[]> = {
+    bone: [
+      { id: 'D001', name: '张建国', title: '主任医师', hospital: '北京积水潭医院', department: '骨科', specialty: '擅长颈椎病、腰椎间盘突出、关节炎等骨科常见病', rating: 4.9, price: 19.9, isOnline: true, canPrescribe: true, waitTime: 5, consultCount: '1.2万' },
+      { id: 'D002', name: '李明华', title: '副主任医师', hospital: '上海长征医院', department: '骨科', specialty: '擅长关节外科、运动医学、骨折创伤', rating: 4.8, price: 14.9, isOnline: true, canPrescribe: true, waitTime: 8, consultCount: '8562' }
+    ],
+    neurology: [
+      { id: 'D003', name: '王芳', title: '主任医师', hospital: '北京宣武医院', department: '神经内科', specialty: '擅长失眠、头痛、脑血管病、帕金森病', rating: 4.9, price: 19.9, isOnline: true, canPrescribe: true, waitTime: 3, consultCount: '2.1万' },
+      { id: 'D004', name: '赵明', title: '副主任医师', hospital: '上海华山医院', department: '神经内科', specialty: '擅长头晕、眩晕、周围神经病', rating: 4.7, price: 14.9, isOnline: true, canPrescribe: true, waitTime: 10, consultCount: '6543' }
+    ],
+    dermatology: [
+      { id: 'D005', name: '周峰', title: '主治医师', hospital: '武汉市黄陂区人民医院', department: '皮肤科', specialty: '擅长过敏性疾病（特应性皮炎、湿疹、荨麻疹）', rating: 4.9, price: 19.9, isOnline: true, canPrescribe: true, waitTime: 4, consultCount: '7542' },
+      { id: 'D006', name: '陈琼', title: '主治医师', hospital: '辽宁中医药大学附属第二医院', department: '皮肤科', specialty: '擅长中医药治疗痤疮、湿疹、银屑病', rating: 4.8, price: 19.9, isOnline: true, canPrescribe: true, waitTime: 37, consultCount: '4.2万' }
+    ],
+    general: [
+      { id: 'D007', name: '刘伟', title: '副主任医师', hospital: '北京协和医院', department: '全科', specialty: '擅长常见病、多发病、慢性病管理', rating: 4.8, price: 9.9, isOnline: true, canPrescribe: true, waitTime: 6, consultCount: '3.5万' },
+      { id: 'D008', name: '孙丽', title: '主治医师', hospital: '上海瑞金医院', department: '全科', specialty: '擅长健康管理、体检报告解读', rating: 4.7, price: 4.9, isOnline: true, canPrescribe: true, waitTime: 12, consultCount: '1.8万' }
+    ]
+  }
 
-  // 简单匹配逻辑：根据症状包含的关键词
+  const doctors = doctorsMap[departmentCode.value] || doctorsMap.general
+  const symptomKeywords = patientInfo.value.symptom
+  let matchedDoctor = doctors[0]
+
   if (symptomKeywords.includes('失眠') || symptomKeywords.includes('头痛')) {
     matchedDoctor = doctors.find(d => d.specialty.includes('失眠') || d.specialty.includes('头痛')) || doctors[0]
   }
@@ -669,24 +555,27 @@ const goBack = () => {
   router.back()
 }
 
-// 咨询记录
 const goToRecords = () => {
-  router.push('/inquiry/list')
+  router.push(ROUTES.INQUIRY_LIST)
 }
 
-// 添加就诊人
 const goToAddPatient = () => {
-  router.push('/patient')
+  router.push(ROUTES.PATIENT)
 }
 
-// 管理档案
 const goToManagePatients = () => {
-  router.push('/patient')
+  router.push(ROUTES.PATIENT)
 }
 
-onMounted(() => {
-  loadDepartmentInfo()
+onMounted(async () => {
+  await loadDepartmentInfo()
   loadPatientProfiles()
+  try {
+    const stepsRes = await businessApi.getConsultationSteps()
+    consultationSteps.value = stepsRes.data
+  } catch (error) {
+    console.error('加载问诊步骤失败:', error)
+  }
 })
 </script>
 

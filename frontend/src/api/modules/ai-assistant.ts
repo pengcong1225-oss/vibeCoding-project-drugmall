@@ -1,7 +1,6 @@
 import axios from 'axios'
-import type { Result } from '../request'
 
-// 创建AI助手专用的axios实例（使用 /api 前缀）
+// 创建AI助手专用的axios实例（使用 /api 前缀，响应拦截器已解包 Result.data）
 const aiRequest = axios.create({
   baseURL: '/api',
   timeout: 60000,
@@ -24,14 +23,25 @@ aiRequest.interceptors.request.use(
   }
 )
 
-// 响应拦截器
+// 响应拦截器（解包 Result<T> 的 data 字段）
 aiRequest.interceptors.response.use(
   (response) => {
+    const res = response.data
+    if (res && typeof res === 'object' && 'code' in res) {
+      if (res.code === 200) {
+        return res.data  // 直接返回解包后的数据
+      }
+      return Promise.reject(new Error(res.message || 'AI服务异常'))
+    }
     return response
   },
   (error) => {
     if (!error.response) {
       return Promise.reject(new Error('网络错误，请检查后端服务是否启动'))
+    }
+    const res = error.response.data
+    if (res && res.message) {
+      return Promise.reject(new Error(res.message))
     }
     return Promise.reject(error)
   }
@@ -135,14 +145,14 @@ export const aiAssistantApi = {
    * 发送消息给AI助手
    */
   chat(params: AIChatParams) {
-    return aiRequest.post<Result<AIChatResponse>>('/ai/chat', params)
+    return aiRequest.post<AIChatResponse>('/ai/chat', params)
   },
 
   /**
    * 清除会话历史
    */
   clearSession(sessionId: string) {
-    return aiRequest.delete<Result<void>>(`/ai/session/${sessionId}`)
+    return aiRequest.delete<void>(`/ai/session/${sessionId}`)
   },
 
   /**
@@ -153,7 +163,7 @@ export const aiAssistantApi = {
     formData.append('file', file)
     formData.append('purpose', purpose)
 
-    return aiRequest.post<Result<FileUploadResponse>>('/ai/upload', formData, {
+    return aiRequest.post<FileUploadResponse>('/ai/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
@@ -164,13 +174,13 @@ export const aiAssistantApi = {
    * 获取文件解析内容
    */
   getFileContent(fileId: string) {
-    return aiRequest.get<Result<FileUploadResponse>>(`/ai/file/${fileId}`)
+    return aiRequest.get<FileUploadResponse>(`/ai/file/${fileId}`)
   },
 
   /**
    * 症状自测
    */
   symptomTest(params: SymptomTestParams) {
-    return aiRequest.post<Result<SymptomTestResponse>>('/ai/symptom-test', params)
+    return aiRequest.post<SymptomTestResponse>('/ai/symptom-test', params)
   }
 }

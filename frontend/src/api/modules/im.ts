@@ -30,7 +30,8 @@ export function enterConversation(params: EnterConversationParams) {
 // 获取消息历史
 export function getMessages(params: GetMessagesParams) {
   return http.get<IMMessage[]>(`/im/messages/${params.conversationId}`, {
-    userId: params.userId
+    userId: params.userId,
+    userType: params.userType
   }).then(data => ({ data: data || [] }))
 }
 

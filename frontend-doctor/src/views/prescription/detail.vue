@@ -13,6 +13,10 @@ const goBack = () => {
   router.back()
 }
 
+const goToConsultation = (consultationId: string) => {
+  router.push(`/consultation/chat/${consultationId}`)
+}
+
 const getStatusClass = (status: string) => {
   switch (status) {
     case 'pending':
@@ -95,6 +99,41 @@ onMounted(() => {
           <div class="diagnosis-item">
             <span class="label">诊断结果</span>
             <span class="value">{{ prescriptionStore.currentPrescription.diagnosis }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 问诊会话 -->
+      <div
+        class="info-card consultation-card"
+        v-if="prescriptionStore.currentPrescription.consultationId"
+        @click="goToConsultation(prescriptionStore.currentPrescription.consultationId)"
+      >
+        <div class="card-title">
+          问诊会话
+          <span class="consultation-status" :class="'consultation-' + prescriptionStore.currentPrescription.consultationStatus">
+            {{ prescriptionStore.currentPrescription.consultationStatus || '未知' }}
+          </span>
+        </div>
+        <div class="consultation-body">
+          <div class="consultation-info">
+            <div class="info-item" v-if="prescriptionStore.currentPrescription.consultationType">
+              <span class="label">问诊类型</span>
+              <span class="value">{{ prescriptionStore.currentPrescription.consultationType }}</span>
+            </div>
+            <div class="info-item full">
+              <span class="label">症状描述</span>
+              <span class="value symptom-text">{{ prescriptionStore.currentPrescription.consultationSymptom || '无' }}</span>
+            </div>
+          </div>
+          <div class="consultation-action">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+            <span>进入问诊会话</span>
+            <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
           </div>
         </div>
       </div>
@@ -354,16 +393,107 @@ onMounted(() => {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    
+
     .label {
       font-size: 12px;
       color: $text-tertiary;
     }
-    
+
     .value {
       font-size: 14px;
       color: $text-primary;
       line-height: 1.5;
+    }
+  }
+}
+
+.consultation-card {
+  cursor: pointer;
+  border: 1px solid $border-light;
+
+  &:active {
+    opacity: 0.9;
+  }
+
+  .consultation-status {
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 500;
+
+    &.consultation-待接诊 {
+      background: #FFF7E6;
+      color: #FA8C16;
+    }
+    &.consultation-进行中 {
+      background: #E6F7FF;
+      color: #1890FF;
+    }
+    &.consultation-已完成 {
+      background: #F6FFED;
+      color: #52C41A;
+    }
+    &.consultation-已关闭 {
+      background: #F5F5F5;
+      color: #999;
+    }
+  }
+
+  .consultation-body {
+    .consultation-info {
+      margin-bottom: 12px;
+
+      .info-item {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-bottom: 8px;
+
+        &.full { flex: 0 0 100%; }
+
+        .label {
+          font-size: 12px;
+          color: $text-tertiary;
+        }
+
+        .value {
+          font-size: 14px;
+          color: $text-primary;
+
+          &.symptom-text {
+            font-weight: 400;
+            color: $text-secondary;
+            line-height: 1.5;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+          }
+        }
+      }
+    }
+
+    .consultation-action {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 12px;
+      background: $primary-50;
+      border-radius: 8px;
+      color: $primary;
+      font-size: 14px;
+      font-weight: 500;
+
+      svg {
+        width: 18px;
+        height: 18px;
+      }
+
+      .arrow {
+        margin-left: auto;
+        width: 16px;
+        height: 16px;
+      }
     }
   }
 }

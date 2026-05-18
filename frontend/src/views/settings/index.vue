@@ -108,6 +108,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, ArrowRight, User, Phone, Bell, ChatDotSquare, Van, Delete, InfoFilled } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
+import { ROUTES } from '@/constants/routes'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -162,7 +163,7 @@ const handleLogout = () => {
   }).then(() => {
     userStore.logout()
     ElMessage.success('已退出登录')
-    router.push('/home')
+    router.push(ROUTES.HOME)
   }).catch(() => {})
 }
 </script>

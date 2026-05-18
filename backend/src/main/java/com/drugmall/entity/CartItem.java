@@ -3,61 +3,37 @@ package com.drugmall.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.TableField;
 import lombok.Data;
 
 import java.io.Serializable;
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * 购物车项实体
+ * 购物车实体
  */
 @Data
-@TableName("dm_cart_item")
+@TableName("dm_cart")
 public class CartItem implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    @TableId(type = IdType.ASSIGN_ID)
-    private String id;
+    @TableId(type = IdType.AUTO)
+    private Long id;
 
-    private String userId;
+    @TableField("user_id")
+    private Long userId;
 
-    private String drugId;
-
-    private String drugName;
-
-    private String specification;
-
-    private String manufacturer;
-
-    private BigDecimal price;
-
-    private BigDecimal originalPrice;
+    @TableField("product_id")
+    private Long productId;
 
     private Integer quantity;
 
-    private String image;
+    private Boolean selected;
 
-    private String imageColor;
-
-    private String imageText;
-
-    private String disease;
-
-    private String usage;
-
-    private Boolean isRx;
-
-    private Boolean isSelected;
-
-    private Integer stock;
-
-    private String categoryId;
-
-    private String categoryName;
-
+    @TableField("create_time")
     private LocalDateTime createTime;
 
+    @TableField("update_time")
     private LocalDateTime updateTime;
 }

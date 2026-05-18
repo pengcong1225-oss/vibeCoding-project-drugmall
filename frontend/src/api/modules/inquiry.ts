@@ -100,6 +100,9 @@ export interface CreateConsultationParams {
   symptom: string
   patientId: string
   type: string
+  duration?: string     // 患病时长
+  allergies?: string    // 过敏史
+  medication?: string   // 用药史
 }
 
 export interface CreateConsultationResult {
@@ -163,8 +166,11 @@ export function getDoctorReviewTags(id: string) {
 export function createConsultation(data: CreateConsultationParams) {
   const params = new URLSearchParams()
   params.append('doctorId', data.doctorId)
-  params.append('type', data.type || 'image')
+  params.append('type', data.type || '图文问诊')
   params.append('symptom', data.symptom)
+  if (data.duration) params.append('duration', data.duration)
+  if (data.allergies) params.append('allergies', data.allergies)
+  if (data.medication) params.append('medication', data.medication)
   return http.post<CreateConsultationResult>(`/patient/consultations?${params.toString()}`)
 }
 
@@ -181,4 +187,14 @@ export function payConsultation(id: string, data: PayConsultationParams) {
 // 检查医生接诊状态
 export function checkDoctorAcceptance(id: string) {
   return http.get<{ accepted: boolean; doctorId?: string }>(`/patient/consultations/${id}/acceptance`)
+}
+
+// 取消问诊
+export function cancelConsultation(id: string) {
+  return http.post<boolean>(`/patient/consultations/${id}/cancel`)
+}
+
+// 提醒医生
+export function remindDoctor(id: string) {
+  return http.post<boolean>(`/patient/consultations/${id}/remind`)
 }

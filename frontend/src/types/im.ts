@@ -67,6 +67,7 @@ export interface EnterConversationParams {
 // 获取消息请求参数
 export interface GetMessagesParams {
   userId: string
+  userType: 'patient' | 'doctor'
   conversationId: string
 }
 

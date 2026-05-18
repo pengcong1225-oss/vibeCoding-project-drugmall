@@ -75,6 +75,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { getDrugDetailRoute } from '@/constants/routes'
 
 const router = useRouter()
 const currentBannerIndex = ref(0)
@@ -137,7 +138,7 @@ const handleBannerClick = (banner: any) => {
 const handleProductClick = (product: any) => {
   if (product.id) {
     try {
-      router.push(`/drug/${product.id}`)
+      router.push(getDrugDetailRoute(product.id))
     } catch (error) {
       ElMessage.info(`即将查看${product.name}`)
     }

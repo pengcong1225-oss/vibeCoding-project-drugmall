@@ -4,7 +4,11 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft, Plus, User, CircleCheckFilled, Document, FirstAidKit } from '@element-plus/icons-vue'
 import { usePrescriptionStore } from '@/stores/prescription'
+import { getDrugDetail } from '@/api/modules/drug'
+import { getPatientList } from '@/api/modules/patient'
 import StepBar from './components/StepBar.vue'
+import { ROUTES } from '@/constants/routes'
+import { businessApi } from '@/api/modules/business'
 import type { Patient } from '@/types/user'
 import type { Drug } from '@/types/drug'
 
@@ -12,84 +16,80 @@ const router = useRouter()
 const route = useRoute()
 const prescriptionStore = usePrescriptionStore()
 
-// 当前步骤
 const currentStep = ref(1)
 
-// 用药人列表
 const patientList = ref<Patient[]>([])
 const loadingPatients = ref(false)
 
-// 药品信息（从路由参数或store获取）
 const drugInfo = ref<Drug[]>([])
 
-// 疾病标签选项
-const diseaseTags = ref([
-  { id: '1', name: '感冒发热', selected: false },
-  { id: '2', name: '咳嗽咽痛', selected: false },
-  { id: '3', name: '头痛头晕', selected: false },
-  { id: '4', name: '消化不良', selected: false },
-  { id: '5', name: '腹泻腹痛', selected: false },
-  { id: '6', name: '皮肤过敏', selected: false },
-  { id: '7', name: '失眠多梦', selected: false },
-  { id: '8', name: '高血压', selected: false },
-  { id: '9', name: '糖尿病', selected: false },
-  { id: '10', name: '冠心病', selected: false }
-])
+// 当前选中的规格索引
+const selectedSpecIndex = ref(0)
 
-// 症状描述
+const diseaseTags = ref<{ id: string; name: string; selected: boolean }[]>([])
+
 const symptoms = ref('')
 
-// 知情同意
 const agreedToConsent = ref(false)
 
-// 是否显示知情同意书弹窗
 const showConsentDialog = ref(false)
 
-// 计算属性：是否可以选择提交
 const canSubmit = computed(() => {
   return prescriptionStore.hasSelectedPatient && 
          prescriptionStore.hasSelectedDiseases && 
          agreedToConsent.value
 })
 
-// 计算属性：已选择的疾病标签
 const selectedDiseases = computed(() => {
   return diseaseTags.value.filter(tag => tag.selected)
 })
 
-// 返回上一页
+// 当前选中的价格
+const currentPrice = computed(() => {
+  if (drugInfo.value.length === 0) return 0
+  const drug = drugInfo.value[0]
+  
+  // 如果有规格列表，使用选中规格的价格
+  if (drug.specifications && drug.specifications.length > 0) {
+    const selectedSpec = drug.specifications[selectedSpecIndex.value]
+    return selectedSpec?.price || drug.price
+  }
+  
+  return drug.price
+})
+
 const goBack = () => {
   router.back()
 }
 
-// 获取用药人列表
 const fetchPatientList = async () => {
   loadingPatients.value = true
   try {
-    // 模拟数据
-    await new Promise(resolve => setTimeout(resolve, 500))
-    patientList.value = [
-      {
-        id: '1',
-        name: '张三',
-        gender: 'male',
-        age: 35,
-        idCard: '110101199001011234',
-        phone: '13800138000',
-        relationship: '本人',
-        isDefault: true
-      },
-      {
-        id: '2',
-        name: '李四',
-        gender: 'female',
-        age: 32,
-        idCard: '110101199201011235',
-        phone: '13800138001',
-        relationship: '配偶',
-        isDefault: false
-      }
-    ]
+    const patients = await getPatientList()
+    
+    console.log('获取到的患者列表:', patients)
+    
+    patientList.value = patients.map((p, index) => ({
+      // 如果后端返回的id为null或空，使用身份证号作为唯一标识
+      id: (p.id && p.id !== 'null' && p.id !== '') ? String(p.id) : `patient_${index}_${p.idCard?.slice(-4) || '0000'}`,
+      name: p.name,
+      gender: p.gender as 'male' | 'female',
+      age: p.age,
+      idCard: p.idCard,
+      phone: p.phone,
+      relationship: p.relationship || '本人',
+      isDefault: p.isDefault || false
+    }))
+    
+    console.log('处理后的患者列表:', patientList.value)
+    console.log('患者ID列表:', patientList.value.map(p => ({ id: p.id, name: p.name })))
+    
+    // 自动选择默认患者（如果有的话）
+    const defaultPatient = patientList.value.find(p => p.isDefault)
+    if (defaultPatient && !prescriptionStore.applyState.selectedPatient) {
+      prescriptionStore.selectPatient(defaultPatient)
+      console.log('自动选择默认患者:', defaultPatient.name, 'ID:', defaultPatient.id)
+    }
   } catch (error) {
     console.error('获取用药人列表失败:', error)
     ElMessage.error('获取用药人列表失败')
@@ -98,59 +98,155 @@ const fetchPatientList = async () => {
   }
 }
 
-// 获取药品信息
 const fetchDrugInfo = async () => {
   const drugId = route.query.drugId as string
   if (drugId) {
-    // 模拟获取药品信息
-    drugInfo.value = [
-      {
-        id: drugId,
-        name: '阿莫西林胶囊',
-        specification: '0.25g*24粒',
-        manufacturer: '华北制药',
-        price: 28.5,
-        image: '',
-        isRx: true,
-        categoryId: '1',
-        stock: 100,
-        sales: 999,
-        status: 1
+    try {
+      const response = await getDrugDetail(drugId)
+      console.log('处方申请-药品详情API响应:', response)
+      
+      // 处理后端返回的数据结构：{ drug: {...}, relatedDrugs: [], ... }
+      let drugDetail: any
+      if (response && typeof response === 'object' && !Array.isArray(response)) {
+        // 如果返回的是 { drug: {...} } 结构，提取drug字段
+        drugDetail = (response as any).drug || response
+      } else {
+        drugDetail = response
       }
-    ]
-    prescriptionStore.setSelectedDrugs(drugInfo.value)
+      
+      console.log('处方申请-解析后的药品详情:', drugDetail)
+      
+      if (!drugDetail || !drugDetail.id) {
+        ElMessage.error('药品信息获取失败')
+        return
+      }
+      
+      // 构建完整的药品信息对象，包含所有字段
+      drugInfo.value = [{
+        id: drugDetail.id,
+        name: drugDetail.name,
+        genericName: drugDetail.genericName || '',
+        specification: drugDetail.specification || '',
+        manufacturer: drugDetail.manufacturer || '',
+        price: drugDetail.price,
+        originalPrice: drugDetail.originalPrice,
+        image: drugDetail.image || '',
+        images: drugDetail.images || [],
+        isRx: drugDetail.isRx || false,
+        isNationalEssential: drugDetail.isNationalEssential || false,
+        categoryId: drugDetail.categoryId || '',
+        categoryName: drugDetail.categoryName || '',
+        stock: drugDetail.stock || 0,
+        sales: drugDetail.sales || 0,
+        status: drugDetail.status || 1,
+        // 医保相关字段
+        medicalInsuranceCode: drugDetail.medicalInsuranceCode,
+        traceabilityCode: drugDetail.traceabilityCode,
+        isLongPrescription: drugDetail.isLongPrescription,
+        insuranceCategory: drugDetail.insuranceCategory,
+        // 规格列表
+        specifications: drugDetail.specifications || [],
+        // 其他字段
+        approvalNumber: drugDetail.approvalNumber,
+        barCode: drugDetail.barCode,
+        description: drugDetail.description,
+        usage: drugDetail.usage,
+        disease: drugDetail.disease,
+        contraindications: drugDetail.contraindications,
+        precautions: drugDetail.precautions,
+        adverseReactions: drugDetail.adverseReactions,
+        storage: drugDetail.storage,
+        validity: drugDetail.validity,
+        ingredients: drugDetail.ingredients,
+        appearance: drugDetail.appearance,
+        drugInteractions: drugDetail.drugInteractions
+      }]
+      
+      console.log('处方申请-最终药品信息:', drugInfo.value)
+      
+      // 设置默认选中的规格ID（如果有规格列表）
+      if (drugDetail.specifications && drugDetail.specifications.length > 0) {
+        const defaultSpec = drugDetail.specifications.find((s: any) => s.isDefault) || drugDetail.specifications[0]
+        ;(drugInfo.value[0] as any).selectedSpecificationId = defaultSpec.id
+        selectedSpecIndex.value = drugDetail.specifications.findIndex((s: any) => s.id === defaultSpec.id)
+      }
+      
+      prescriptionStore.setSelectedDrugs(drugInfo.value)
+    } catch (error) {
+      console.error('获取药品信息失败:', error)
+      ElMessage.error('获取药品信息失败')
+    }
+  } else {
+    console.warn('URL中未传递drugId参数')
+    ElMessage.warning('缺少药品ID参数')
   }
 }
 
-// 选择用药人
+// 判断患者是否被选中
+const isPatientSelected = (patientId: string | number) => {
+  const selected = prescriptionStore.applyState.selectedPatient
+  if (!selected) return false
+  
+  // 严格比较，确保类型一致
+  return String(selected.id) === String(patientId)
+}
+
 const selectPatient = (patient: Patient) => {
+  console.log('点击选择就诊人:', patient)
+  console.log('当前选中的就诊人:', prescriptionStore.applyState.selectedPatient)
+  console.log('选中判断结果:', isPatientSelected(patient.id))
+  
+  // 如果点击的是已选中的就诊人，不做任何操作
+  if (isPatientSelected(patient.id)) {
+    console.log('点击的是已选中的就诊人，忽略')
+    return
+  }
+  
+  // 选择新的就诊人（会自动替换之前的选择）
   prescriptionStore.selectPatient(patient)
+  console.log('已选择就诊人:', patient.name, 'ID:', patient.id)
+  
+  // 显示提示信息
+  ElMessage.success({
+    message: `已选择：${patient.name}（${patient.relationship}）`,
+    duration: 1500
+  })
 }
 
-// 添加用药人
+// 选择规格
+const selectSpec = (index: number) => {
+  selectedSpecIndex.value = index
+  
+  // 更新药品信息中的价格和规格
+  if (drugInfo.value.length > 0 && drugInfo.value[0].specifications) {
+    const spec = drugInfo.value[0].specifications[index]
+    // 更新显示用价格（实际提交时会使用完整规格信息）
+    drugInfo.value[0].price = spec.price
+    drugInfo.value[0].specification = spec.specName
+    // 保存选中的规格ID，用于提交时传递
+    ;(drugInfo.value[0] as any).selectedSpecificationId = spec.id
+  }
+}
+
 const addPatient = () => {
-  router.push('/patient/add')
+  router.push(ROUTES.PATIENT_ADD)
 }
 
-// 切换疾病标签选择
 const toggleDiseaseTag = (tag: typeof diseaseTags.value[0]) => {
   tag.selected = !tag.selected
   prescriptionStore.toggleDisease(tag.name)
 }
 
-// 打开知情同意书
 const openConsent = () => {
   showConsentDialog.value = true
 }
 
-// 同意知情同意书
 const agreeConsent = () => {
   agreedToConsent.value = true
   prescriptionStore.setAgreedToConsent(true)
   showConsentDialog.value = false
 }
 
-// 提交申请
 const handleSubmit = async () => {
   if (!canSubmit.value) {
     if (!prescriptionStore.hasSelectedPatient) {
@@ -169,26 +265,52 @@ const handleSubmit = async () => {
   }
 
   try {
-    // 保存症状描述
     prescriptionStore.setSymptoms(symptoms.value)
     
-    // 提交处方申请
     const consultationId = await prescriptionStore.submitPrescriptionApply()
     
     ElMessage.success('申请提交成功')
     
-    // 跳转到复诊开方页面
-    router.push(`/prescription/consult?id=${consultationId}`)
-  } catch (error) {
+    setTimeout(() => {
+      router.push({
+        path: `${ROUTES.INQUIRY_WAITING}/${consultationId}`,
+        query: {
+          doctorId: 'DOC001',
+          doctorName: '在线医生'
+        }
+      })
+    }, 1000)
+  } catch (error: any) {
     console.error('提交申请失败:', error)
-    ElMessage.error('提交申请失败，请重试')
+    ElMessage.error(error.message || '提交申请失败，请重试')
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   fetchPatientList()
   fetchDrugInfo()
+  await loadDiseaseTags()
 })
+
+async function loadDiseaseTags() {
+  try {
+    const res = await businessApi.getDictData('disease_tag')
+    console.log('疾病标签API响应:', res)
+    
+    // http拦截器已经提取了data字段，res直接就是数组
+    const dictDataList = Array.isArray(res) ? res : (res?.data || [])
+    
+    diseaseTags.value = dictDataList.map(item => ({
+      id: item.value,
+      name: item.label,
+      selected: false
+    }))
+    
+    console.log('加载的疾病标签:', diseaseTags.value)
+  } catch (error) {
+    console.error('加载疾病标签失败:', error)
+  }
+}
 </script>
 
 <template>
@@ -227,7 +349,45 @@ onMounted(() => {
                 {{ drug.name }}
               </div>
               <div class="drug-spec">{{ drug.specification }}</div>
-              <div class="drug-price">¥{{ drug.price.toFixed(2) }}</div>
+              
+              <!-- 医保信息 -->
+              <div v-if="drug.medicalInsuranceCode || drug.insuranceCategory || drug.isLongPrescription" class="medical-info">
+                <div v-if="drug.traceabilityCode" class="info-item">
+                  <span class="label">追溯码:</span>
+                  <span class="value trace-code">{{ drug.traceabilityCode }}</span>
+                </div>
+                <div v-if="drug.medicalInsuranceCode" class="info-item">
+                  <span class="label">医保编码:</span>
+                  <span class="value">{{ drug.medicalInsuranceCode }}</span>
+                </div>
+                <div v-if="drug.insuranceCategory" class="info-item">
+                  <span class="label">医保类别:</span>
+                  <span class="value" :class="`category-${drug.insuranceCategory}`">
+                    {{ drug.insuranceCategory }}类
+                  </span>
+                </div>
+                <div v-if="drug.isLongPrescription" class="info-item">
+                  <span class="label">长处方:</span>
+                  <el-tag type="success" size="small" effect="plain">是</el-tag>
+                </div>
+              </div>
+              
+              <!-- 规格选择 -->
+              <div v-if="drug.specifications && drug.specifications.length > 1" class="spec-selection">
+                <div class="spec-label">选择规格:</div>
+                <div class="spec-options">
+                  <div
+                    v-for="(spec, index) in drug.specifications"
+                    :key="spec.id"
+                    :class="['spec-option', { active: selectedSpecIndex === index }]"
+                    @click="selectSpec(index)"
+                  >
+                    {{ spec.specName }}
+                  </div>
+                </div>
+              </div>
+              
+              <div class="drug-price">¥{{ currentPrice.toFixed(2) }}</div>
             </div>
           </div>
         </div>
@@ -249,7 +409,7 @@ onMounted(() => {
             v-for="patient in patientList"
             :key="patient.id"
             :class="['patient-item', { 
-              active: prescriptionStore.applyState.selectedPatient?.id === patient.id 
+              active: isPatientSelected(patient.id)
             }]"
             @click="selectPatient(patient)"
           >
@@ -267,7 +427,7 @@ onMounted(() => {
               </div>
             </div>
             <div class="select-icon">
-              <el-icon v-if="prescriptionStore.applyState.selectedPatient?.id === patient.id">
+              <el-icon v-if="isPatientSelected(patient.id)">
                 <CircleCheckFilled />
               </el-icon>
             </div>
@@ -557,6 +717,95 @@ onMounted(() => {
         font-weight: 700;
         color: $price-red;
       }
+      
+      // 医保信息
+      .medical-info {
+        margin-top: 8px;
+        padding: 10px;
+        background: #f5f7fa;
+        border-radius: 8px;
+        
+        .info-item {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          margin-bottom: 6px;
+          font-size: 12px;
+          
+          &:last-child {
+            margin-bottom: 0;
+          }
+          
+          .label {
+            color: $text-secondary;
+            min-width: 60px;
+            flex-shrink: 0;
+          }
+          
+          .value {
+            color: $text-primary;
+            font-weight: 500;
+            flex: 1;
+            
+            &.trace-code {
+              font-family: 'Courier New', monospace;
+              letter-spacing: 0.5px;
+              font-size: 11px;
+              color: #409eff;
+            }
+            
+            &.category-甲类 {
+              color: #52c41a;
+            }
+            
+            &.category-乙类 {
+              color: #1890ff;
+            }
+            
+            &.category-丙类 {
+              color: #faad14;
+            }
+          }
+        }
+      }
+      
+      // 规格选择
+      .spec-selection {
+        margin-top: 8px;
+        
+        .spec-label {
+          font-size: 12px;
+          color: $text-secondary;
+          margin-bottom: 6px;
+        }
+        
+        .spec-options {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          
+          .spec-option {
+            padding: 6px 12px;
+            border: 1px solid $border-color;
+            border-radius: 16px;
+            font-size: 12px;
+            color: $text-primary;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            
+            &:active {
+              opacity: 0.8;
+            }
+            
+            &.active {
+              border-color: $primary;
+              background: rgba($primary, 0.1);
+              color: $primary;
+              font-weight: 500;
+            }
+          }
+        }
+      }
     }
   }
 }
@@ -594,16 +843,24 @@ onMounted(() => {
   background: $bg-gray;
   border-radius: $radius-md;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s ease;
   border: 2px solid transparent;
+  position: relative;
 
   &:hover {
     background: $bg-primary;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   }
 
   &.active {
     background: rgba($primary, 0.08);
     border-color: $primary;
+    box-shadow: 0 4px 12px rgba($primary, 0.15);
+    
+    .patient-avatar {
+      background: linear-gradient(135deg, $primary 0%, darken($primary, 10%) 100%);
+    }
   }
 
   .patient-avatar {

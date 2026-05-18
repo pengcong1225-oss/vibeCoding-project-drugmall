@@ -1,19 +1,33 @@
 package com.drugmall.service.impl;
 
-import com.drugmall.config.MockDataService;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.drugmall.dto.DrugQueryDTO;
+import com.drugmall.entity.Drug;
+import com.drugmall.entity.DrugCategory;
+import com.drugmall.entity.DrugReview;
+import com.drugmall.entity.DrugFAQ;
+import com.drugmall.entity.StoreInventory;
+import com.drugmall.entity.Store;
+import com.drugmall.entity.ProductSpecification;
+import com.drugmall.mapper.DrugMapper;
+import com.drugmall.mapper.DrugCategoryMapper;
+import com.drugmall.mapper.DrugReviewMapper;
+import com.drugmall.mapper.DrugFAQMapper;
+import com.drugmall.mapper.StoreInventoryMapper;
+import com.drugmall.mapper.StoreMapper;
+import com.drugmall.mapper.ProductSpecificationMapper;
 import com.drugmall.service.DrugService;
 import com.drugmall.vo.*;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -25,85 +39,149 @@ import java.util.stream.Collectors;
 public class DrugServiceImpl implements DrugService {
 
     @Autowired
-    private MockDataService mockDataService;
+    private DrugMapper drugMapper;
 
     @Autowired
-    private ObjectMapper objectMapper;
+    private DrugCategoryMapper drugCategoryMapper;
 
-    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    @Autowired
+    private DrugReviewMapper drugReviewMapper;
+
+    @Autowired
+    private DrugFAQMapper drugFAQMapper;
+
+    @Autowired
+    private StoreInventoryMapper storeInventoryMapper;
+
+    @Autowired
+    private StoreMapper storeMapper;
+
+    @Autowired
+    private ProductSpecificationMapper specificationMapper;
 
     @Override
     public PageResultVO<DrugVO> getDrugList(DrugQueryDTO queryDTO) {
-        List<DrugVO> drugs = getAllDrugs();
-
-        // 根据分类筛选
-        if (queryDTO.getCategoryId() != null) {
-            drugs = drugs.stream()
-                    .filter(d -> d.getCategoryId() != null && d.getCategoryId().equals(queryDTO.getCategoryId()))
-                    .collect(Collectors.toList());
-        }
-
-        // 根据关键词搜索
-        if (queryDTO.getKeyword() != null && !queryDTO.getKeyword().isEmpty()) {
-            String keyword = queryDTO.getKeyword().toLowerCase();
-            drugs = drugs.stream()
-                    .filter(d -> d.getName().toLowerCase().contains(keyword) ||
-                            (d.getDisease() != null && d.getDisease().toLowerCase().contains(keyword)))
-                    .collect(Collectors.toList());
-        }
-
-        // 根据是否处方药筛选
-        if (queryDTO.getIsRx() != null) {
-            drugs = drugs.stream()
-                    .filter(d -> d.getIsRx().equals(queryDTO.getIsRx()))
-                    .collect(Collectors.toList());
-        }
-
-        // 排序
-        if (queryDTO.getSort() != null) {
-            switch (queryDTO.getSort()) {
-                case "price_asc":
-                    drugs.sort((a, b) -> a.getPrice().compareTo(b.getPrice()));
-                    break;
-                case "price_desc":
-                    drugs.sort((a, b) -> b.getPrice().compareTo(a.getPrice()));
-                    break;
-                case "sales":
-                    drugs.sort((a, b) -> b.getSales() - a.getSales());
-                    break;
-                case "new":
-                    drugs.sort((a, b) -> b.getCreateTime().compareTo(a.getCreateTime()));
-                    break;
-                default:
-                    break;
+        try {
+            LambdaQueryWrapper<Drug> wrapper = new LambdaQueryWrapper<>();
+            
+            // 根据分类筛选（包含子分类）
+            if (queryDTO.getCategoryId() != null) {
+                try {
+                    Long categoryId = Long.parseLong(queryDTO.getCategoryId());
+                    
+                    // 查询该分类及其所有子分类
+                    List<Long> categoryIds = getAllSubCategoryIds(categoryId);
+                    
+                    if (categoryIds.isEmpty()) {
+                        // 如果没有子分类，只查询当前分类
+                        wrapper.eq(Drug::getCategoryId, categoryId);
+                    } else {
+                        // 查询当前分类和所有子分类的药品
+                        wrapper.in(Drug::getCategoryId, categoryIds);
+                    }
+                } catch (NumberFormatException e) {
+                    log.warn("无效的分类ID: {}", queryDTO.getCategoryId());
+                }
             }
+            
+            // 根据关键词搜索
+            if (StringUtils.hasText(queryDTO.getKeyword())) {
+                String keyword = queryDTO.getKeyword();
+                wrapper.and(w -> w.like(Drug::getProductName, keyword)
+                        .or()
+                        .like(Drug::getDescription, keyword));
+            }
+            
+            // 根据是否处方药筛选
+            if (queryDTO.getIsRx() != null) {
+                wrapper.eq(Drug::getIsRx, queryDTO.getIsRx());
+            }
+            
+            // 只查询上架的药品
+            wrapper.eq(Drug::getStatus, 1);
+            
+            // 排序
+            if (queryDTO.getSort() != null) {
+                switch (queryDTO.getSort()) {
+                    case "price_asc":
+                        wrapper.orderByAsc(Drug::getPrice);
+                        break;
+                    case "price_desc":
+                        wrapper.orderByDesc(Drug::getPrice);
+                        break;
+                    case "sales":
+                        wrapper.orderByDesc(Drug::getSales);
+                        break;
+                    case "new":
+                        wrapper.orderByDesc(Drug::getCreateTime);
+                        break;
+                    default:
+                        wrapper.orderByDesc(Drug::getSortOrder).orderByDesc(Drug::getCreateTime);
+                        break;
+                }
+            } else {
+                wrapper.orderByDesc(Drug::getSortOrder).orderByDesc(Drug::getCreateTime);
+            }
+            
+            // 分页查询
+            int page = queryDTO.getPage() != null ? queryDTO.getPage() : 1;
+            int size = queryDTO.getSize() != null ? queryDTO.getSize() : 10;
+            Page<Drug> drugPage = new Page<>(page, size);
+            Page<Drug> resultPage = drugMapper.selectPage(drugPage, wrapper);
+            
+            // 转换为VO
+            List<DrugVO> voList = resultPage.getRecords().stream()
+                    .map(this::convertToDrugVO)
+                    .collect(Collectors.toList());
+            
+            return PageResultVO.of(voList, resultPage.getTotal(), page, size);
+        } catch (Exception e) {
+            log.error("获取药品列表失败，返回空列表", e);
+            // 数据库连接失败时返回空列表
+            int page = queryDTO.getPage() != null ? queryDTO.getPage() : 1;
+            int size = queryDTO.getSize() != null ? queryDTO.getSize() : 10;
+            return PageResultVO.of(new ArrayList<>(), 0L, page, size);
         }
-
-        // 分页
-        int page = queryDTO.getPage() != null ? queryDTO.getPage() : 1;
-        int size = queryDTO.getSize() != null ? queryDTO.getSize() : 10;
-        int fromIndex = (page - 1) * size;
-        int toIndex = Math.min(fromIndex + size, drugs.size());
-
-        List<DrugVO> pageList = fromIndex < drugs.size() ? drugs.subList(fromIndex, toIndex) : new ArrayList<>();
-
-        return PageResultVO.of(pageList, (long) drugs.size(), page, size);
     }
 
     @Override
     public DrugDetailVO getDrugDetail(String drugId) {
-        List<DrugVO> drugs = getAllDrugs();
-        DrugVO drug = drugs.stream()
-                .filter(d -> d.getId().equals(drugId))
-                .findFirst()
-                .orElse(null);
-
+        // 查询药品详情
+        Drug drug = null;
+        try {
+            drug = drugMapper.selectById(Long.parseLong(drugId));
+        } catch (NumberFormatException e) {
+            log.warn("无效的药品ID: {}", drugId);
+            return null;
+        }
+        
         if (drug == null) {
             return null;
         }
-
+        
+        DrugVO drugVO = convertToDrugVO(drug);
+        
+        // 查询药品规格列表
+        try {
+            Long productId = Long.parseLong(drugId);
+            LambdaQueryWrapper<ProductSpecification> specWrapper = new LambdaQueryWrapper<>();
+            specWrapper.eq(ProductSpecification::getProductId, productId)
+                       .eq(ProductSpecification::getStatus, 1)
+                       .orderByAsc(ProductSpecification::getSortOrder);
+            
+            List<ProductSpecification> specifications = specificationMapper.selectList(specWrapper);
+            if (specifications != null && !specifications.isEmpty()) {
+                List<DrugSpecificationVO> specVOs = specifications.stream()
+                        .map(this::convertToSpecVO)
+                        .collect(Collectors.toList());
+                drugVO.setSpecifications(specVOs);
+            }
+        } catch (Exception e) {
+            log.warn("查询药品规格失败: {}", e.getMessage());
+        }
+        
         DrugDetailVO detail = new DrugDetailVO();
-        detail.setDrug(drug);
+        detail.setDrug(drugVO);
         detail.setRelatedDrugs(getRelatedDrugs(drugId, 4));
         detail.setRecommendedDrugs(getRecommendedDrugs(null, 4));
         detail.setReviews(getDrugReviews(drugId, 1, 5).getList());
@@ -113,191 +191,173 @@ public class DrugServiceImpl implements DrugService {
 
     @Override
     public List<DrugCategoryVO> getCategories() {
-        // ✅ 修复：直接返回完整的分类Mock数据，确保name字段不为null
-        List<DrugCategoryVO> categories = new ArrayList<>();
-
-        // 一级分类
-        String[][] categoryData = {
-            {"1", "感冒用药", "cold", null, "0", "治疗感冒发烧、头痛咳嗽等症状", "1"},
-            {"2", "抗生素", "antibiotic", null, "1", "抗菌消炎类药物", "1"},
-            {"3", "维生素补钙", "vitamin", null, "2", "维生素、矿物质补充剂", "1"},
-            {"4", "消化系统", "digestive", null, "3", "肠胃消化、肝病药物", "1"},
-            {"5", "心血管", "cardiovascular", null, "4", "高血压、心脏病用药", "1"},
-            {"6", "皮肤外用", "skin", null, "5", "皮肤病、外伤用药", "1"},
-            {"7", "妇科用药", "gynecology", null, "6", "女性专用药品", "1"},
-            {"8", "儿童用药", "pediatric", null, "7", "儿童专用药品", "1"}
-        };
-
-        for (String[] cat : categoryData) {
-            DrugCategoryVO vo = new DrugCategoryVO();
-            vo.setId(cat[0]);
-            vo.setName(cat[1]);
-            vo.setIcon(cat[2]);
-            vo.setImage(cat[3]);
-            vo.setSort(Integer.parseInt(cat[4]));
-            vo.setDescription(cat[5]);
-            vo.setLevel(1);
-            vo.setStatus(1);
-            categories.add(vo);
+        try {
+            // 从数据库查询所有启用的分类
+            LambdaQueryWrapper<DrugCategory> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(DrugCategory::getStatus, 1)
+                   .orderByAsc(DrugCategory::getSort);
+            
+            List<DrugCategory> categories = drugCategoryMapper.selectList(wrapper);
+            
+            return categories.stream()
+                    .map(this::convertToCategoryVO)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.error("获取分类列表失败，返回空列表", e);
+            // 数据库连接失败时返回空列表
+            return new ArrayList<>();
         }
-
-        return categories;
     }
 
     @Override
     public List<DrugVO> getHotDrugs(Integer limit) {
-        List<DrugVO> drugs = getAllDrugs();
+        int lim = limit != null ? limit : 8;
+        LambdaQueryWrapper<Drug> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Drug::getStatus, 1)
+               .orderByDesc(Drug::getSales)
+               .last("LIMIT " + lim);
+        
+        List<Drug> drugs = drugMapper.selectList(wrapper);
         return drugs.stream()
-                .sorted((a, b) -> b.getSales() - a.getSales())
-                .limit(limit != null ? limit : 8)
+                .map(this::convertToDrugVO)
                 .collect(Collectors.toList());
     }
 
     @Override
     public List<DrugVO> getNewDrugs(Integer limit) {
-        List<DrugVO> drugs = getAllDrugs();
+        int lim = limit != null ? limit : 8;
+        LambdaQueryWrapper<Drug> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Drug::getStatus, 1)
+               .orderByDesc(Drug::getCreateTime)
+               .last("LIMIT " + lim);
+        
+        List<Drug> drugs = drugMapper.selectList(wrapper);
         return drugs.stream()
-                .sorted((a, b) -> b.getCreateTime().compareTo(a.getCreateTime()))
-                .limit(limit != null ? limit : 8)
+                .map(this::convertToDrugVO)
                 .collect(Collectors.toList());
     }
 
     @Override
     public List<DrugVO> getRecommendedDrugs(String userId, Integer limit) {
-        // 模拟推荐，返回热门药品
+        // 返回热门药品作为推荐
         return getHotDrugs(limit);
     }
 
     @Override
     public List<DrugVO> getRelatedDrugs(String drugId, Integer limit) {
-        List<DrugVO> drugs = getAllDrugs();
+        // 查询当前药品
+        Drug currentDrug = null;
+        try {
+            currentDrug = drugMapper.selectById(Long.parseLong(drugId));
+        } catch (NumberFormatException e) {
+            log.warn("无效的药品ID: {}", drugId);
+            return new ArrayList<>();
+        }
+        
+        if (currentDrug == null) {
+            return new ArrayList<>();
+        }
+        
+        int lim = limit != null ? limit : 4;
+        LambdaQueryWrapper<Drug> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Drug::getStatus, 1)
+               .ne(Drug::getId, currentDrug.getId())
+               .eq(Drug::getCategoryId, currentDrug.getCategoryId())
+               .orderByDesc(Drug::getSales)
+               .last("LIMIT " + lim);
+        
+        List<Drug> drugs = drugMapper.selectList(wrapper);
+        
+        // 如果同分类药品不足，补充其他药品
+        if (drugs.size() < lim) {
+            List<Long> existingIds = new ArrayList<>();
+            existingIds.add(currentDrug.getId());
+            for (Drug d : drugs) {
+                existingIds.add(d.getId());
+            }
+            
+            LambdaQueryWrapper<Drug> extraWrapper = new LambdaQueryWrapper<>();
+            extraWrapper.eq(Drug::getStatus, 1)
+                       .notIn(Drug::getId, existingIds)
+                       .orderByDesc(Drug::getSales)
+                       .last("LIMIT " + (lim - drugs.size()));
+            List<Drug> extraDrugs = drugMapper.selectList(extraWrapper);
+            drugs.addAll(extraDrugs);
+        }
+        
         return drugs.stream()
-                .filter(d -> !d.getId().equals(drugId))
-                .limit(limit != null ? limit : 4)
+                .map(this::convertToDrugVO)
                 .collect(Collectors.toList());
     }
 
     @Override
     public PageResultVO<DrugReviewVO> getDrugReviews(String drugId, Integer page, Integer size) {
-        JsonNode reviewsData = mockDataService.getReviews();
-        List<DrugReviewVO> reviews = new ArrayList<>();
-
-        if (reviewsData != null && reviewsData.isArray()) {
-            for (JsonNode review : reviewsData) {
-                if (review.get("drugId").asText().equals(drugId)) {
-                    reviews.add(convertToDrugReviewVO(review));
-                }
-            }
-        }
-
-        // 如果没有找到评价数据，返回模拟数据
-        if (reviews.isEmpty()) {
-            DrugReviewVO review1 = new DrugReviewVO();
-            review1.setId("1");
-            review1.setUserId("1");
-            review1.setUserName("用户1");
-            review1.setDrugId(drugId);
-            review1.setOrderId("ORD20241201001");
-            review1.setRating(5);
-            review1.setContent("药品效果很好，物流也很快，包装完好！");
-            review1.setIsAnonymous(false);
-            review1.setIsRecommended(true);
-            review1.setHelpfulCount(10);
-            review1.setCreateTime(LocalDateTime.now().minusDays(5));
-            reviews.add(review1);
-
-            DrugReviewVO review2 = new DrugReviewVO();
-            review2.setId("2");
-            review2.setUserId("2");
-            review2.setUserName("用户2");
-            review2.setDrugId(drugId);
-            review2.setOrderId("ORD20241201002");
-            review2.setRating(4);
-            review2.setContent("效果不错，就是价格有点贵。");
-            review2.setIsAnonymous(false);
-            review2.setIsRecommended(true);
-            review2.setHelpfulCount(5);
-            review2.setCreateTime(LocalDateTime.now().minusDays(10));
-            reviews.add(review2);
-        }
-
         int p = page != null ? page : 1;
         int s = size != null ? size : 10;
-        int fromIndex = (p - 1) * s;
-        int toIndex = Math.min(fromIndex + s, reviews.size());
-
-        List<DrugReviewVO> pageList = fromIndex < reviews.size() ? reviews.subList(fromIndex, toIndex) : new ArrayList<>();
-
-        return PageResultVO.of(pageList, (long) reviews.size(), p, s);
+        
+        LambdaQueryWrapper<DrugReview> wrapper = new LambdaQueryWrapper<>();
+        try {
+            wrapper.eq(DrugReview::getProductId, Long.parseLong(drugId));
+        } catch (NumberFormatException e) {
+            log.warn("无效的药品ID: {}", drugId);
+            return PageResultVO.of(new ArrayList<>(), 0L, p, s);
+        }
+        wrapper.orderByDesc(DrugReview::getCreateTime);
+        
+        Page<DrugReview> reviewPage = new Page<>(p, s);
+        Page<DrugReview> resultPage = drugReviewMapper.selectPage(reviewPage, wrapper);
+        
+        List<DrugReviewVO> voList = resultPage.getRecords().stream()
+                .map(this::convertToDrugReviewVO)
+                .collect(Collectors.toList());
+        
+        return PageResultVO.of(voList, resultPage.getTotal(), p, s);
     }
 
     @Override
     public List<DrugFAQVO> getDrugFAQs(String drugId) {
-        JsonNode faqsData = mockDataService.getFaqs();
-        List<DrugFAQVO> faqs = new ArrayList<>();
-
-        if (faqsData != null && faqsData.isArray()) {
-            for (JsonNode faq : faqsData) {
-                if (faq.get("drugId").asText().equals(drugId)) {
-                    DrugFAQVO vo = new DrugFAQVO();
-                    vo.setId(faq.get("id").asText());
-                    vo.setQuestion(faq.get("question").asText());
-                    vo.setAnswer(faq.get("answer").asText());
-                    vo.setSort(faq.has("sort") ? faq.get("sort").asInt() : 0);
-                    faqs.add(vo);
-                }
-            }
+        LambdaQueryWrapper<DrugFAQ> wrapper = new LambdaQueryWrapper<>();
+        try {
+            wrapper.eq(DrugFAQ::getProductId, Long.parseLong(drugId));
+        } catch (NumberFormatException e) {
+            log.warn("无效的药品ID: {}", drugId);
+            return getDefaultFaqs();
         }
-
+        wrapper.eq(DrugFAQ::getStatus, 1)
+               .orderByAsc(DrugFAQ::getSort);
+        
+        List<DrugFAQ> faqs = drugFAQMapper.selectList(wrapper);
+        
         // 如果没有找到FAQ数据，返回默认FAQ
         if (faqs.isEmpty()) {
-            DrugFAQVO faq1 = new DrugFAQVO();
-            faq1.setId("1");
-            faq1.setQuestion("这个药品有什么副作用？");
-            faq1.setAnswer("常见副作用包括恶心、呕吐、腹泻等，如有不适请及时就医。");
-            faq1.setSort(1);
-            faqs.add(faq1);
-
-            DrugFAQVO faq2 = new DrugFAQVO();
-            faq2.setId("2");
-            faq2.setQuestion("孕妇可以使用吗？");
-            faq2.setAnswer("孕妇慎用，请在医生指导下使用。");
-            faq2.setSort(2);
-            faqs.add(faq2);
-
-            DrugFAQVO faq3 = new DrugFAQVO();
-            faq3.setId("3");
-            faq3.setQuestion("需要处方吗？");
-            faq3.setAnswer("本品为处方药，需要凭医生处方购买。");
-            faq3.setSort(3);
-            faqs.add(faq3);
+            return getDefaultFaqs();
         }
-
-        faqs.sort((a, b) -> a.getSort() - b.getSort());
-        return faqs;
+        
+        return faqs.stream()
+                .map(this::convertToDrugFAQVO)
+                .collect(Collectors.toList());
     }
 
     @Override
     public List<SearchSuggestionVO> getSearchSuggestions(String keyword) {
         List<SearchSuggestionVO> suggestions = new ArrayList<>();
 
-        if (keyword != null && !keyword.isEmpty()) {
-            // 从药品数据中搜索
-            List<DrugVO> drugs = getAllDrugs();
-            String lowerKeyword = keyword.toLowerCase();
-
-            for (DrugVO drug : drugs) {
-                if (drug.getName().toLowerCase().contains(lowerKeyword)) {
-                    SearchSuggestionVO s = new SearchSuggestionVO();
-                    s.setKeyword(drug.getName());
-                    s.setType("drug");
-                    s.setCount(drug.getSales());
-                    suggestions.add(s);
-
-                    if (suggestions.size() >= 5) {
-                        break;
-                    }
-                }
+        if (StringUtils.hasText(keyword)) {
+            // 从数据库中搜索药品
+            LambdaQueryWrapper<Drug> wrapper = new LambdaQueryWrapper<>();
+            wrapper.like(Drug::getProductName, keyword)
+                   .eq(Drug::getStatus, 1)
+                   .orderByDesc(Drug::getSales)
+                   .last("LIMIT 5");
+            
+            List<Drug> drugs = drugMapper.selectList(wrapper);
+            
+            for (Drug drug : drugs) {
+                SearchSuggestionVO s = new SearchSuggestionVO();
+                s.setKeyword(drug.getProductName());
+                s.setType("drug");
+                s.setCount(drug.getSales());
+                suggestions.add(s);
             }
 
             // 添加通用建议
@@ -363,160 +423,271 @@ public class DrugServiceImpl implements DrugService {
         return hotSearches.stream().limit(max).collect(Collectors.toList());
     }
 
-    private List<DrugVO> getAllDrugs() {
-        // 从购物车数据中提取药品信息作为模拟数据
-        JsonNode cartsData = mockDataService.getCarts();
-        List<DrugVO> drugs = new ArrayList<>();
+    /**
+     * 获取默认FAQ列表
+     */
+    private List<DrugFAQVO> getDefaultFaqs() {
+        List<DrugFAQVO> defaultFaqs = new ArrayList<>();
+        
+        DrugFAQVO faq1 = new DrugFAQVO();
+        faq1.setId("1");
+        faq1.setQuestion("这个药品有什么副作用？");
+        faq1.setAnswer("常见副作用包括恶心、呕吐、腹泻等，如有不适请及时就医。");
+        faq1.setSort(1);
+        defaultFaqs.add(faq1);
 
-        if (cartsData != null && cartsData.isArray()) {
-            for (JsonNode cart : cartsData) {
-                DrugVO vo = new DrugVO();
-                vo.setId(cart.get("drugId").asText());
-                vo.setName(cart.get("drugName").asText());
-                vo.setSpecification(cart.has("specification") ? cart.get("specification").asText() : "");
-                vo.setManufacturer(cart.has("manufacturer") ? cart.get("manufacturer").asText() : "");
-                vo.setPrice(new BigDecimal(cart.get("price").asText()));
-                vo.setOriginalPrice(cart.has("originalPrice") ? new BigDecimal(cart.get("originalPrice").asText()) : null);
-                vo.setImage(cart.has("image") ? cart.get("image").asText() : "");
-                vo.setImageColor(cart.has("imageColor") ? cart.get("imageColor").asText() : null);
-                vo.setImageText(cart.has("imageText") ? cart.get("imageText").asText() : null);
-                vo.setIsRx(cart.has("isRx") ? cart.get("isRx").asBoolean() : false);
-                vo.setCategoryId(cart.has("categoryId") ? cart.get("categoryId").asText() : "1");
-                vo.setCategoryName(cart.has("categoryName") ? cart.get("categoryName").asText() : "感冒药");
-                vo.setStock(cart.has("stock") ? cart.get("stock").asInt() : 100);
-                vo.setSales((int) (Math.random() * 1000) + 100);
-                vo.setStatus(1);
-                vo.setCreateTime(LocalDateTime.now().minusDays((int) (Math.random() * 365)));
-                drugs.add(vo);
-            }
-        }
+        DrugFAQVO faq2 = new DrugFAQVO();
+        faq2.setId("2");
+        faq2.setQuestion("孕妇可以使用吗？");
+        faq2.setAnswer("孕妇慎用，请在医生指导下使用。");
+        faq2.setSort(2);
+        defaultFaqs.add(faq2);
 
-        // 从订单数据中提取更多药品
-        JsonNode ordersData = mockDataService.getOrders();
-        if (ordersData != null && ordersData.isArray()) {
-            for (JsonNode order : ordersData) {
-                if (order.has("items")) {
-                    for (JsonNode item : order.get("items")) {
-                        String drugId = item.get("drugId").asText();
-                        // 检查是否已存在
-                        boolean exists = drugs.stream().anyMatch(d -> d.getId().equals(drugId));
-                        if (!exists) {
-                            DrugVO vo = new DrugVO();
-                            vo.setId(drugId);
-                            vo.setName(item.get("drugName").asText());
-                            vo.setSpecification(item.has("specification") ? item.get("specification").asText() : "");
-                            vo.setManufacturer(item.has("manufacturer") ? item.get("manufacturer").asText() : "");
-                            vo.setPrice(new BigDecimal(item.get("price").asText()));
-                            vo.setImage(item.has("image") ? item.get("image").asText() : "");
-                            vo.setImageColor(item.has("imageColor") ? item.get("imageColor").asText() : null);
-                            vo.setImageText(item.has("imageText") ? item.get("imageText").asText() : null);
-                            vo.setIsRx(item.has("isRx") ? item.get("isRx").asBoolean() : false);
-                            vo.setCategoryId("1");
-                            vo.setCategoryName("感冒药");
-                            vo.setStock(100);
-                            vo.setSales((int) (Math.random() * 1000) + 100);
-                            vo.setStatus(1);
-                            vo.setCreateTime(LocalDateTime.now().minusDays((int) (Math.random() * 365)));
-                            drugs.add(vo);
-                        }
-                    }
-                }
-            }
-        }
-
-        return drugs;
+        DrugFAQVO faq3 = new DrugFAQVO();
+        faq3.setId("3");
+        faq3.setQuestion("需要处方吗？");
+        faq3.setAnswer("本品为处方药，需要凭医生处方购买。");
+        faq3.setSort(3);
+        defaultFaqs.add(faq3);
+        
+        return defaultFaqs;
     }
 
-    private DrugReviewVO convertToDrugReviewVO(JsonNode review) {
-        if (review == null) {
+    /**
+     * 将Drug实体转换为DrugVO
+     */
+    private DrugVO convertToDrugVO(Drug drug) {
+        if (drug == null) {
             return null;
         }
-        DrugReviewVO vo = new DrugReviewVO();
-        vo.setId(getTextValue(review, "id", ""));
-        vo.setUserId(getTextValue(review, "userId", ""));
-        vo.setUserName(getTextValue(review, "userName", ""));
-        vo.setUserAvatar(getTextValue(review, "userAvatar", ""));
-        vo.setDrugId(getTextValue(review, "drugId", ""));
-        vo.setOrderId(getTextValue(review, "orderId", ""));
-        vo.setRating(getIntValue(review, "rating", 5));
-        vo.setContent(getTextValue(review, "content", ""));
-
-        // 图片
-        if (review.has("images") && !review.get("images").isNull()) {
-            JsonNode imagesNode = review.get("images");
-            List<String> images = new ArrayList<>();
-            if (imagesNode.isArray()) {
-                for (JsonNode img : imagesNode) {
-                    if (img != null && !img.isNull()) {
-                        images.add(img.asText());
-                    }
-                }
-            }
-            vo.setImages(images);
-        }
-
-        // 标签
-        if (review.has("tags") && !review.get("tags").isNull()) {
-            JsonNode tagsNode = review.get("tags");
-            List<String> tags = new ArrayList<>();
-            if (tagsNode.isArray()) {
-                for (JsonNode tag : tagsNode) {
-                    if (tag != null && !tag.isNull()) {
-                        tags.add(tag.asText());
-                    }
-                }
-            }
-            vo.setTags(tags);
-        }
-
-        vo.setIsAnonymous(getBooleanValue(review, "isAnonymous", false));
-        vo.setIsRecommended(getBooleanValue(review, "isRecommended", true));
-        vo.setHelpfulCount(getIntValue(review, "helpfulCount", 0));
-
-        if (review.has("createTime") && !review.get("createTime").isNull()) {
-            try {
-                vo.setCreateTime(LocalDateTime.parse(review.get("createTime").asText(), DATE_TIME_FORMATTER));
-            } catch (Exception e) {
-                vo.setCreateTime(LocalDateTime.now());
-            }
-        }
-
-        // 商家回复
-        if (review.has("reply") && !review.get("reply").isNull()) {
-            JsonNode replyNode = review.get("reply");
-            DrugReviewVO.ReplyVO reply = new DrugReviewVO.ReplyVO();
-            reply.setContent(getTextValue(replyNode, "content", ""));
-            if (replyNode.has("createTime") && !replyNode.get("createTime").isNull()) {
-                try {
-                    reply.setCreateTime(LocalDateTime.parse(replyNode.get("createTime").asText(), DATE_TIME_FORMATTER));
-                } catch (Exception e) {
-                    reply.setCreateTime(LocalDateTime.now());
-                }
-            }
-            vo.setReply(reply);
-        }
-
+        
+        DrugVO vo = new DrugVO();
+        vo.setId(String.valueOf(drug.getId()));
+        vo.setName(drug.getProductName());
+        vo.setGenericName(drug.getGenericName());
+        vo.setBrand(drug.getBrand());
+        vo.setSpecification(drug.getSpecification());
+        vo.setManufacturer(drug.getManufacturer());
+        vo.setPrice(drug.getPrice());
+        vo.setOriginalPrice(drug.getOriginalPrice());
+        vo.setImage(drug.getMainImage());
+        vo.setIsRx(drug.getIsRx());
+        vo.setIsNationalEssential(drug.getIsNationalEssential());
+        vo.setCategoryId(drug.getCategoryId() != null ? String.valueOf(drug.getCategoryId()) : null);
+        vo.setStock(drug.getStock());
+        vo.setSales(drug.getSales());
+        vo.setStatus(drug.getStatus());
+        vo.setCreateTime(drug.getCreateTime());
+        vo.setDescription(drug.getDescription());
+        vo.setUsage(drug.getUsage());
+        vo.setDisease(drug.getDisease());
+        vo.setContraindications(drug.getContraindications());
+        vo.setPrecautions(drug.getPrecautions());
+        vo.setAdverseReactions(drug.getAdverseReactions());
+        vo.setStorage(drug.getStorage());
+        vo.setValidity(drug.getValidity());
+        vo.setIngredients(drug.getIngredients());
+        vo.setAppearance(drug.getAppearance());
+        vo.setDrugInteractions(drug.getDrugInteractions());
+        vo.setApprovalNumber(drug.getApprovalNumber());
+        vo.setBarCode(drug.getBarCode());
+        vo.setMedicalInsuranceCode(drug.getMedicalInsuranceCode());
+        vo.setIsLongPrescription(drug.getIsLongPrescription());
+        vo.setInsuranceCategory(drug.getInsuranceCategory());
         return vo;
     }
 
-    private String getTextValue(JsonNode node, String field, String defaultValue) {
-        if (node.has(field) && !node.get(field).isNull()) {
-            return node.get(field).asText();
+    /**
+     * 将DrugCategory实体转换为DrugCategoryVO
+     */
+    private DrugCategoryVO convertToCategoryVO(DrugCategory category) {
+        if (category == null) {
+            return null;
         }
-        return defaultValue;
+        
+        DrugCategoryVO vo = new DrugCategoryVO();
+        vo.setId(String.valueOf(category.getId()));
+        vo.setName(category.getName());
+        vo.setParentId(category.getParentId() != null ? String.valueOf(category.getParentId()) : null);
+        vo.setIcon(category.getIcon());
+        vo.setSort(category.getSort());
+        vo.setStatus(category.getStatus());
+        return vo;
     }
 
-    private Integer getIntValue(JsonNode node, String field, Integer defaultValue) {
-        if (node.has(field) && !node.get(field).isNull()) {
-            return node.get(field).asInt();
+    /**
+     * 将ProductSpecification实体转换为DrugSpecificationVO
+     */
+    private DrugSpecificationVO convertToSpecVO(ProductSpecification spec) {
+        if (spec == null) {
+            return null;
         }
-        return defaultValue;
+        
+        DrugSpecificationVO vo = new DrugSpecificationVO();
+        vo.setId(spec.getId());
+        vo.setSpecName(spec.getSpecName());
+        vo.setSpecCode(spec.getSpecCode());
+        vo.setPrice(spec.getPrice());
+        vo.setOriginalPrice(spec.getOriginalPrice());
+        vo.setStock(spec.getStock());
+        vo.setBarCode(spec.getBarCode());
+        vo.setIsDefault(spec.getIsDefault());
+        return vo;
     }
 
-    private Boolean getBooleanValue(JsonNode node, String field, Boolean defaultValue) {
-        if (node.has(field) && !node.get(field).isNull()) {
-            return node.get(field).asBoolean();
+    /**
+     * 将DrugReview实体转换为DrugReviewVO
+     */
+    private DrugReviewVO convertToDrugReviewVO(DrugReview review) {
+        if (review == null) {
+            return null;
         }
-        return defaultValue;
+        
+        DrugReviewVO vo = new DrugReviewVO();
+        vo.setId(String.valueOf(review.getId()));
+        vo.setUserId(String.valueOf(review.getUserId()));
+        vo.setUserName(review.getUserName());
+        vo.setUserAvatar(review.getUserAvatar());
+        vo.setDrugId(String.valueOf(review.getProductId()));
+        vo.setOrderId(String.valueOf(review.getOrderId()));
+        vo.setRating(review.getRating());
+        vo.setContent(review.getContent());
+        
+        // 解析图片JSON数组
+        if (review.getImages() != null && !review.getImages().isEmpty()) {
+            try {
+                vo.setImages(Arrays.asList(review.getImages().split(",")));
+            } catch (Exception e) {
+                vo.setImages(new ArrayList<>());
+            }
+        } else {
+            vo.setImages(new ArrayList<>());
+        }
+        
+        // 解析标签JSON数组
+        if (review.getTags() != null && !review.getTags().isEmpty()) {
+            try {
+                vo.setTags(Arrays.asList(review.getTags().split(",")));
+            } catch (Exception e) {
+                vo.setTags(new ArrayList<>());
+            }
+        } else {
+            vo.setTags(new ArrayList<>());
+        }
+        
+        vo.setIsAnonymous(review.getIsAnonymous());
+        vo.setIsRecommended(review.getIsRecommended());
+        vo.setHelpfulCount(review.getHelpfulCount());
+        vo.setCreateTime(review.getCreateTime());
+        
+        return vo;
+    }
+
+    /**
+     * 将DrugFAQ实体转换为DrugFAQVO
+     */
+    private DrugFAQVO convertToDrugFAQVO(DrugFAQ faq) {
+        if (faq == null) {
+            return null;
+        }
+        
+        DrugFAQVO vo = new DrugFAQVO();
+        vo.setId(String.valueOf(faq.getId()));
+        vo.setQuestion(faq.getQuestion());
+        vo.setAnswer(faq.getAnswer());
+        vo.setSort(faq.getSort());
+        return vo;
+    }
+
+    /**
+     * 递归获取分类及其所有子分类的ID列表
+     */
+    private List<Long> getAllSubCategoryIds(Long categoryId) {
+        List<Long> result = new ArrayList<>();
+        result.add(categoryId);
+        
+        // 查询直接子分类
+        LambdaQueryWrapper<DrugCategory> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(DrugCategory::getParentId, categoryId)
+               .eq(DrugCategory::getStatus, 1);
+        
+        List<DrugCategory> subCategories = drugCategoryMapper.selectList(wrapper);
+        
+        // 递归查询子分类的子分类
+        for (DrugCategory subCategory : subCategories) {
+            result.addAll(getAllSubCategoryIds(subCategory.getId()));
+        }
+        
+        return result;
+    }
+
+    @Override
+    public List<DrugStoreVO> getDrugStores(String drugId) {
+        try {
+            Long productId = Long.parseLong(drugId);
+            
+            // 查询该药品的所有门店库存
+            LambdaQueryWrapper<StoreInventory> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(StoreInventory::getProductId, productId)
+                   .eq(StoreInventory::getIsAvailable, true)
+                   .orderByAsc(StoreInventory::getPrice);
+            
+            List<StoreInventory> inventories = storeInventoryMapper.selectList(wrapper);
+            
+            if (inventories.isEmpty()) {
+                return new ArrayList<>();
+            }
+            
+            // 转换为VO
+            return inventories.stream().map(inventory -> {
+                DrugStoreVO vo = new DrugStoreVO();
+                vo.setId(inventory.getStoreId());
+                vo.setPrice(inventory.getPrice());
+                vo.setOriginalPrice(inventory.getOriginalPrice());
+                vo.setStock(inventory.getStock());
+                vo.setIsAvailable(inventory.getIsAvailable());
+                
+                // 查询门店信息
+                Store store = storeMapper.selectById(inventory.getStoreId());
+                if (store != null) {
+                    vo.setName(store.getStoreName());
+                    vo.setLogo(store.getLogo());
+                    vo.setRating(store.getRating() != null ? store.getRating().doubleValue() : 5.0);
+                    vo.setSales(store.getMonthlySales());
+                    
+                    // 生成距离和配送时间（模拟数据）
+                    double distance = Math.random() * 5 + 0.5; // 0.5-5.5km
+                    vo.setDistance(String.format("%.1fkm", distance));
+                    
+                    int deliveryTime = (int)(distance * 10 + 15); // 根据距离计算配送时间
+                    vo.setDelivery(deliveryTime + "分钟达");
+                    
+                    // 生成标签
+                    List<String> tags = new ArrayList<>();
+                    if (store.getIsInsurance() != null && store.getIsInsurance() == 1) {
+                        tags.add("医保定点");
+                    }
+                    if (store.getIs24hours() != null && store.getIs24hours() == 1) {
+                        tags.add("24小时");
+                    }
+                    if (store.getIsSelfOperated() != null && store.getIsSelfOperated() == 1) {
+                        tags.add("自营");
+                    }
+                    if (tags.isEmpty()) {
+                        tags.add("正品保障");
+                    }
+                    vo.setTags(tags);
+                }
+                
+                return vo;
+            }).collect(Collectors.toList());
+            
+        } catch (NumberFormatException e) {
+            log.warn("无效的药品ID: {}", drugId);
+            return new ArrayList<>();
+        } catch (Exception e) {
+            log.error("获取药品在售门店失败", e);
+            return new ArrayList<>();
+        }
     }
 }

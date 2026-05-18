@@ -1,5 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { getPrescriptionList, getPrescriptionDetail, createPrescription as apiCreatePrescription } from '@/api/prescription'
+import type { CreatePrescriptionDTO } from '@/api/prescription'
 
 export interface PrescriptionDrug {
   id: string
@@ -21,6 +23,9 @@ export interface Prescription {
   patientAge: number
   patientGender: string
   consultationId: string
+  consultationStatus?: string
+  consultationSymptom?: string
+  consultationType?: string
   diagnosis: string
   drugs: PrescriptionDrug[]
   totalAmount: number
@@ -55,64 +60,10 @@ export const usePrescriptionStore = defineStore('prescription', () => {
   const fetchPrescriptions = async (status?: string) => {
     loading.value = true
     try {
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
-      prescriptions.value = [
-        {
-          id: 'PRES202412070001',
-          patientId: 'P001',
-          patientName: '李*',
-          patientAge: 35,
-          patientGender: '女',
-          consultationId: 'C001',
-          diagnosis: '急性上呼吸道感染、发热',
-          drugs: [
-            { id: 'D001', name: '布洛芬缓释胶囊', spec: '0.3g*20粒', unit: '盒', price: 25.00, quantity: 1, dosage: '1粒', frequency: '每日2次', duration: '3天' },
-            { id: 'D002', name: '感冒灵颗粒', spec: '10g*9袋', unit: '盒', price: 18.50, quantity: 2, dosage: '1袋', frequency: '每日3次', duration: '3天' }
-          ],
-          totalAmount: 62.00,
-          status: 'pending',
-          statusText: '待审核',
-          createTime: '2024-12-07 11:30:00'
-        },
-        {
-          id: 'PRES202412070002',
-          patientId: 'P002',
-          patientName: '王*',
-          patientAge: 28,
-          patientGender: '男',
-          consultationId: 'C002',
-          diagnosis: '慢性胃炎',
-          drugs: [
-            { id: 'D003', name: '奥美拉唑肠溶胶囊', spec: '20mg*28粒', unit: '盒', price: 45.00, quantity: 1, dosage: '1粒', frequency: '每日1次', duration: '14天', remark: '饭前服用' }
-          ],
-          totalAmount: 45.00,
-          status: 'approved',
-          statusText: '已通过',
-          createTime: '2024-12-07 10:15:00',
-          pharmacist: '李药师',
-          reviewTime: '2024-12-07 10:30:00'
-        },
-        {
-          id: 'PRES202412060003',
-          patientId: 'P003',
-          patientName: '张*',
-          patientAge: 42,
-          patientGender: '女',
-          consultationId: 'C003',
-          diagnosis: '过敏性鼻炎',
-          drugs: [
-            { id: 'D004', name: '氯雷他定片', spec: '10mg*6片', unit: '盒', price: 12.50, quantity: 1, dosage: '1片', frequency: '每日1次', duration: '6天' }
-          ],
-          totalAmount: 12.50,
-          status: 'rejected',
-          statusText: '已拒绝',
-          createTime: '2024-12-06 15:00:00',
-          pharmacist: '王药师',
-          reviewTime: '2024-12-06 15:15:00',
-          rejectReason: '药品库存不足，请更换其他药品'
-        }
-      ]
+      const data = await getPrescriptionList(status || 'all')
+      prescriptions.value = data || []
+    } catch (error) {
+      console.error('获取处方列表失败:', error)
     } finally {
       loading.value = false
     }
@@ -121,39 +72,26 @@ export const usePrescriptionStore = defineStore('prescription', () => {
   const fetchPrescriptionDetail = async (id: string) => {
     loading.value = true
     try {
-      await new Promise(resolve => setTimeout(resolve, 300))
-      
-      const prescription = prescriptions.value.find(p => p.id === id)
-      if (prescription) {
-        currentPrescription.value = prescription
-      }
+      const data = await getPrescriptionDetail(id)
+      currentPrescription.value = data || null
+      return data
+    } catch (error) {
+      console.error('获取处方详情失败:', error)
+      throw error
     } finally {
       loading.value = false
     }
   }
 
-  const createPrescription = async (data: Partial<Prescription>) => {
+  const createPrescription = async (data: CreatePrescriptionDTO) => {
     loading.value = true
     try {
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
-      const newPrescription: Prescription = {
-        id: `PRES${Date.now()}`,
-        patientId: data.patientId || '',
-        patientName: data.patientName || '',
-        patientAge: data.patientAge || 0,
-        patientGender: data.patientGender || '',
-        consultationId: data.consultationId || '',
-        diagnosis: data.diagnosis || '',
-        drugs: data.drugs || [],
-        totalAmount: data.totalAmount || 0,
-        status: 'pending',
-        statusText: '待审核',
-        createTime: new Date().toISOString()
-      }
-      
-      prescriptions.value.unshift(newPrescription)
-      return newPrescription
+      const prescription = await apiCreatePrescription(data)
+      prescriptions.value.unshift(prescription)
+      return prescription
+    } catch (error) {
+      console.error('创建处方失败:', error)
+      throw error
     } finally {
       loading.value = false
     }

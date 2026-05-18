@@ -6,6 +6,10 @@ import { useOrderStore } from '@/stores/order'
 import { useCountdown } from '@/composables'
 import { getOrderDetail, payOrder } from '@/api/modules/order'
 import { formatPrice } from '@/utils'
+import { OrderStatus } from '@/constants'
+import { getOrderDetailRoute } from '@/constants/routes'
+import { IMAGES } from '@/constants/images'
+import { businessApi } from '@/api/modules/business'
 import type { PayType } from '@/types'
 
 const router = useRouter()
@@ -23,18 +27,13 @@ const isPaying = ref(false)
 // 选中的支付方式
 const selectedPayType = ref<PayType>('wechat')
 
-// 支付方式列表
-const payTypes = [
-  { value: 'wechat' as PayType, label: '微信支付', icon: 'https://img.icons8.com/color/48/weixing.png' },
-  { value: 'alipay' as PayType, label: '支付宝', icon: 'https://img.icons8.com/color/48/alipay.png' },
-  { value: 'balance' as PayType, label: '余额支付', icon: 'https://img.icons8.com/color/48/money.png' }
-]
+const payTypes = ref<{ value: PayType; label: string; icon: string }[]>([])
 
 // 倒计时 - 30分钟
 const { minutes, seconds, isExpired, start, stop } = useCountdown(30 * 60)
 
 // 页面初始化
-onMounted(() => {
+onMounted(async () => {
   if (orderId.value) {
     loadOrderDetail()
     start()
@@ -42,7 +41,23 @@ onMounted(() => {
     ElMessage.error('订单ID不能为空')
     router.back()
   }
+  await loadPaymentMethods()
 })
+
+async function loadPaymentMethods() {
+  try {
+    const res = await businessApi.getPaymentMethods()
+    payTypes.value = res.data
+      .filter(p => ['wechat', 'alipay', 'balance'].includes(p.code))
+      .map(p => ({
+        value: p.code as PayType,
+        label: p.name,
+        icon: p.code === 'wechat' ? IMAGES.PAY_WECHAT : p.code === 'alipay' ? IMAGES.PAY_ALIPAY : IMAGES.PAY_BALANCE
+      }))
+  } catch (error) {
+    console.error('加载支付方式失败:', error)
+  }
+}
 
 onUnmounted(() => {
   stop()
@@ -58,9 +73,9 @@ const loadOrderDetail = async () => {
       orderStore.setCurrentOrder(res)
 
       // 检查订单状态
-      if (res.status !== 'pending') {
+      if (res.status !== OrderStatus.PENDING) {
         ElMessage.warning('该订单已支付或已取消')
-        router.replace(`/order/${res.id}`)
+        router.replace(getOrderDetailRoute(res.id))
         return
       }
 

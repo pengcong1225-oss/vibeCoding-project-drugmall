@@ -1,35 +1,41 @@
 package com.drugmall.admin.controller;
 
 import com.drugmall.admin.common.Result;
-import com.drugmall.admin.config.MockDataService;
-import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/admin/settings")
 @RequiredArgsConstructor
 public class SettingsController {
 
-    private final MockDataService mockDataService;
-
     @GetMapping("/basic")
-    public Result<JsonNode> getBasicSettings() {
-        return Result.success(mockDataService.get("settings", "basic"));
+    public Result<Map<String, Object>> getBasicSettings() {
+        return Result.success(Map.of(
+            "siteName", "DrugMall药品电商平台",
+            "siteLogo", "",
+            "customerServicePhone", "400-888-8888"
+        ));
     }
 
     @PutMapping("/basic")
-    public Result<Void> saveBasicSettings(@RequestBody JsonNode body) {
+    public Result<Void> saveBasicSettings(@RequestBody Map<String, Object> body) {
         return Result.success();
     }
 
     @GetMapping("/payment")
-    public Result<JsonNode> getPaymentSettings() {
-        return Result.success(mockDataService.get("settings", "payment"));
+    public Result<Map<String, Object>> getPaymentSettings() {
+        return Result.success(Map.of(
+            "wechatPayEnabled", true,
+            "alipayEnabled", true,
+            "bankCardEnabled", false
+        ));
     }
 
     @PutMapping("/payment")
-    public Result<Void> savePaymentSettings(@RequestBody JsonNode body) {
+    public Result<Void> savePaymentSettings(@RequestBody Map<String, Object> body) {
         return Result.success();
     }
 }

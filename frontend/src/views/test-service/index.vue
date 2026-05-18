@@ -133,6 +133,7 @@ import {
   Camera,
   FirstAidKit 
 } from '@element-plus/icons-vue'
+import { ROUTES, getDrugDetailRoute } from '@/constants/routes'
 
 const router = useRouter()
 const searchKeyword = ref('')
@@ -229,14 +230,13 @@ const topicList = ref([
 
 const switchTab = (tabId: string) => {
   if (tabId === 'recommend') {
-    router.push('/home')
+    router.push(ROUTES.HOME)
   } else if (tabId === 'doctor') {
-    router.push('/inquiry')
+    router.push(ROUTES.INQUIRY)
   } else if (tabId === 'test') {
     // 当前页面
   } else {
-    // 其他分类页面
-    router.push('/category')
+    router.push(ROUTES.CATEGORY)
   }
 }
 
@@ -245,11 +245,11 @@ const goBack = () => {
 }
 
 const goToCart = () => {
-  router.push('/cart')
+  router.push(ROUTES.CART)
 }
 
 const goToProduct = (productId: string) => {
-  router.push(`/drug/${productId}`)
+  router.push(getDrugDetailRoute(productId))
 }
 </script>
 

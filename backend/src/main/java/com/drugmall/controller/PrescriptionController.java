@@ -28,27 +28,44 @@ public class PrescriptionController {
     @Autowired
     private PrescriptionService prescriptionService;
 
-    private static final String CURRENT_DOCTOR_ID = "DOC001";
+    /**
+     * 从请求头获取当前医生ID
+     * TODO: 后续集成JWT认证后，从Token中解析医生ID
+     */
+    private String getCurrentDoctorId(@RequestHeader(value = "X-Doctor-Id", required = false) String doctorId) {
+        // 如果没有提供doctorId，使用默认值（仅用于开发测试）
+        return doctorId != null ? doctorId : "DOC001";
+    }
 
     @GetMapping
     @Operation(summary = "获取处方列表", description = "获取医生的处方列表，支持按状态筛选")
     public Result<List<DoctorPrescriptionVO>> listPrescriptions(
             @Parameter(description = "状态: all/pending/approved/rejected")
-            @RequestParam(required = false, defaultValue = "all") String status) {
-        return Result.success(prescriptionService.listPrescriptions(CURRENT_DOCTOR_ID, status));
+            @RequestParam(required = false, defaultValue = "all") String status,
+            @RequestHeader(value = "X-Doctor-Id", required = false) String doctorId) {
+        String currentDoctorId = getCurrentDoctorId(doctorId);
+        log.debug("获取处方列表: doctorId={}, status={}", currentDoctorId, status);
+        return Result.success(prescriptionService.listPrescriptions(currentDoctorId, status));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "获取处方详情", description = "获取指定处方的详细信息")
     public Result<DoctorPrescriptionVO> getPrescriptionDetail(
-            @Parameter(description = "处方ID") @PathVariable String id) {
-        return Result.success(prescriptionService.getPrescriptionDetail(CURRENT_DOCTOR_ID, id));
+            @Parameter(description = "处方ID") @PathVariable String id,
+            @RequestHeader(value = "X-Doctor-Id", required = false) String doctorId) {
+        String currentDoctorId = getCurrentDoctorId(doctorId);
+        log.debug("获取处方详情: doctorId={}, prescriptionId={}", currentDoctorId, id);
+        return Result.success(prescriptionService.getPrescriptionDetail(currentDoctorId, id));
     }
 
     @PostMapping
     @Operation(summary = "创建处方", description = "医生创建新处方")
     public Result<DoctorPrescriptionVO> createPrescription(
-            @Valid @RequestBody CreatePrescriptionDTO createDTO) {
-        return Result.success(prescriptionService.createPrescription(CURRENT_DOCTOR_ID, createDTO));
+            @Valid @RequestBody CreatePrescriptionDTO createDTO,
+            @RequestHeader(value = "X-Doctor-Id", required = false) String doctorId) {
+        String currentDoctorId = getCurrentDoctorId(doctorId);
+        log.info("创建处方: doctorId={}, patientId={}, consultationId={}", 
+                currentDoctorId, createDTO.getPatientId(), createDTO.getConsultationId());
+        return Result.success(prescriptionService.createPrescription(currentDoctorId, createDTO));
     }
 }
