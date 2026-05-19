@@ -1,7 +1,0 @@
-[
-  {"id":1,"brandName":"修正药业","brandLogo":"https://via.placeholder.com/100","brandDesc":"中国医药百强企业","sortOrder":1,"status":1,"createTime":"2024-01-01 10:00:00"},
-  {"id":2,"brandName":"同仁堂","brandLogo":"https://via.placeholder.com/100","brandDesc":"中华老字号，创建于1669年","sortOrder":2,"status":1,"createTime":"2024-01-02 10:00:00"},
-  {"id":3,"brandName":"999三九","brandLogo":"https://via.placeholder.com/100","brandDesc":"专注健康30年","sortOrder":3,"status":1,"createTime":"2024-01-03 10:00:00"},
-  {"id":4,"brandName":"云南白药","brandLogo":"https://via.placeholder.com/100","brandDesc":"国家保密配方","sortOrder":4,"status":0,"createTime":"2024-01-04 10:00:00"},
-  {"id":5,"brandName":"汤臣倍健","brandLogo":"https://via.placeholder.com/100","brandDesc":"营养补充剂领导品牌","sortOrder":5,"status":1,"createTime":"2024-01-05 10:00:00"}
-]

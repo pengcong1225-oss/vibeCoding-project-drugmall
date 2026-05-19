@@ -95,3 +95,13 @@ public
 
 # OS
 Thumbs.db
+
+# Java
+**/target/
+
+# claudetree
+.claudetree/
+.worktrees/
+
+# Claude Code
+.claude/
