@@ -19,11 +19,9 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v3
 
-      - name: Initialize Sigil
-        run: uvx --from sigil-py sigil init
-
-      - name: Run Sigil (dry-run)
+      - name: Run Sigil
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_BASE_URL: https://api.deepseek.com/v1
-        run: uvx --from sigil-py sigil run --dry-run
+        run: uvx --from sigil-py sigil run
