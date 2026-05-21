@@ -19,10 +19,11 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v3
 
-      - name: Run Sigil
+      - name: Initialize Sigil
+        run: uvx --from sigil-py sigil init
+
+      - name: Run Sigil (dry-run)
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_BASE_URL: https://api.deepseek.com/v1
-        run: |
-          uvx --from sigil-py sigil run --dry-run  # 先用预览模式测试
-          # 确认无误后去掉 --dry-run
+        run: uvx --from sigil-py sigil run --dry-run
