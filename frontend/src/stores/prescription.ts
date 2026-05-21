@@ -3,6 +3,8 @@ import { ref, computed } from 'vue'
 import type { Drug } from '@/types/drug'
 import type { Patient } from '@/types/user'
 import { applyPrescription as apiApplyPrescription } from '@/api/consultation'
+import { sendConsultationMessage } from '@/api/modules/inquiry'
+import { getPrescriptionList } from '@/api/modules/prescription'
 
 // 处方流程步骤
 export type PrescriptionStep = 'apply' | 'chat' | 'success' | 'pay'
@@ -77,6 +79,7 @@ export const usePrescriptionStore = defineStore('prescription', () => {
   // ========== State ==========
   const currentStep = ref<PrescriptionStep>('apply')
   const consultationId = ref<string>('')
+  const assignedDoctorId = ref<string>('')
   
   // 申请页面状态
   const applyState = ref<PrescriptionApplyState>({
@@ -261,8 +264,9 @@ export const usePrescriptionStore = defineStore('prescription', () => {
       // http拦截器已经提取了data字段，result就是ConsultationApplyResponse
       const consultationId = result.consultationId
       setConsultationId(consultationId)
-      
-      console.log('处方申请成功，问诊ID:', consultationId)
+      assignedDoctorId.value = result.doctorId || ''
+
+      console.log('处方申请成功，问诊ID:', consultationId, '医生ID:', assignedDoctorId.value)
       return consultationId
     } catch (error) {
       console.error('提交处方申请失败:', error)
@@ -270,8 +274,13 @@ export const usePrescriptionStore = defineStore('prescription', () => {
     }
   }
 
-  // 发送聊天消息
+  // 发送聊天消息（通过后端API持久化）
   const sendChatMessage = async (content: string): Promise<void> => {
+    if (!consultationId.value) {
+      console.warn('[处方Store] 无问诊ID，无法发送消息')
+      return
+    }
+
     const message: ChatMessage = {
       id: 'MSG' + Date.now(),
       type: 'user',
@@ -279,58 +288,69 @@ export const usePrescriptionStore = defineStore('prescription', () => {
       time: new Date().toISOString()
     }
     addChatMessage(message)
-    
-    // 模拟医生回复
-    setTimeout(() => {
-      const reply: ChatMessage = {
-        id: 'MSG' + (Date.now() + 1),
-        type: 'doctor',
-        content: '收到您的信息，我正在为您开具处方，请稍候。',
-        time: new Date().toISOString(),
-        avatar: doctorInfo.value?.avatar
-      }
-      addChatMessage(reply)
-    }, 1000)
+
+    try {
+      await sendConsultationMessage(consultationId.value, { type: 'text', content })
+      console.log('[处方Store] 消息已通过后端API发送')
+    } catch (error) {
+      console.error('[处方Store] 发送消息失败:', error)
+      throw error
+    }
   }
 
-  // 完成处方开具
-  const completePrescription = async (): Promise<void> => {
-    // 模拟生成电子处方
-    const mockPrescription: ElectronicPrescription = {
-      id: 'PRE' + Date.now(),
-      prescriptionNo: 'P' + new Date().toISOString().slice(0, 10).replace(/-/g, '') + Math.floor(Math.random() * 10000).toString().padStart(4, '0'),
-      patientName: applyState.value.selectedPatient?.name || '',
-      patientGender: applyState.value.selectedPatient?.gender === 'male' ? '男' : '女',
-      patientAge: applyState.value.selectedPatient?.age || 0,
-      diagnosis: applyState.value.selectedDiseases.join('、'),
-      createTime: new Date().toISOString(),
-      drugs: applyState.value.selectedDrugs.map(drug => ({
-        id: drug.id,
-        name: drug.name,
-        spec: drug.specification,
-        price: drug.price,
-        quantity: 1,
-        usage: '口服',
-        frequency: '每日3次',
-        days: 7,
-        image: drug.image
-      })),
-      totalAmount: applyState.value.selectedDrugs.reduce((sum, d) => sum + d.price, 0),
-      doctorAdvice: '请按时服药，注意饮食清淡，避免辛辣刺激食物。如症状未缓解，请及时复诊。',
-      precautions: [
-        '饭后服用，避免空腹',
-        '服药期间禁止饮酒',
-        '如出现过敏反应请立即停药就医'
-      ]
+  // 从后端加载最新处方数据
+  const loadLatestPrescription = async (): Promise<ElectronicPrescription | null> => {
+    try {
+      const prescriptions = await getPrescriptionList('all')
+      if (!prescriptions || prescriptions.length === 0) {
+        console.warn('[处方Store] 未找到处方记录')
+        return null
+      }
+
+      // 取最新的处方
+      const latest = prescriptions[0]
+      const electronic: ElectronicPrescription = {
+        id: latest.id,
+        prescriptionNo: latest.prescriptionNo || latest.id,
+        patientName: latest.patientName || applyState.value.selectedPatient?.name || '',
+        patientGender: latest.patientGender || (applyState.value.selectedPatient?.gender === 'male' ? '男' : '女'),
+        patientAge: latest.patientAge || applyState.value.selectedPatient?.age || 0,
+        diagnosis: latest.diagnosis || '',
+        createTime: latest.createTime || new Date().toISOString(),
+        drugs: (latest.drugs || []).map(d => ({
+          id: d.name,
+          name: d.name,
+          spec: d.spec || '',
+          price: 0,
+          quantity: d.quantity || 1,
+          usage: d.usage || '口服',
+          frequency: d.frequency || '每日3次',
+          days: d.days || 7
+        })),
+        totalAmount: 0,
+        doctorAdvice: '',
+        precautions: []
+      }
+
+      setElectronicPrescription(electronic)
+      setStep('success')
+      return electronic
+    } catch (error) {
+      console.error('[处方Store] 加载处方失败:', error)
+      return null
     }
-    setElectronicPrescription(mockPrescription)
-    setStep('success')
+  }
+
+  // 完成处方开具（保留兼容旧调用，实际从后端加载）
+  const completePrescription = async (): Promise<void> => {
+    await loadLatestPrescription()
   }
 
   return {
     // State
     currentStep,
     consultationId,
+    assignedDoctorId,
     applyState,
     doctorInfo,
     chatMessages,
@@ -360,6 +380,8 @@ export const usePrescriptionStore = defineStore('prescription', () => {
     resetAll,
     submitPrescriptionApply,
     sendChatMessage,
-    completePrescription
+    completePrescription,
+    loadLatestPrescription
   }
+})
 })

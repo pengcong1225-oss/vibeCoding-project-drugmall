@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { ArrowLeft, Phone, VideoCamera, MoreFilled, Warning } from '@element-plus/icons-vue'
+import { ArrowLeft, Phone, VideoCamera, Warning, Loading, UserFilled, CircleCheckFilled, Position } from '@element-plus/icons-vue'
 import { usePrescriptionStore } from '@/stores/prescription'
+import { useIMStore } from '@/stores/im'
+import { useUserStore } from '@/stores/user'
+import { getDoctorDetail, getConsultationMessages, sendConsultationMessage } from '@/api/modules/inquiry'
 import StepBar from './components/StepBar.vue'
 import { ROUTES } from '@/constants/routes'
 import type { ChatMessage, DoctorInfo } from '@/stores/prescription'
@@ -11,49 +14,35 @@ import type { ChatMessage, DoctorInfo } from '@/stores/prescription'
 const router = useRouter()
 const route = useRoute()
 const prescriptionStore = usePrescriptionStore()
+const imStore = useIMStore()
+const userStore = useUserStore()
 
-// 当前步骤
+const consultationId = ref((route.query.consultationId as string) || (route.query.id as string) || prescriptionStore.consultationId)
+const doctorId = ref((route.query.doctorId as string) || prescriptionStore.assignedDoctorId || '')
+
 const currentStep = ref(2)
-
-// 医生信息
 const doctorInfo = ref<DoctorInfo>({
-  id: 'DOC001',
-  name: '王医生',
-  title: '副主任医师',
-  hospital: '北京协和医院',
-  department: '内科',
+  id: doctorId.value,
+  name: '在线医生',
+  title: '',
+  hospital: '',
+  department: '',
   avatar: '',
   isCertified: true
 })
 
-// 聊天消息列表
-const messageList = ref<ChatMessage[]>([
-  {
-    id: '1',
-    type: 'doctor',
-    content: '您好，我是王医生，很高兴为您服务。请详细描述一下您的症状和病史。',
-    time: new Date(Date.now() - 1000 * 60 * 5).toISOString()
-  }
-])
-
-// 输入的消息
+const messageList = ref<ChatMessage[]>([])
 const inputMessage = ref('')
-
-// 是否正在发送
 const isSending = ref(false)
-
-// 是否显示处方开具中
 const isGeneratingPrescription = ref(false)
-
-// 聊天容器引用
 const chatContainerRef = ref<HTMLElement>()
+const imConnected = ref(false)
+const isLoading = ref(true)
+const error = ref('')
+const pollingTimer = ref<ReturnType<typeof setInterval> | null>(null)
 
-// 返回上一页
-const goBack = () => {
-  router.back()
-}
+const goBack = () => router.back()
 
-// 滚动到底部
 const scrollToBottom = () => {
   nextTick(() => {
     if (chatContainerRef.value) {
@@ -62,98 +51,178 @@ const scrollToBottom = () => {
   })
 }
 
-// 格式化时间
 const formatTime = (timeStr: string) => {
-  const date = new Date(timeStr)
-  return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+  if (!timeStr) return ''
+  try {
+    const date = new Date(timeStr)
+    if (isNaN(date.getTime())) {
+      if (timeStr.includes(':')) return timeStr.slice(-8, -3) || timeStr.slice(-5)
+      return ''
+    }
+    return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+  } catch { return '' }
 }
 
-// 发送消息
+const handleNewMessage = (msgList: any[]) => {
+  if (!Array.isArray(msgList)) return
+  for (const timMsg of msgList) {
+    const msgId = timMsg.id || timMsg.ID || ('msg_' + Date.now())
+    if (messageList.value.some(m => m.id === msgId)) continue
+
+    const content = timMsg.content || timMsg.payload?.text || '[消息]'
+    const isPrescription = content.includes('【电子处方】')
+
+    if (isPrescription) {
+      isGeneratingPrescription.value = true
+      prescriptionStore.loadLatestPrescription().then(() => {
+        setTimeout(() => router.push(ROUTES.PRESCRIPTION_SUCCESS), 2000)
+      })
+    }
+
+    messageList.value.push({
+      id: msgId,
+      type: timMsg.from === 'patient' ? 'user' : 'doctor',
+      content,
+      time: timMsg.time || new Date().toISOString()
+    })
+    scrollToBottom()
+  }
+}
+
 const sendMessage = async () => {
   const content = inputMessage.value.trim()
   if (!content || isSending.value) return
 
   isSending.value = true
-
-  // 添加用户消息
-  const userMessage: ChatMessage = {
+  messageList.value.push({
     id: 'MSG' + Date.now(),
     type: 'user',
     content,
     time: new Date().toISOString()
-  }
-  messageList.value.push(userMessage)
+  })
   inputMessage.value = ''
   scrollToBottom()
 
   try {
-    // 模拟医生回复
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    const doctorReply: ChatMessage = {
-      id: 'MSG' + (Date.now() + 1),
-      type: 'doctor',
-      content: '收到，根据您描述的症状，我需要为您开具处方。请稍等片刻。',
-      time: new Date().toISOString(),
-      avatar: doctorInfo.value.avatar
+    await sendConsultationMessage(consultationId.value, { type: 'text', content })
+    if (imConnected.value) {
+      try { await imStore.sendTextMessage(content) } catch { /* TIM静默失败 */ }
     }
-    messageList.value.push(doctorReply)
-    scrollToBottom()
-
-    // 模拟处方开具中
-    setTimeout(() => {
-      isGeneratingPrescription.value = true
-      scrollToBottom()
-      
-      setTimeout(async () => {
-        await prescriptionStore.setDoctorInfo(doctorInfo.value)
-        await prescriptionStore.completePrescription()
-        router.push(ROUTES.PRESCRIPTION_SUCCESS)
-      }, 3000)
-    }, 1500)
-
-  } catch (error) {
-    console.error('发送消息失败:', error)
+  } catch (error: any) {
+    console.error('[处方咨询] 发送失败:', error)
     ElMessage.error('发送失败，请重试')
   } finally {
     isSending.value = false
   }
 }
 
-// 快捷回复
-const quickReplies = [
-  '症状已经持续3天了',
-  '有轻微发烧',
-  '没有过敏史',
-  '之前服用过类似药物'
-]
+const quickReplies = ['症状已经持续3天了', '有轻微发烧', '没有过敏史', '之前服用过类似药物']
+const sendQuickReply = (reply: string) => { inputMessage.value = reply; sendMessage() }
 
-const sendQuickReply = (reply: string) => {
-  inputMessage.value = reply
-  sendMessage()
-}
+const initChat = async () => {
+  try {
+    isLoading.value = true
+    error.value = ''
 
-// 拨打电话
-const callDoctor = () => {
-  ElMessage.info('正在为您接通医生电话...')
-}
+    // 加载医生信息
+    try {
+      if (doctorId.value) {
+        const doc = await getDoctorDetail(doctorId.value)
+        doctorInfo.value = {
+          id: doc.id || doctorId.value,
+          name: doc.name || '在线医生',
+          title: doc.title || '',
+          hospital: doc.hospital || '',
+          department: doc.department || '',
+          avatar: doc.avatar || '',
+          isCertified: true
+        }
+      }
+    } catch { /* 使用默认信息 */ }
 
-// 视频通话
-const videoCall = () => {
-  ElMessage.info('正在为您发起视频通话...')
-}
+    prescriptionStore.setDoctorInfo(doctorInfo.value)
+    if (consultationId.value) prescriptionStore.setConsultationId(consultationId.value)
 
-onMounted(() => {
-  // 设置医生信息到store
-  prescriptionStore.setDoctorInfo(doctorInfo.value)
-  
-  // 如果有咨询ID，加载聊天记录
-  const consultationId = route.query.id as string
-  if (consultationId) {
-    prescriptionStore.setConsultationId(consultationId)
+    // 初始化 IM
+    if (userStore.isLoggedIn) {
+      try {
+        if (!imStore.isInitialized) await imStore.initialize()
+        await imStore.login(userStore.userInfo?.id?.toString() || '1', 'patient')
+        imConnected.value = true
+        imStore.on('MESSAGE_RECEIVED', handleNewMessage)
+      } catch (imError: any) {
+        console.warn('[处方咨询] IM初始化失败，使用API轮询:', imError.message)
+      }
+    }
+
+    // 加载历史消息
+    if (consultationId.value) {
+      try {
+        const apiMessages = await getConsultationMessages(consultationId.value)
+        if (apiMessages && apiMessages.length > 0) {
+          messageList.value = apiMessages.map((m: any) => ({
+            id: m.id,
+            type: m.sender === 'patient' ? 'user' : 'doctor',
+            content: m.content,
+            time: m.time || new Date().toISOString()
+          } as ChatMessage))
+
+          if (messageList.value.some(m => m.content?.includes('【电子处方】'))) {
+            isGeneratingPrescription.value = true
+          }
+        }
+      } catch { /* 无历史消息 */ }
+    }
+
+    if (messageList.value.length === 0) {
+      messageList.value.push({
+        id: 'welcome',
+        type: 'doctor',
+        content: `您好，我是${doctorInfo.value.name}，很高兴为您服务。请详细描述一下您的症状和病史。`,
+        time: new Date().toISOString()
+      })
+    }
+    scrollToBottom()
+  } catch (e: any) {
+    error.value = e.message || '连接失败'
+  } finally {
+    isLoading.value = false
   }
-  
-  scrollToBottom()
+}
+
+async function pollNewMessages() {
+  if (!consultationId.value) return
+  try {
+    const apiMessages = await getConsultationMessages(consultationId.value)
+    if (!apiMessages || !apiMessages.length) return
+    for (const m of apiMessages) {
+      if (messageList.value.some(local => local.id === m.id)) continue
+      const isPrescription = m.content?.includes('【电子处方】')
+      messageList.value.push({
+        id: m.id, type: m.sender === 'patient' ? 'user' : 'doctor',
+        content: m.content, time: m.time || new Date().toISOString()
+      } as ChatMessage)
+      if (isPrescription) {
+        isGeneratingPrescription.value = true
+        prescriptionStore.loadLatestPrescription().then(() => {
+          setTimeout(() => router.push(ROUTES.PRESCRIPTION_SUCCESS), 2000)
+        })
+      }
+    }
+    scrollToBottom()
+  } catch { /* 静默 */ }
+}
+
+function startPolling() { stopPolling(); pollingTimer.value = setInterval(pollNewMessages, 5000) }
+function stopPolling() { if (pollingTimer.value) { clearInterval(pollingTimer.value); pollingTimer.value = null } }
+
+const callDoctor = () => ElMessage.info('语音通话功能开发中')
+const videoCall = () => ElMessage.info('视频通话功能开发中')
+
+onMounted(() => { initChat().then(() => startPolling()) })
+onUnmounted(() => {
+  stopPolling()
+  if (imConnected.value) imStore.off('MESSAGE_RECEIVED', handleNewMessage)
 })
 </script>
 
@@ -200,6 +269,20 @@ onMounted(() => {
 
     <!-- 聊天区域 -->
     <div ref="chatContainerRef" class="chat-container">
+      <!-- 加载状态 -->
+      <div v-if="isLoading" class="loading-state">
+        <el-icon class="loading-icon"><Loading /></el-icon>
+        <span>正在连接医生...</span>
+      </div>
+
+      <!-- 错误状态 -->
+      <div v-else-if="error" class="error-state">
+        <p>{{ error }}</p>
+        <button class="retry-btn" @click="initChat">重试</button>
+      </div>
+
+      <!-- 正常聊天 -->
+      <template v-else>
       <!-- 时间分隔线 -->
       <div class="time-divider">
         <span>{{ new Date().toLocaleDateString('zh-CN') }}</span>
@@ -240,6 +323,7 @@ onMounted(() => {
           </div>
         </div>
       </div>
+      </template>
     </div>
 
     <!-- 快捷回复 -->
@@ -416,6 +500,34 @@ onMounted(() => {
   overflow-y: auto;
   padding: $spacing-md;
   -webkit-overflow-scrolling: touch;
+}
+
+// 加载/错误状态
+.loading-state, .error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-xxl;
+  color: $text-tertiary;
+  gap: 12px;
+
+  .loading-icon {
+    font-size: 32px;
+    animation: rotate 1s linear infinite;
+  }
+
+  p { font-size: $font-sm; }
+
+  .retry-btn {
+    padding: 8px 24px;
+    background: $primary;
+    color: #fff;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: $font-md;
+  }
 }
 
 // 时间分隔线

@@ -266,17 +266,18 @@ const handleSubmit = async () => {
 
   try {
     prescriptionStore.setSymptoms(symptoms.value)
-    
+
     const consultationId = await prescriptionStore.submitPrescriptionApply()
-    
+    const doctorId = prescriptionStore.assignedDoctorId
+
     ElMessage.success('申请提交成功')
-    
+
     setTimeout(() => {
       router.push({
         path: `${ROUTES.INQUIRY_WAITING}/${consultationId}`,
         query: {
-          doctorId: 'DOC001',
-          doctorName: '在线医生'
+          doctorId: doctorId || '',
+          type: 'prescription'
         }
       })
     }, 1000)

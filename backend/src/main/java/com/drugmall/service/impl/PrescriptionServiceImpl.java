@@ -204,6 +204,17 @@ public class PrescriptionServiceImpl implements PrescriptionService {
             prescriptionItemMapper.insert(item);
         }
 
+        // 更新关联的问诊状态为已完成（处方已开具）
+        if (createDTO.getConsultationId() != null && !createDTO.getConsultationId().isEmpty()) {
+            Consultation consultation = consultationMapper.selectById(createDTO.getConsultationId());
+            if (consultation != null && "processing".equals(consultation.getStatus())) {
+                consultation.setStatus("completed");
+                consultation.setEndTime(LocalDateTime.now());
+                consultationMapper.updateById(consultation);
+                log.info("问诊 {} 状态已更新为 completed（处方已开具）", createDTO.getConsultationId());
+            }
+        }
+
         log.info("创建处方: {}, 总金额: {}", prescriptionId, totalAmount);
         return convertToPrescriptionVO(prescription);
     }

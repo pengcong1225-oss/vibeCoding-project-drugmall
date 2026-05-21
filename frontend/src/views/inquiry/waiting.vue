@@ -225,10 +225,11 @@ const checkAcceptanceStatus = async () => {
     // 如果医生已接诊，跳转到聊天页面
     if (res.accepted || res.status === 'processing') {
       stopChecking()
-      ElMessage.success('医生已接诊，即将进入问诊')
+      const isPrescriptionFlow = route.query.type === 'prescription'
+      ElMessage.success(isPrescriptionFlow ? '医生已接诊，即将进入处方咨询' : '医生已接诊，即将进入问诊')
       setTimeout(() => {
         router.push({
-          path: ROUTES.INQUIRY_CHAT,
+          path: isPrescriptionFlow ? ROUTES.PRESCRIPTION_CONSULT : ROUTES.INQUIRY_CHAT,
           query: {
             consultationId: consultationId.value,
             doctorId: doctorInfo.value.id,

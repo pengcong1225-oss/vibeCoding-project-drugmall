@@ -13,6 +13,9 @@ const patientStore = usePatientStore()
 
 const consultationId = route.query.consultationId as string
 const patientId = route.query.patientId as string
+const patientName = (route.query.patientName as string) || '未知患者'
+const patientAge = Number(route.query.patientAge) || 0
+const patientGender = (route.query.patientGender as string) || '未知'
 
 // 表单数据
 const prescriptionForm = ref({
@@ -108,13 +111,11 @@ const submitPrescription = async () => {
   }
 
   try {
-    const patient = patientStore.patients.find(p => p.id === patientId)
-
     await prescriptionStore.createPrescription({
       patientId: patientId,
-      patientName: patient?.name || '未知患者',
-      patientAge: patient?.age || 0,
-      patientGender: patient?.gender || '男',
+      patientName: patientName,
+      patientAge: patientAge,
+      patientGender: patientGender,
       consultationId: consultationId,
       diagnosis: prescriptionForm.value.diagnosis,
       drugs: prescriptionForm.value.drugs,
@@ -135,16 +136,17 @@ const submitPrescription = async () => {
 // 通过IM发送处方消息
 async function sendPrescriptionMessage() {
   try {
-    const doctorId = '001'
-    
+    // 从 store 或本地存储获取当前登录医生ID
+    const currentDoctorId = localStorage.getItem('doctorId') || 'DOC001'
+
     // 确保IM已初始化
     if (!imService.isInitialized) {
-      await imService.init(doctorId, 'doctor')
+      await imService.init(currentDoctorId, 'doctor')
     }
-    
+
     const conversationId = `C2C_patient_${patientId}`
 
-    const drugsList = prescriptionForm.value.drugs.map((drug, index) => 
+    const drugsList = prescriptionForm.value.drugs.map((drug, index) =>
       `${index + 1}. ${drug.name} ${drug.spec} - ${drug.dosage} ${drug.frequency} ${drug.duration} ×${drug.quantity}${drug.unit}`
     ).join('\n')
 
@@ -186,10 +188,10 @@ onMounted(() => {
     <!-- 患者信息 -->
     <div class="patient-card">
       <div class="patient-header">
-        <div class="patient-avatar">张</div>
+        <div class="patient-avatar">{{ patientName.charAt(0) }}</div>
         <div class="patient-info">
-          <div class="patient-name">张* <span class="patient-gender">女</span></div>
-          <div class="patient-age">42岁</div>
+          <div class="patient-name">{{ patientName }} <span class="patient-gender">{{ patientGender }}</span></div>
+          <div class="patient-age">{{ patientAge }}岁</div>
         </div>
       </div>
     </div>

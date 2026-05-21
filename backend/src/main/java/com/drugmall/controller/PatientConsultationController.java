@@ -230,6 +230,7 @@ public class PatientConsultationController {
         Map<String, Object> result = new HashMap<>();
         result.put("consultationId", consultation.getId());
         result.put("status", consultation.getStatus());
+        result.put("doctorId", assignedDoctorId);
         
         log.info("处方药申请成功: consultationId={}", consultation.getId());
         return Result.success(result);
