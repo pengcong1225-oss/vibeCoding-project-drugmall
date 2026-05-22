@@ -1,0 +1,58 @@
+name: Smart Issue Planning
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install -g @anthropic-ai/claude-code
+
+      - name: Configure DeepSeek Env
+        run: |
+          echo "ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic" >> $GITHUB_ENV
+          echo "ANTHROPIC_AUTH_TOKEN=${{ secrets.DEEPSEEK_API_KEY }}" >> $GITHUB_ENV
+          echo "ANTHROPIC_MODEL=deepseek-v4-flash" >> $GITHUB_ENV  # 规划任务用小模型即可
+
+      - name: AI Issue Analysis and Planning
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          cat > /tmp/prompt.md << 'PROMPT'
+          分析此Issue，执行：
+          1. 判断是“新功能”(feature)还是“Bug修复”(bug)，写入 type.txt。
+          2. 若是新功能，创建 feature_plan.md（功能描述、架构设计、实现步骤、关键文件、验收标准）。
+          3. 若是Bug修复，创建 fix_plan.md（根因分析、最小修复方案、影响分析、测试用例）。
+          完成后直接退出。
+          PROMPT
+
+          claude -p "Issue #${ISSUE_NUMBER}: ${ISSUE_TITLE}\n\n${ISSUE_BODY}\n\n$(cat /tmp/prompt.md)" \
+            --allowedTools "Read" \
+            --max-turns 10
+
+      - name: Apply Labels and Post Plan
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          if [ -f type.txt ]; then
+            TYPE=$(cat type.txt)
+            if [ "$TYPE" = "feature" ]; then
+              gh issue edit $ISSUE_NUMBER --add-label "feature-request"
+              gh issue comment $ISSUE_NUMBER --body "AI 新功能规划已完成，请审查。\n$(cat feature_plan.md)"
+            else
+              gh issue edit $ISSUE_NUMBER --add-label "ai-fix"
+              gh issue comment $ISSUE_NUMBER --body "AI 修复方案已制定，请审查。\n$(cat fix_plan.md)"
+            fi
+          fi

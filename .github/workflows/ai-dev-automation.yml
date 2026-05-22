@@ -47,8 +47,7 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           OPENAI_BASE_URL: https://api.deepseek.com
         run: |
-          uvx --from sigil-py sigil run --dry-run
-
+          uvx --from sigil-py sigil run 
       - name: Upload Sigil report (optional)
         if: always()
         uses: actions/upload-artifact@v4

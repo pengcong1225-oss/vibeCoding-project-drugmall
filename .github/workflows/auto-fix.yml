@@ -1,0 +1,74 @@
+name: AI Issue Fixer
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  auto-fix:
+    if: github.event.label.name == 'ai-fix'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install Dependencies
+        run: if [ -f package.json ]; then npm ci || npm install; fi
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Configure Git & DeepSeek
+        run: |
+          git config user.name "AI Bot"
+          git config user.email "ai-bot@your-domain.com"
+          echo "ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic" >> $GITHUB_ENV
+          echo "ANTHROPIC_AUTH_TOKEN=${{ secrets.DEEPSEEK_API_KEY }}" >> $GITHUB_ENV
+          echo "ANTHROPIC_MODEL=deepseek-v4-pro[1m]" >> $GITHUB_ENV
+          echo "ANTHROPIC_DEFAULT_OPUS_MODEL=deepseek-v4-pro[1m]" >> $GITHUB_ENV
+          echo "ANTHROPIC_DEFAULT_SONNET_MODEL=deepseek-v4-pro[1m]" >> $GITHUB_ENV
+          echo "ANTHROPIC_DEFAULT_HAIKU_MODEL=deepseek-v4-flash" >> $GITHUB_ENV
+
+      - name: Run AI Fix Pipeline
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+        run: |
+          ISSUE_NUMBER="${ISSUE_NUMBER}"
+          BRANCH_NAME="ai-fix-issue-${ISSUE_NUMBER}-$(date +%Y%m%d%H%M%S)"
+          git checkout -b "${BRANCH_NAME}"
+
+          cat > /tmp/prompt.md <<PROMPT
+          按以下步骤修复Issue #${ISSUE_NUMBER}，严格遵循已有的 fix_plan.md：
+          1. 修改代码。
+          2. 运行 npm test 和 npm run lint。
+          3. 失败则重试最多3次。
+          4. 成功后，在 fix_plan.md 中写入“修复完成”。
+          PROMPT
+
+          claude -p "$(cat /tmp/prompt.md)" \
+            --max-turns 30 \
+            --max-budget-usd 1.50 \
+            --allowedTools "Read" "Edit" "Bash(npm test)" "Bash(npm run lint)" "Bash(git *)"
+
+          if [ -f fix_plan.md ] && grep -q "修复完成" fix_plan.md; then
+            if ! git diff --quiet || ! git diff --cached --quiet; then
+              git add .
+              git commit -m "fix: ${ISSUE_TITLE} (AI fix for #${ISSUE_NUMBER})"
+              git push origin "${BRANCH_NAME}"
+              PR_URL=$(gh pr create --base main --head "${BRANCH_NAME}" --title "🤖 AI Fix: ${ISSUE_TITLE} (Closes #${ISSUE_NUMBER})" --body "由DeepSeek自动生成\n\nCloses #${ISSUE_NUMBER}")
+              gh issue comment ${ISSUE_NUMBER} --body "✅ 修复已提交：${PR_URL}"
+              gh issue edit ${ISSUE_NUMBER} --remove-label "ai-fix" --add-label "ai-review-needed"
+            else
+              gh issue comment ${ISSUE_NUMBER} --body "AI 未发现需要修改的代码。"
+            fi
+          else
+            gh issue comment ${ISSUE_NUMBER} --body "❌ 自动修复失败，请人工介入。"
+            gh issue edit ${ISSUE_NUMBER} --remove-label "ai-fix" --add-label "ai-failed"
+          fi

@@ -1,0 +1,136 @@
+name: Product Planning Automation
+
+on:
+  workflow_dispatch:    # 允许手动触发
+  schedule:
+    - cron: '0 0 * * 1'  # 每周一零点自动运行
+  # 你也可以在 push 到 main 时触发，立即获得最新分析的 PRD
+  # push:
+  #   branches:
+  #     - main
+
+jobs:
+  planning:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write      # 提交生成的报告
+      issues: write        # 自动创建 Issue
+      pull-requests: write # 如果需要创建 PR
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install System Dependencies
+        run: sudo apt-get update && sudo apt-get install -y curl git
+
+      # ====== 工具安装 ======
+      - name: Install Tools
+        run: |
+          # Skene
+          curl -fsSL https://raw.githubusercontent.com/SkeneTechnologies/skene/main/tui/install.sh | bash
+          # ReadYourUsers
+          npm i -g readyourusers
+          # Prodo
+          npm i -g @shahmarasy/prodo
+          # Claude Code CLI (用于 Prodo 后端)
+          npm i -g @anthropic-ai/claude-code
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      # ====== 统一配置 DeepSeek 端点（用于所有 AI 调用）======
+      - name: Configure DeepSeek Environment
+        run: |
+          echo "ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic" >> $GITHUB_ENV
+          echo "ANTHROPIC_AUTH_TOKEN=${{ secrets.DEEPSEEK_API_KEY }}" >> $GITHUB_ENV
+          echo "ANTHROPIC_MODEL=deepseek-v4-pro[1m]" >> $GITHUB_ENV
+          echo "ANTHROPIC_DEFAULT_OPUS_MODEL=deepseek-v4-pro[1m]" >> $GITHUB_ENV
+          echo "ANTHROPIC_DEFAULT_SONNET_MODEL=deepseek-v4-pro[1m]" >> $GITHUB_ENV
+          echo "ANTHROPIC_DEFAULT_HAIKU_MODEL=deepseek-v4-flash" >> $GITHUB_ENV
+          # 同时为 Prodo 设置兼容的 API Key
+          echo "PRODO_AGENT=anthropic" >> $GITHUB_ENV
+          echo "ANTHROPIC_API_KEY=${{ secrets.DEEPSEEK_API_KEY }}" >> $GITHUB_ENV
+
+      # ====== 步骤1：代码考古 (Skene) ======
+      - name: 1. Run Code Archaeology (Skene)
+        env:
+          LLM_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          LLM_PROVIDER: deepseek
+        run: |
+          skene analyze || echo "Skene analysis failed, continuing..."
+          # 分析结果默认在 skene-context/ 目录下
+
+      # ====== 步骤2：需求感知 (ReadYourUsers) ======
+      - name: 2. Run Demand Sensing (ReadYourUsers)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LLM_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          readyourusers fetch
+          readyourusers analyze
+          readyourusers aggregate
+          readyourusers generate
+          # 最终报告为 readyourusers-report.md
+
+      # ====== 步骤3：AI 规划 (Prodo) ======
+      - name: 3. Run AI Planning (Prodo)
+        run: |
+          # 将前两步的分析结果合并为 brief.md，供 Prodo 使用
+          cat skene-context/growth-plan.md readyourusers-report.md > combined_brief.md || echo "No analysis results" > combined_brief.md
+          # 使用 Prodo 生成 PRD
+          prodo generate --brief combined_brief.md
+
+      # ====== 步骤4：合并报告并自动创建 Issue ======
+      - name: 4. Combine Reports and Auto-Dispatch Issues
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 生成一份综合报告
+          echo "# AI Product Analysis Report $(date +%Y-%m-%d)" > analysis_summary.md
+          echo "## Growth Opportunities (Skene)" >> analysis_summary.md
+          cat skene-context/growth-plan.md >> analysis_summary.md 2>/dev/null || echo "N/A" >> analysis_summary.md
+          echo "## User Demand Map (ReadYourUsers)" >> analysis_summary.md
+          cat readyourusers-report.md >> analysis_summary.md 2>/dev/null || echo "N/A" >> analysis_summary.md
+          echo "## PRD (Prodo)" >> analysis_summary.md
+          cat product-docs/prd.md >> analysis_summary.md 2>/dev/null || echo "N/A" >> analysis_summary.md
+
+          # 解析 Prodo 生成的用户故事并创建 Issue
+          if [ -f "product-docs/stories.md" ]; then
+            echo "Found user stories, creating issues..."
+            # 使用简单脚本逐条创建 Issue（你可以用更健壮的解析器）
+            while IFS= read -r line; do
+              if [[ "$line" =~ ^##\ .* ]] || [[ "$line" =~ ^###\ .* ]]; then
+                title=$(echo "$line" | sed 's/^#\+\s*//')
+                # 读取后续内容作为 body，直到下一个标题
+                body=""
+                while IFS= read -r next_line; do
+                  if [[ "$next_line" =~ ^##\  ]] || [[ "$next_line" =~ ^###\  ]]; then
+                    break
+                  fi
+                  body+="$next_line\n"
+                done < <(tail -n +$((LINENO+1)) product-docs/stories.md) # 简化处理，实际建议用 awk
+                # 创建 Issue，默认标记为 feature-request
+                gh issue create --title "$title" --body "$body" --label "feature-request"
+              fi
+            done < product-docs/stories.md
+          else
+            echo "No user stories found, creating a single analysis issue."
+            gh issue create --title "🤖 AI Product Analysis Report" --body "Full report: [analysis_summary.md](analysis_summary.md)" --label "product-insight"
+          fi
+
+      # ====== 提交报告到仓库 ======
+      - name: 5. Commit Reports
+        run: |
+          git config user.name "Product Brain Bot"
+          git config user.email "brain-bot@your-domain.com"
+          git add analysis_summary.md product-docs/ skene-context/ readyourusers-report.md combined_brief.md
+          git commit -m "🤖 Automated product analysis and PRD" || echo "No changes to commit"
+          git push

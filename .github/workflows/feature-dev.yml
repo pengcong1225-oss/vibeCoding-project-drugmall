@@ -1,0 +1,69 @@
+name: AI Feature Developer
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  develop-feature:
+    if: github.event.label.name == 'feature-request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install Dependencies
+        run: if [ -f package.json ]; then npm ci || npm install; fi
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Configure Git & DeepSeek
+        run: |
+          git config user.name "AI Bot"
+          git config user.email "ai-bot@your-domain.com"
+          echo "ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic" >> $GITHUB_ENV
+          echo "ANTHROPIC_AUTH_TOKEN=${{ secrets.DEEPSEEK_API_KEY }}" >> $GITHUB_ENV
+          echo "ANTHROPIC_MODEL=deepseek-v4-pro[1m]" >> $GITHUB_ENV
+          echo "ANTHROPIC_DEFAULT_OPUS_MODEL=deepseek-v4-pro[1m]" >> $GITHUB_ENV
+          echo "ANTHROPIC_DEFAULT_SONNET_MODEL=deepseek-v4-pro[1m]" >> $GITHUB_ENV
+          echo "ANTHROPIC_DEFAULT_HAIKU_MODEL=deepseek-v4-flash" >> $GITHUB_ENV
+
+      - name: AI Feature Development
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+        run: |
+          BRANCH_NAME="feature/ai-${ISSUE_NUMBER}-$(date +%Y%m%d%H%M)"
+          git checkout -b "${BRANCH_NAME}"
+
+          cat > /tmp/prompt.md <<PROMPT
+          按 feature_plan.md 实现新功能 #${ISSUE_NUMBER}: ${ISSUE_TITLE}
+          1. 按步骤实现，确保每步可验证。
+          2. 编写单元测试，运行 npm test 确保通过。
+          3. 运行 npm run lint 确保代码风格。
+          4. 完成后在 feature_plan.md 中写入“功能开发完成”。
+          PROMPT
+
+          claude -p "$(cat /tmp/prompt.md)" \
+            --allowedTools "Read" "Edit" "Bash(npm test)" "Bash(npm run lint)" "Bash(git *)" \
+            --max-turns 50 \
+            --max-budget-usd 5.00
+
+          if [ -f feature_plan.md ] && grep -q "功能开发完成" feature_plan.md; then
+            git add .
+            git commit -m "feat: ${ISSUE_TITLE} (AI-generated, closes #${ISSUE_NUMBER})"
+            git push origin "${BRANCH_NAME}"
+            PR_URL=$(gh pr create --title "🤖 AI Feature: ${ISSUE_TITLE}" --body "由DeepSeek自动生成\n\nCloses #${ISSUE_NUMBER}")
+            gh issue comment ${ISSUE_NUMBER} --body "✅ 新功能代码已生成：${PR_URL}"
+            gh issue edit ${ISSUE_NUMBER} --remove-label "feature-request" --add-label "ai-review-needed"
+          else
+            gh issue comment ${ISSUE_NUMBER} --body "❌ 功能开发失败，请查看日志。"
+            gh issue edit ${ISSUE_NUMBER} --remove-label "feature-request" --add-label "ai-failed"
+          fi
