@@ -14,48 +14,52 @@ on:
 
 jobs:
   # ============================================================
-  # Job 1: Guardian – 代码主动扫描（先不自动PR，仅测试）
+  # 1. Sigil – 代码主动扫描（尝试修复 tool calling 错误）
   # ============================================================
-  guardian-scan:
+  sigil-scan:
     if: github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install guardian
-        run: pip install guardian
-
-      - name: Create guardian config
+      - name: Upgrade litellm and set compatibility env
         run: |
-          mkdir -p .guardian
-          cat > .guardian/config.yml <<EOF
-          provider: openai
-          model: deepseek-chat
-          base_url: https://api.deepseek.com
-          api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          severity_threshold: high
-          exclude:
-            - "**/test/**"
-            - "**/vendor/**"
-          EOF
+          pip install --upgrade litellm
+          echo "LITELLM_DROP_PARAMS=tool_calls" >> $GITHUB_ENV
+        env:
+          OPENAI_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_BASE_URL: https://api.deepseek.com
 
-      - name: Run guardian scan
+      - name: Run Sigil (dry-run with compatibility flags)
         env:
           OPENAI_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           OPENAI_BASE_URL: https://api.deepseek.com
         run: |
-          guardian scan -c .guardian/config.yml
+          uvx --from sigil-py sigil run --dry-run
+
+      - name: Upload Sigil report (optional)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sigil-report
+          path: |
+            .sigil/reports/
+            # 如果 Sigil 生成了报告文件，请补充实际路径
 
   # ============================================================
-  # Job 2: Claude Tree – 自动实现带 auto-dev 标签的 Issue
+  # Claude Tree – 自动实现带 auto-dev 标签的 Issue
   # ============================================================
   claude-tree:
     if: github.event_name == 'issues' && contains(github.event.issue.labels.*.name, 'auto-dev')
@@ -87,7 +91,7 @@ jobs:
         run: ct start ${{ github.event.issue.html_url }} --max-cost 5.0
 
   # ============================================================
-  # Job 3: PR Worker – 自定义 DeepSeek 审查脚本（需要先创建脚本）
+  # 3. PR Worker – 自定义 DeepSeek 审查脚本
   # ============================================================
   pr-worker:
     if: github.event_name == 'pull_request'
@@ -108,10 +112,47 @@ jobs:
       - name: Install requests
         run: pip install requests
 
-      - name: Run PR review script
+      - name: Create PR review script
+        run: |
+          cat > pr_reviewer.py <<'EOF'
+          import os, sys, json, requests
+          GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
+          ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
+          PR_NUMBER = os.environ.get("PR_NUMBER")
+          REPO = os.environ.get("GITHUB_REPOSITORY")
+          if not all([GITHUB_TOKEN, ANTHROPIC_API_KEY, PR_NUMBER, REPO]):
+              print("Missing env")
+              sys.exit(1)
+          headers = {"Authorization": f"Bearer {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3.diff"}
+          diff_url = f"https://api.github.com/repos/{REPO}/pulls/{PR_NUMBER}"
+          diff_resp = requests.get(diff_url, headers=headers)
+          diff_resp.raise_for_status()
+          diff = diff_resp.text
+          if not diff.strip():
+              print("No diff")
+              sys.exit(0)
+          prompt = f"请审查以下代码diff，指出潜在的错误、安全问题、性能问题。用中文回复：\n{diff[:8000]}"
+          deepseek_headers = {"Authorization": f"Bearer {ANTHROPIC_API_KEY}", "Content-Type": "application/json"}
+          payload = {
+              "model": "deepseek-chat",
+              "messages": [{"role": "user", "content": prompt}],
+              "temperature": 0.3,
+              "max_tokens": 2000
+          }
+          ds_resp = requests.post("https://api.deepseek.com/chat/completions", headers=deepseek_headers, json=payload)
+          ds_resp.raise_for_status()
+          review = ds_resp.json()["choices"][0]["message"]["content"]
+          comment_body = f"## 🤖 AI Code Review (DeepSeek)\n\n{review}"
+          comment_url = f"https://api.github.com/repos/{REPO}/issues/{PR_NUMBER}/comments"
+          comment_resp = requests.post(comment_url, headers=headers, json={"body": comment_body})
+          comment_resp.raise_for_status()
+          print("Comment posted")
+          EOF
+
+      - name: Run PR review
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-        run: python .github/scripts/pr_reviewer.py
+        run: python pr_reviewer.py
