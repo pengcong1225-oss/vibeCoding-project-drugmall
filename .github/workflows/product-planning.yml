@@ -1,9 +1,9 @@
 name: Product Planning Automation
 
 on:
-  workflow_dispatch:          # 允许手动触发
+  workflow_dispatch:
   schedule:
-    - cron: '0 0 * * 1'       # 每周一 UTC 0 点自动运行
+    - cron: '0 0 * * 1'
 
 jobs:
   planning:
@@ -39,11 +39,9 @@ jobs:
           npm i -g @shahmarasy/prodo
           # Claude Code CLI
           npm i -g @anthropic-ai/claude-code
-          # 本地安装 Anthropic SDK（确保 Prodo 技能可用）
-          npm i @anthropic-ai/sdk
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-      # ========== 环境配置 ==========
+      # ========== 环境变量配置 ==========
       - name: Configure DeepSeek Environment
         run: |
           echo "ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic" >> $GITHUB_ENV
@@ -55,16 +53,16 @@ jobs:
           echo "PRODO_AGENT=anthropic" >> $GITHUB_ENV
           echo "ANTHROPIC_API_KEY=${{ secrets.DEEPSEEK_API_KEY }}" >> $GITHUB_ENV
 
-      # ========== 步骤1：代码考古 ==========
-      - name: 1. Run Code Archaeology (Skene)
+      # ========== 步骤1：代码考古 (Skene) ==========
+      - name: 1. Code Archaeology (Skene)
         env:
           LLM_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           LLM_PROVIDER: deepseek
         run: |
           skene analyze || echo "Warning: Skene analysis failed, continuing..."
 
-      # ========== 步骤2：需求感知 ==========
-      - name: 2. Demand Sensing (Custom with gh + Claude)
+      # ========== 步骤2：需求感知 (gh + Claude) ==========
+      - name: 2. Demand Sensing
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -79,15 +77,24 @@ jobs:
           else
             cat > /tmp/demand_prompt.md << 'PROMPT'
           你是一名资深产品经理。请分析 issues.json 文件中的 GitHub Issues 数据。
-          请生成用户需求地图，写入 readyourusers-report.md……
+
+          请按以下结构生成一份 **用户需求地图 (User Demand Map)**，并将最终结果写入 readyourusers-report.md 文件：
+
+          1. **需求聚类**：将 Issues 分组，如“功能请求”、“Bug 修复”、“文档”、“性能优化”、“用户体验”等。
+          2. **热度排序**：对每个聚类，根据 reactionGroups 中的反应总数、评论数量和参与者数量综合计算热度，并排出前 5 名。
+          3. **上升趋势**：识别近期频繁出现或 interaction 突然增加的需求。
+          4. **潜在机会**：指出被多次提及但尚未解决的痛点，或跨聚类之间的关联需求。
+
+          请保持报告简洁，每个部分使用 Markdown 标题和列表。
           PROMPT
+
             claude -p "$(cat /tmp/demand_prompt.md)" \
               --allowedTools "Read" \
               --max-turns 20
           fi
 
-      # ========== 步骤3：AI 规划（Prodo）+ 排查 ==========
-      - name: 3. Prepare brief and Init Prodo
+      # ========== 步骤3：AI 规划 (Prodo) ==========
+      - name: 3. AI Planning with Prodo
         run: |
           echo "Merging analysis results..."
           echo "# Combined Brief for Prodo" > combined_brief.md
@@ -95,52 +102,44 @@ jobs:
           [ -f readyourusers-report.md ] && cat readyourusers-report.md >> combined_brief.md
           cp combined_brief.md brief.md
 
+          # 初始化 Prodo（如果未初始化）
           if [ ! -f "prodo.config.json" ] && [ ! -f ".prodo/config.json" ]; then
             echo "Initializing Prodo..."
             yes | prodo init . --ai claude-cli --lang zh --author "Product Brain"
           fi
 
-      # ---- 排查步骤开始 ----
-      - name: 🔍 Debug - Check Node Environment
-        run: |
-          echo "Node version: $(node -v)"
-          echo "NPM version: $(npm -v)"
-          echo "Listing installed @anthropic-ai/sdk..."
-          npm list @anthropic-ai/sdk || echo "SDK not found in local node_modules!"
-          ls -d node_modules/@anthropic-ai/sdk 2>/dev/null || echo "Directory node_modules/@anthropic-ai/sdk missing!"
-          echo "Current working directory: $(pwd)"
-          echo "NODE_PATH before: $NODE_PATH"
+          # 🔥 关键修复：确保 package.json 存在并安装 Anthropic SDK
+          if [ ! -f "package.json" ]; then
+            echo "{}" > package.json
+          fi
+          npm install @anthropic-ai/sdk --save
 
-      - name: 🔍 Debug - Prodo Doctor
-        run: prodo doctor
-        continue-on-error: true   # 即使 doctor 报错也继续，仅用于诊断
-
-      - name: 🔍 Debug - Set NODE_PATH and retry
-        run: |
-          # 将本地 node_modules 显式添加到 NODE_PATH
+          # 设置 NODE_PATH 以确保子进程能够解析到 SDK
           export NODE_PATH="$(pwd)/node_modules:$NODE_PATH"
-          echo "NODE_PATH after export: $NODE_PATH"
-          # 现在尝试运行 generate
+          echo "NODE_PATH=$NODE_PATH"
+
+          # 执行 Prodo 生成
           prodo generate
-        env:
-          NODE_PATH: ${{ github.workspace }}/node_modules
-      # ---- 排查步骤结束 ----
-      # 如果上面一步成功生成了 PRD，后续的步骤会正常执行，否则失败。
 
       # ========== 步骤4：合并报告并派发 Issue ==========
-      - name: 4. Combine Reports and Auto-Dispatch Issues
+      - name: 4. Combine Reports and Dispatch Issues
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "# AI Product Analysis Report $(date +%Y-%m-%d)" > analysis_summary.md
-          [ -f skene-context/growth-plan.md ] && cat skene-context/growth-plan.md >> analysis_summary.md
-          [ -f readyourusers-report.md ] && cat readyourusers-report.md >> analysis_summary.md
-          [ -f product-docs/prd.md ] && cat product-docs/prd.md >> analysis_summary.md
+          [ -f skene-context/growth-plan.md ] && echo "## Growth Opportunities (Skene)" >> analysis_summary.md && cat skene-context/growth-plan.md >> analysis_summary.md
+          [ -f readyourusers-report.md ] && echo "## User Demand Map" >> analysis_summary.md && cat readyourusers-report.md >> analysis_summary.md
+          [ -f product-docs/prd.md ] && echo "## Generated PRD (Prodo)" >> analysis_summary.md && cat product-docs/prd.md >> analysis_summary.md
 
           if [ -f "product-docs/stories.md" ]; then
+            echo "Found user stories, creating issues..."
             awk '/^## /{if (title) {system("gh issue create --title \"" title "\" --body \"" body "\" --label feature-request")}; title=substr($0,4); body=""; next} {body=body $0 "\n"}' product-docs/stories.md
           else
-            gh issue create --title "🤖 AI Product Analysis Report $(date +%Y-%m-%d)" --body "查看完整报告：[analysis_summary.md](./analysis_summary.md)" --label "product-insight"
+            echo "No user stories found, creating a single analysis issue."
+            gh issue create \
+              --title "🤖 AI Product Analysis Report $(date +%Y-%m-%d)" \
+              --body "查看完整报告：[analysis_summary.md](./analysis_summary.md)" \
+              --label "product-insight"
           fi
 
       # ========== 步骤5：提交报告 ==========
@@ -149,7 +148,7 @@ jobs:
           git config user.name "Product Brain Bot"
           git config user.email "brain-bot@your-domain.com"
           git add analysis_summary.md product-docs/ skene-context/ readyourusers-report.md combined_brief.md brief.md 2>/dev/null || true
-          git add issues.json 2>/dev/null || true
+          git add issues.json package.json package-lock.json 2>/dev/null || true
           if git diff --cached --quiet; then
             echo "No changes to commit."
           else
