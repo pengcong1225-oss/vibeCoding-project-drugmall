@@ -1,17 +1,17 @@
 name: Product Planning Automation
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:          # 手动触发
   schedule:
-    - cron: '0 0 * * 1'
+    - cron: '0 0 * * 1'       # 每周一 UTC 0 点自动运行
 
 jobs:
   planning:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      issues: write
-      pull-requests: write
+      contents: write          # 提交生成的报告和文档
+      issues: write            # 自动创建开发任务 Issue
+      pull-requests: write     # 预留权限
 
     steps:
       - name: Checkout repository
@@ -35,13 +35,11 @@ jobs:
         run: |
           # Skene (代码考古)
           curl -fsSL https://raw.githubusercontent.com/SkeneTechnologies/skene/main/tui/install.sh | bash
-          # Prodo (AI 规划)
-          npm i -g @shahmarasy/prodo
-          # Claude Code CLI
+          # Claude Code CLI (核心 AI 引擎)
           npm i -g @anthropic-ai/claude-code
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-      # ========== 环境变量配置 ==========
+      # ========== 配置 DeepSeek 统一端点 ==========
       - name: Configure DeepSeek Environment
         run: |
           echo "ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic" >> $GITHUB_ENV
@@ -50,8 +48,6 @@ jobs:
           echo "ANTHROPIC_DEFAULT_OPUS_MODEL=deepseek-v4-pro[1m]" >> $GITHUB_ENV
           echo "ANTHROPIC_DEFAULT_SONNET_MODEL=deepseek-v4-pro[1m]" >> $GITHUB_ENV
           echo "ANTHROPIC_DEFAULT_HAIKU_MODEL=deepseek-v4-flash" >> $GITHUB_ENV
-          echo "PRODO_AGENT=anthropic" >> $GITHUB_ENV
-          echo "ANTHROPIC_API_KEY=${{ secrets.DEEPSEEK_API_KEY }}" >> $GITHUB_ENV
 
       # ========== 步骤1：代码考古 (Skene) ==========
       - name: 1. Code Archaeology (Skene)
@@ -93,49 +89,82 @@ jobs:
               --max-turns 20
           fi
 
-      # ========== 步骤3：AI 规划 (Prodo) ==========
-      - name: 3. AI Planning with Prodo
+      # ========== 步骤3：AI 规划 (Claude 替代 Prodo) ==========
+      - name: 3. AI Planning with Claude
         run: |
           echo "Merging analysis results..."
           echo "# Combined Brief for Prodo" > combined_brief.md
           [ -f skene-context/growth-plan.md ] && cat skene-context/growth-plan.md >> combined_brief.md
           [ -f readyourusers-report.md ] && cat readyourusers-report.md >> combined_brief.md
-          cp combined_brief.md brief.md
 
-          # 初始化 Prodo（如果未初始化）
-          if [ ! -f "prodo.config.json" ] && [ ! -f ".prodo/config.json" ]; then
-            echo "Initializing Prodo..."
-            yes | prodo init . --ai claude-cli --lang zh --author "Product Brain"
+          # 使用 Claude 直接生成产品需求文档
+          cat > /tmp/generate_prd_prompt.md << PROMPT
+          你是一个资深产品经理。请仔细阅读下面的合并简报，然后生成一套完整的产品文档。
+
+          【合并简报】
+          $(cat combined_brief.md)
+
+          【任务】
+          请严格按照以下结构生成一份 Markdown 格式的 PRD 文档，并将完整内容写入 product-docs/prd.md 文件：
+
+          1. **产品愿景与目标**：阐述产品的长期价值与本次迭代目标。
+          2. **用户故事**：列出 3~5 个核心用户故事，格式为“作为...我希望...以便...”。
+          3. **功能需求**：详细描述核心功能，包括输入/输出、边界条件。
+          4. **非功能需求**：包含性能、安全、兼容性等要求。
+          5. **验收标准**：定义可测试的成功标准（至少 3 条）。
+
+          如果合并简报内容为空或不足以生成完整文档，请基于合理推测给出一个通用的 MVP PRD。
+          请确保文档专业、可执行，并且直接写入文件。
+          PROMPT
+
+          claude -p "$(cat /tmp/generate_prd_prompt.md)" \
+            --allowedTools "Read" \
+            --max-turns 30
+
+          # 检查 PRD 是否生成
+          if [ -f "product-docs/prd.md" ]; then
+            echo "✅ PRD generated successfully."
+          else
+            echo "⚠️ PRD file not found, creating a placeholder."
+            mkdir -p product-docs
+            echo "# Placeholder PRD" > product-docs/prd.md
+            echo "Claude failed to generate the PRD. Please check the workflow logs." >> product-docs/prd.md
           fi
 
-          # 🔥 关键修复：确保 package.json 存在并安装 Anthropic SDK
-          if [ ! -f "package.json" ]; then
-            echo "{}" > package.json
-          fi
-          npm install @anthropic-ai/sdk --save
-
-          # 设置 NODE_PATH 以确保子进程能够解析到 SDK
-          export NODE_PATH="$(pwd)/node_modules:$NODE_PATH"
-          echo "NODE_PATH=$NODE_PATH"
-
-          # 执行 Prodo 生成
-          prodo generate
-
-      # ========== 步骤4：合并报告并派发 Issue ==========
+      # ========== 步骤4：合并报告并自动派发 Issue ==========
       - name: 4. Combine Reports and Dispatch Issues
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # 生成综合报告
           echo "# AI Product Analysis Report $(date +%Y-%m-%d)" > analysis_summary.md
           [ -f skene-context/growth-plan.md ] && echo "## Growth Opportunities (Skene)" >> analysis_summary.md && cat skene-context/growth-plan.md >> analysis_summary.md
           [ -f readyourusers-report.md ] && echo "## User Demand Map" >> analysis_summary.md && cat readyourusers-report.md >> analysis_summary.md
-          [ -f product-docs/prd.md ] && echo "## Generated PRD (Prodo)" >> analysis_summary.md && cat product-docs/prd.md >> analysis_summary.md
+          [ -f product-docs/prd.md ] && echo "## Generated PRD (Claude)" >> analysis_summary.md && cat product-docs/prd.md >> analysis_summary.md
 
-          if [ -f "product-docs/stories.md" ]; then
-            echo "Found user stories, creating issues..."
-            awk '/^## /{if (title) {system("gh issue create --title \"" title "\" --body \"" body "\" --label feature-request")}; title=substr($0,4); body=""; next} {body=body $0 "\n"}' product-docs/stories.md
+          # 从 PRD 中提取用户故事创建 Issue
+          if [ -f "product-docs/prd.md" ]; then
+            echo "Extracting user stories from PRD..."
+            # 使用 grep 和 sed 提取用户故事（假设格式为 "作为...我希望...以便..."）
+            grep -E "作为.*我希望.*以便" product-docs/prd.md > /tmp/stories.txt || true
+            if [ -s /tmp/stories.txt ]; then
+              while IFS= read -r story; do
+                [ -z "$story" ] && continue
+                title=$(echo "$story" | sed 's/作为//;s/我希望.*//;s/以便.*//' | xargs)
+                [ -z "$title" ] && title="AI 生成的功能请求"
+                gh issue create \
+                  --title "功能请求: $title" \
+                  --body "来源：AI 产品规划分析\n\n用户故事：$story" \
+                  --label "feature-request"
+              done < /tmp/stories.txt
+            else
+              echo "No user stories found, creating a single analysis issue."
+              gh issue create \
+                --title "🤖 AI Product Analysis Report $(date +%Y-%m-%d)" \
+                --body "查看完整报告：[analysis_summary.md](./analysis_summary.md)" \
+                --label "product-insight"
+            fi
           else
-            echo "No user stories found, creating a single analysis issue."
             gh issue create \
               --title "🤖 AI Product Analysis Report $(date +%Y-%m-%d)" \
               --body "查看完整报告：[analysis_summary.md](./analysis_summary.md)" \
@@ -147,8 +176,8 @@ jobs:
         run: |
           git config user.name "Product Brain Bot"
           git config user.email "brain-bot@your-domain.com"
-          git add analysis_summary.md product-docs/ skene-context/ readyourusers-report.md combined_brief.md brief.md 2>/dev/null || true
-          git add issues.json package.json package-lock.json 2>/dev/null || true
+          git add analysis_summary.md product-docs/ skene-context/ readyourusers-report.md combined_brief.md 2>/dev/null || true
+          git add issues.json 2>/dev/null || true
           if git diff --cached --quiet; then
             echo "No changes to commit."
           else
