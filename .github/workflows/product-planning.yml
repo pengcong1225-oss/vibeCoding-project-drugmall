@@ -43,6 +43,8 @@ jobs:
           npm i -g @shahmarasy/prodo
           # Claude Code CLI (被 Prodo 和自定义分析使用)
           npm i -g @anthropic-ai/claude-code
+          # 👇 修复 normalize 失败：全局安装 Anthropic SDK
+          npm i -g @anthropic-ai/sdk
           # 确保命令行工具在 PATH 中
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
@@ -160,7 +162,7 @@ jobs:
           # 若 Prodo 生成了 user stories，则逐条创建 Issue
           if [ -f "product-docs/stories.md" ]; then
             echo "Found user stories, creating issues..."
-            # 使用 awk 按标题分割 stories.md 并创建 Issue
+            # 使用 awk 按标题分割 stories.md 并创建 Issue（简化版，可根据需要增强）
             awk '/^## /{if (title) {system("gh issue create --title \"" title "\" --body \"" body "\" --label feature-request")}; title=substr($0,4); body=""; next} {body=body $0 "\n"}' product-docs/stories.md
           else
             echo "No user stories found, creating a single analysis issue."
