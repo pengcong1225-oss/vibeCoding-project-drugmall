@@ -47,15 +47,21 @@ jobs:
           echo "ANTHROPIC_DEFAULT_SONNET_MODEL=deepseek-v4-pro[1m]" >> $GITHUB_ENV
           echo "ANTHROPIC_DEFAULT_HAIKU_MODEL=deepseek-v4-flash" >> $GITHUB_ENV
 
-      # ========== 强制确保所有标签存在 ==========
-      - name: Ensure Labels Exist
+      # ========== 步骤0：强制创建所需标签（改进版） ==========
+      - name: Ensure All Required Labels Exist
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # 使用 --force 创建标签，如果已存在则不会报错
-          for label in product-insight feature-request ai-fix ai-review-needed ai-failed; do
-            echo "Ensuring label: $label"
-            gh label create "$label" --color "ededed" --force 2>/dev/null || echo "Label $label may already exist or cannot be created, will attempt to use it anyway."
+          echo "Checking and creating required labels..."
+          # 定义所需标签列表
+          LABELS=("product-insight" "feature-request" "ai-fix" "ai-review-needed" "ai-failed")
+          for label in "${LABELS[@]}"; do
+            if gh label list --json name | grep -q "\"$label\""; then
+              echo "Label '$label' already exists."
+            else
+              echo "Creating label '$label'..."
+              gh label create "$label" --color "ededed" --force || echo "Failed to create label '$label', will try later."
+            fi
           done
 
       # ========== 步骤1：代码考古 ==========
@@ -133,11 +139,29 @@ jobs:
 
           [ -f "product-docs/prd.md" ] && echo "✅ PRD generated." || { echo "⚠️ PRD missing, creating placeholder"; mkdir -p product-docs; echo "# Placeholder PRD" > product-docs/prd.md; echo "Generation failed." >> product-docs/prd.md; }
 
-      # ========== 步骤4：合并报告并派发 Issue ==========
+      # ========== 步骤4：合并报告并派发 Issue（含后备标签逻辑） ==========
       - name: 4. Combine Reports and Dispatch Issues
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # 定义辅助函数：安全创建 Issue，确保标签存在
+          safe_create_issue() {
+            local title="$1"
+            local body="$2"
+            local label="$3"
+            local fallback_label="enhancement"  # 默认后备标签，通常每个仓库都有
+
+            # 如果目标标签不存在，尝试创建
+            if ! gh label list --json name | grep -q "\"$label\""; then
+              echo "Label '$label' missing, attempting to create..."
+              gh label create "$label" --color "ededed" --force 2>/dev/null || {
+                echo "Cannot create label '$label', using fallback '$fallback_label'"
+                label="$fallback_label"
+              }
+            fi
+            gh issue create --title "$title" --body "$body" --label "$label" || echo "Warning: Failed to create issue: $title"
+          }
+
           # 生成综合报告
           echo "# AI Product Analysis Report $(date +%Y-%m-%d)" > analysis_summary.md
           [ -f skene-context/growth-plan.md ] && echo "## Growth Opportunities (Skene)" >> analysis_summary.md && cat skene-context/growth-plan.md >> analysis_summary.md
@@ -153,27 +177,14 @@ jobs:
                 [ -z "$story" ] && continue
                 title=$(echo "$story" | sed 's/^- 作为//; s/，.*//; s/。.*//' | xargs)
                 [ -z "$title" ] && title="AI 生成的功能请求"
-                gh issue create \
-                  --title "功能请求: $title" \
-                  --body "来源：AI 产品规划分析\n\n完整用户故事：$story" \
-                  --label "feature-request" || echo "Failed to create issue for story: $story"
+                safe_create_issue "功能请求: $title" "来源：AI 产品规划分析\n\n完整用户故事：$story" "feature-request"
               done < /tmp/stories.txt
             else
               echo "No user stories found, creating a single analysis issue."
-              # 再次确保 product-insight 标签存在
-              gh label create "product-insight" --force 2>/dev/null || true
-              gh issue create \
-                --title "🤖 AI Product Analysis Report $(date +%Y-%m-%d)" \
-                --body "查看完整报告：[analysis_summary.md](./analysis_summary.md)" \
-                --label "product-insight" || echo "Could not create summary issue, but continuing..."
+              safe_create_issue "🤖 AI Product Analysis Report $(date +%Y-%m-%d)" "查看完整报告：[analysis_summary.md](./analysis_summary.md)" "product-insight"
             fi
           else
-            echo "PRD file missing, creating a single analysis issue."
-            gh label create "product-insight" --force 2>/dev/null || true
-            gh issue create \
-              --title "🤖 AI Product Analysis Report $(date +%Y-%m-%d)" \
-              --body "PRD 生成失败，请检查工作流日志。" \
-              --label "product-insight" || echo "Could not create summary issue."
+            safe_create_issue "🤖 AI Product Analysis Report $(date +%Y-%m-%d)" "PRD 生成失败，请检查工作流日志。" "product-insight"
           fi
 
       # ========== 步骤5：提交报告 ==========
