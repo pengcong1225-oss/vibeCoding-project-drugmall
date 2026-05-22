@@ -43,8 +43,8 @@ jobs:
           npm i -g @shahmarasy/prodo
           # Claude Code CLI (被 Prodo 和自定义分析使用)
           npm i -g @anthropic-ai/claude-code
-          # 👇 修复 normalize 失败：全局安装 Anthropic SDK
-          npm i -g @anthropic-ai/sdk
+          # 👇 本地安装 Anthropic SDK（确保 Prodo 技能可用）
+          npm i @anthropic-ai/sdk
           # 确保命令行工具在 PATH 中
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
