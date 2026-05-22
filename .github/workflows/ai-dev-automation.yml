@@ -14,9 +14,9 @@ on:
 
 jobs:
   # ============================================================
-  # Job 1: Guardian – 代码主动扫描与自动修复（使用官方 guardian 包）
+  # Job 1: Guardian – 代码主动扫描（先不自动PR，仅测试）
   # ============================================================
-    guardian-scan:
+  guardian-scan:
     if: github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
@@ -41,7 +41,6 @@ jobs:
           model: deepseek-chat
           base_url: https://api.deepseek.com
           api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          auto_pr: true
           severity_threshold: high
           exclude:
             - "**/test/**"
@@ -53,7 +52,7 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           OPENAI_BASE_URL: https://api.deepseek.com
         run: |
-          guardian scan -c .guardian/config.yml --severity high
+          guardian scan -c .guardian/config.yml
 
   # ============================================================
   # Job 2: Claude Tree – 自动实现带 auto-dev 标签的 Issue
@@ -88,7 +87,7 @@ jobs:
         run: ct start ${{ github.event.issue.html_url }} --max-cost 5.0
 
   # ============================================================
-  # Job 3: PR Worker – 自定义 DeepSeek 审查脚本
+  # Job 3: PR Worker – 自定义 DeepSeek 审查脚本（需要先创建脚本）
   # ============================================================
   pr-worker:
     if: github.event_name == 'pull_request'
@@ -112,7 +111,7 @@ jobs:
       - name: Run PR review script
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DEEPSEEK_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: python .github/scripts/pr_reviewer.py
