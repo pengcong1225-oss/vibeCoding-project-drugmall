@@ -33,9 +33,7 @@ jobs:
       # ========== 工具安装 ==========
       - name: Install Tools
         run: |
-          # Skene (代码考古)
           curl -fsSL https://raw.githubusercontent.com/SkeneTechnologies/skene/main/tui/install.sh | bash
-          # Claude Code CLI
           npm i -g @anthropic-ai/claude-code
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
@@ -49,13 +47,15 @@ jobs:
           echo "ANTHROPIC_DEFAULT_SONNET_MODEL=deepseek-v4-pro[1m]" >> $GITHUB_ENV
           echo "ANTHROPIC_DEFAULT_HAIKU_MODEL=deepseek-v4-flash" >> $GITHUB_ENV
 
-      # ========== 确保必要标签存在 ==========
+      # ========== 强制确保所有标签存在 ==========
       - name: Ensure Labels Exist
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # 使用 --force 创建标签，如果已存在则不会报错
           for label in product-insight feature-request ai-fix ai-review-needed ai-failed; do
-            gh label create "$label" --force 2>/dev/null || true
+            echo "Ensuring label: $label"
+            gh label create "$label" --color "ededed" --force 2>/dev/null || echo "Label $label may already exist or cannot be created, will attempt to use it anyway."
           done
 
       # ========== 步骤1：代码考古 ==========
@@ -98,11 +98,11 @@ jobs:
               --max-turns 20
           fi
 
-      # ========== 步骤3：AI 规划 (Claude 替代 Prodo) ==========
+      # ========== 步骤3：AI 规划 ==========
       - name: 3. AI Planning with Claude
         run: |
           echo "Merging analysis results..."
-          echo "# Combined Brief for Prodo" > combined_brief.md
+          echo "# Combined Brief" > combined_brief.md
           [ -f skene-context/growth-plan.md ] && cat skene-context/growth-plan.md >> combined_brief.md
           [ -f readyourusers-report.md ] && cat readyourusers-report.md >> combined_brief.md
 
@@ -144,33 +144,36 @@ jobs:
           [ -f readyourusers-report.md ] && echo "## User Demand Map" >> analysis_summary.md && cat readyourusers-report.md >> analysis_summary.md
           [ -f product-docs/prd.md ] && echo "## Generated PRD (Claude)" >> analysis_summary.md && cat product-docs/prd.md >> analysis_summary.md
 
-          # 从 PRD 中提取格式为 "- 作为...我希望...以便..." 的用户故事
+          # 从 PRD 中提取用户故事
           if [ -f "product-docs/prd.md" ]; then
             grep -E '^- 作为.*我希望.*以便' product-docs/prd.md > /tmp/stories.txt || true
             if [ -s /tmp/stories.txt ]; then
               echo "Found user stories, creating issues..."
               while IFS= read -r story; do
                 [ -z "$story" ] && continue
-                # 提取标题：去掉前导 "- 作为" 并截取适当长度
                 title=$(echo "$story" | sed 's/^- 作为//; s/，.*//; s/。.*//' | xargs)
                 [ -z "$title" ] && title="AI 生成的功能请求"
                 gh issue create \
                   --title "功能请求: $title" \
                   --body "来源：AI 产品规划分析\n\n完整用户故事：$story" \
-                  --label "feature-request"
+                  --label "feature-request" || echo "Failed to create issue for story: $story"
               done < /tmp/stories.txt
             else
-              echo "No standard user story lines found, creating a single analysis issue."
+              echo "No user stories found, creating a single analysis issue."
+              # 再次确保 product-insight 标签存在
+              gh label create "product-insight" --force 2>/dev/null || true
               gh issue create \
                 --title "🤖 AI Product Analysis Report $(date +%Y-%m-%d)" \
                 --body "查看完整报告：[analysis_summary.md](./analysis_summary.md)" \
-                --label "product-insight"
+                --label "product-insight" || echo "Could not create summary issue, but continuing..."
             fi
           else
+            echo "PRD file missing, creating a single analysis issue."
+            gh label create "product-insight" --force 2>/dev/null || true
             gh issue create \
               --title "🤖 AI Product Analysis Report $(date +%Y-%m-%d)" \
-              --body "PRD 生成失败，请检查工作流日志。\n查看报告：[analysis_summary.md](./analysis_summary.md)" \
-              --label "product-insight"
+              --body "PRD 生成失败，请检查工作流日志。" \
+              --label "product-insight" || echo "Could not create summary issue."
           fi
 
       # ========== 步骤5：提交报告 ==========
