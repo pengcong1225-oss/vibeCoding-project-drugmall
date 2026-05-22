@@ -9,16 +9,14 @@ on:
   pull_request:
     types: [ opened, synchronize ]
   schedule:
-    # 定时任务：每天UTC时间 02:00 (北京时间 10:00) 运行一次
-    - cron: "0 2 * * *"
+    - cron: "0 2 * * *"      # UTC 2:00 = 北京时间 10:00
   workflow_dispatch:
 
 jobs:
   # ============================================================
-  # Job 1: Guardian - 主动巡检，发现问题，自动提交修复PR
+  # Job 1: Guardian – 代码主动扫描与自动修复（使用官方 guardian 包）
   # ============================================================
   guardian-scan:
-    # 触发条件：代码推送后 或 定时任务启动 或 手动执行
     if: github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
@@ -26,19 +24,30 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Run Guardian Scan & Fix
-        uses: LakshmiSravyaVedantham/guardian-action@v1
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          # 使用 DeepSeek API Key
-          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
-      # Guardian 会在发现高置信度问题时自动创建一个修复PR
+          python-version: '3.11'
+
+      - name: Install guardian
+        run: pip install guardian
+
+      - name: Run guardian scan (auto-fix high confidence issues)
+        env:
+          # guardian 底层使用 litellm，设置 DeepSeek 兼容环境变量
+          OPENAI_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_BASE_URL: https://api.deepseek.com
+        run: |
+          # 生成默认配置文件（如不需要可跳过）
+          guardian init --non-interactive || true
+          # 运行扫描并自动创建 PR（如果发现高置信度问题）
+          guardian scan --auto-pr --severity high
 
   # ============================================================
-  # Job 2: Claude Tree - 智能开发，自动实现打上标签的Issue
+  # Job 2: Claude Tree – 自动实现带 auto-dev 标签的 Issue
   # ============================================================
   claude-tree:
-    # 触发条件：Issue被打上 'auto-dev' 标签
     if: github.event_name == 'issues' && contains(github.event.issue.labels.*.name, 'auto-dev')
     runs-on: ubuntu-latest
     permissions:
@@ -47,12 +56,12 @@ jobs:
       issues: write
     steps:
       - uses: actions/checkout@v4
-      
+
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      
-      - name: Setup Claude Code to use DeepSeek
+
+      - name: Install Claude Tree & Setup DeepSeek
         run: |
           npm install -g @claudetree/cli
           echo "ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic" >> $GITHUB_ENV
@@ -63,15 +72,14 @@ jobs:
           echo "ANTHROPIC_DEFAULT_HAIKU_MODEL=deepseek-v4-flash" >> $GITHUB_ENV
           echo "CLAUDE_CODE_SUBAGENT_MODEL=deepseek-v4-flash" >> $GITHUB_ENV
           echo "CLAUDE_CODE_EFFORT_LEVEL=max" >> $GITHUB_ENV
-      
-      - name: Auto-Implement Issue
+
+      - name: Run Claude Tree on Issue
         run: ct start ${{ github.event.issue.html_url }} --max-cost 5.0
 
   # ============================================================
-  # Job 3: PR Worker - 智能审查，分析PR并反馈改进建议
+  # Job 3: PR Worker – 自定义 DeepSeek 审查脚本
   # ============================================================
   pr-worker:
-    # 触发条件：有新的PR被打开 或 现有PR有代码更新
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
@@ -79,27 +87,21 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@v4
-        # 必须获取完整的提交历史，以便正确生成摘要
         with:
           fetch-depth: 0
-      
-      - uses: actions/setup-node@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          node-version: '20'
-      
-      - name: Auto-Review PR
-        uses: nejcm/pr-summary-github-action@main
-        with:
-          ghToken: ${{ secrets.PAT }}
-          # 配置使用 DeepSeek 模型进行分析
-          deepseekKey: ${{ secrets.ANTHROPIC_API_KEY  }}
-          deepseekModel: "deepseek-chat"
-          # 自定义审查提示词
-          prompt: |
-            你是一位资深的代码审查专家。请总结以下 PR 的改动，并重点审查以下方面：
-            1. **功能性**: 代码是否实现了PR描述的目标？
-            2. **安全性**: 是否存在明显的安全漏洞（如SQL注入、XSS等）？
-            3. **性能**: 是否存在潜在的性能问题（如N+1查询、未优化的循环等）？
-            4. **代码质量**: 是否符合最佳实践？命名是否清晰？代码是否易于维护？
-            
-            请用中文回复，并提供具体、可执行的改进建议。
+          python-version: '3.11'
+
+      - name: Install requests
+        run: pip install requests
+
+      - name: Run PR review script
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEEPSEEK_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python .github/scripts/pr_reviewer.py

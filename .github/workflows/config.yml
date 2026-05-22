@@ -23,5 +23,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          OPENAI_BASE_URL: https://api.deepseek.com/v1
+          OPENAI_BASE_URL: https://api.deepseek.com/
         run: uvx --from sigil-py sigil run
