@@ -1,0 +1,6 @@
+provider: openai
+model: deepseek-v4-flash
+base_url: https://api.deepseek.com
+api_key: ${ANTHROPIC_API_KEY}
+auto_pr: true
+severity_threshold: high

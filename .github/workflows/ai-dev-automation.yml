@@ -16,7 +16,7 @@ jobs:
   # ============================================================
   # Job 1: Guardian – 代码主动扫描与自动修复（使用官方 guardian 包）
   # ============================================================
-  guardian-scan:
+    guardian-scan:
     if: github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
@@ -33,16 +33,27 @@ jobs:
       - name: Install guardian
         run: pip install guardian
 
-      - name: Run guardian scan (auto-fix high confidence issues)
+      - name: Create guardian config
+        run: |
+          mkdir -p .guardian
+          cat > .guardian/config.yml <<EOF
+          provider: openai
+          model: deepseek-chat
+          base_url: https://api.deepseek.com
+          api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          auto_pr: true
+          severity_threshold: high
+          exclude:
+            - "**/test/**"
+            - "**/vendor/**"
+          EOF
+
+      - name: Run guardian scan
         env:
-          # guardian 底层使用 litellm，设置 DeepSeek 兼容环境变量
           OPENAI_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           OPENAI_BASE_URL: https://api.deepseek.com
         run: |
-          # 生成默认配置文件（如不需要可跳过）
-          guardian init --non-interactive || true
-          # 运行扫描并自动创建 PR（如果发现高置信度问题）
-          guardian scan --auto-pr --severity high
+          guardian scan -c .guardian/config.yml --severity high
 
   # ============================================================
   # Job 2: Claude Tree – 自动实现带 auto-dev 标签的 Issue
