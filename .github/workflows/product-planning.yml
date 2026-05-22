@@ -75,9 +75,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Fetching issues from repository..."
-          # 拉取最近 100 条 issue（可根据仓库活跃度调整 --limit 数值）
+          # ✅ 已修正字段：reactionGroups 替代 reactions
           gh issue list --state all --limit 100 \
-            --json number,title,body,labels,comments,reactions \
+            --json number,title,body,labels,comments,reactionGroups \
             > issues.json
 
           # 如果 issues.json 为空，创建一个占位报告，避免后续步骤报错
@@ -94,8 +94,8 @@ jobs:
           请按以下结构生成一份 **用户需求地图 (User Demand Map)**，并将最终结果写入 readyourusers-report.md 文件：
 
           1. **需求聚类**：将 Issues 分组，如“功能请求”、“Bug 修复”、“文档”、“性能优化”、“用户体验”等。
-          2. **热度排序**：对每个聚类，根据 reactions 数量、评论数量和参与者数量综合计算热度，并排出前 5 名。
-          3. **上升趋势**：识别近期频繁出现或 interactions 突然增加的需求。
+          2. **热度排序**：对每个聚类，根据 reactionGroups 中的反应总数、评论数量和参与者数量综合计算热度，并排出前 5 名。
+          3. **上升趋势**：识别近期频繁出现或 interaction 突然增加的需求。
           4. **潜在机会**：指出被多次提及但尚未解决的痛点，或跨聚类之间的关联需求。
 
           请保持报告简洁，每个部分使用 Markdown 标题和列表。
@@ -142,7 +142,8 @@ jobs:
             echo "## Growth Opportunities (Skene)" >> analysis_summary.md
             cat skene-context/growth-plan.md >> analysis_summary.md
           else
-            echo "## Growth Opportunities (Skene)\nNo data available." >> analysis_summary.md
+            echo "## Growth Opportunities (Skene)" >> analysis_summary.md
+            echo "No data available." >> analysis_summary.md
           fi
 
           if [ -f readyourusers-report.md ]; then
@@ -158,8 +159,8 @@ jobs:
           # 若 Prodo 生成了 user stories，则逐条创建 Issue
           if [ -f "product-docs/stories.md" ]; then
             echo "Found user stories, creating issues..."
-            # 使用 awk 按标题分割 stories.md 并创建 Issue
-            awk '/^## /{if (title) {print title, body > "/dev/stderr"; close("/dev/stderr"); system("gh issue create --title \"" title "\" --body \"" body "\" --label feature-request")} title=substr($0,4); body=""; next} {body=body $0 "\n"}' product-docs/stories.md
+            # 使用 awk 按标题分割 stories.md 并创建 Issue（简化版，可根据需要增强）
+            awk '/^## /{if (title) {system("gh issue create --title \"" title "\" --body \"" body "\" --label feature-request")}; title=substr($0,4); body=""; next} {body=body $0 "\n"}' product-docs/stories.md
           else
             echo "No user stories found, creating a single analysis issue."
             gh issue create \
