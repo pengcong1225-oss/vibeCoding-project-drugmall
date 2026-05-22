@@ -75,19 +75,16 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Fetching issues from repository..."
-          # ✅ 已修正字段：reactionGroups 替代 reactions
           gh issue list --state all --limit 100 \
             --json number,title,body,labels,comments,reactionGroups \
             > issues.json
 
-          # 如果 issues.json 为空，创建一个占位报告，避免后续步骤报错
           if [ ! -s issues.json ] || [ "$(cat issues.json)" = "[]" ]; then
             echo "No issues found. Generating empty report."
             echo "# User Demand Map" > readyourusers-report.md
             echo "当前仓库暂无 Issue 数据。" >> readyourusers-report.md
           else
             echo "Analyzing issues with Claude Code (DeepSeek)..."
-            # 构建分析提示词
             cat > /tmp/demand_prompt.md << 'PROMPT'
           你是一名资深产品经理。请分析 issues.json 文件中的 GitHub Issues 数据。
 
@@ -111,7 +108,6 @@ jobs:
         run: |
           # 合并前两步的分析结果作为 brief
           echo "Merging analysis results..."
-          # 创建临时 brief 文件
           echo "# Combined Brief for Prodo" > combined_brief.md
           if [ -f skene-context/growth-plan.md ]; then
             echo "## Code Archaeology Insights (Skene)" >> combined_brief.md
@@ -122,12 +118,14 @@ jobs:
             cat readyourusers-report.md >> combined_brief.md
           fi
 
-          # 使用 Prodo 生成 PRD（假设项目已初始化 prodo）
-          # 如果项目尚未初始化，可先执行 prodo init
+          # 检查 Prodo 是否已初始化，若未初始化则自动初始化
           if [ ! -f "prodo.config.json" ] && [ ! -f ".prodo/config.json" ]; then
             echo "Initializing Prodo..."
-            prodo init . --ai claude-cli --lang zh --yes
+            # 使用 yes 命令自动确认所有交互提示
+            yes | prodo init . --ai claude-cli --lang zh --author "Product Brain"
           fi
+
+          # 执行 Prodo 生成 PRD 和用户故事
           prodo generate --brief combined_brief.md
 
       # ========== 步骤4：合并报告并自动派发 Issue ==========
@@ -159,7 +157,6 @@ jobs:
           # 若 Prodo 生成了 user stories，则逐条创建 Issue
           if [ -f "product-docs/stories.md" ]; then
             echo "Found user stories, creating issues..."
-            # 使用 awk 按标题分割 stories.md 并创建 Issue（简化版，可根据需要增强）
             awk '/^## /{if (title) {system("gh issue create --title \"" title "\" --body \"" body "\" --label feature-request")}; title=substr($0,4); body=""; next} {body=body $0 "\n"}' product-docs/stories.md
           else
             echo "No user stories found, creating a single analysis issue."
