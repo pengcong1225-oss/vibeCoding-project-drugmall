@@ -118,6 +118,9 @@ jobs:
             cat readyourusers-report.md >> combined_brief.md
           fi
 
+          # 将合并 brief 复制到 Prodo 期望的 brief.md
+          cp combined_brief.md brief.md
+
           # 检查 Prodo 是否已初始化，若未初始化则自动初始化
           if [ ! -f "prodo.config.json" ] && [ ! -f ".prodo/config.json" ]; then
             echo "Initializing Prodo..."
@@ -125,8 +128,8 @@ jobs:
             yes | prodo init . --ai claude-cli --lang zh --author "Product Brain"
           fi
 
-          # 执行 Prodo 生成 PRD 和用户故事
-          prodo generate --brief combined_brief.md
+          # 执行 Prodo 生成（它会自动使用项目根目录的 brief.md）
+          prodo generate
 
       # ========== 步骤4：合并报告并自动派发 Issue ==========
       - name: 4. Combine Reports and Auto-Dispatch Issues
@@ -157,6 +160,7 @@ jobs:
           # 若 Prodo 生成了 user stories，则逐条创建 Issue
           if [ -f "product-docs/stories.md" ]; then
             echo "Found user stories, creating issues..."
+            # 使用 awk 按标题分割 stories.md 并创建 Issue
             awk '/^## /{if (title) {system("gh issue create --title \"" title "\" --body \"" body "\" --label feature-request")}; title=substr($0,4); body=""; next} {body=body $0 "\n"}' product-docs/stories.md
           else
             echo "No user stories found, creating a single analysis issue."
@@ -172,7 +176,7 @@ jobs:
           git config user.name "Product Brain Bot"
           git config user.email "brain-bot@your-domain.com"
           # 将生成的所有文件添加
-          git add analysis_summary.md product-docs/ skene-context/ readyourusers-report.md combined_brief.md 2>/dev/null || true
+          git add analysis_summary.md product-docs/ skene-context/ readyourusers-report.md combined_brief.md brief.md 2>/dev/null || true
           git add issues.json 2>/dev/null || true  # 可选，保存原始数据
           # 如果有变更才提交
           if git diff --cached --quiet; then
