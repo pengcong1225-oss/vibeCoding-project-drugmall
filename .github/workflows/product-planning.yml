@@ -1,10 +1,10 @@
 name: Product Planning Automation
 
 on:
-  workflow_dispatch:    # 允许手动触发
+  workflow_dispatch:          # 允许手动触发
   schedule:
-    - cron: '0 0 * * 1'  # 每周一零点自动运行
-  # 你也可以在 push 到 main 时触发，立即获得最新分析的 PRD
+    - cron: '0 0 * * 1'       # 每周一 UTC 0 点自动运行
+  # 如果需要每次 push 到 main 时重新分析，可取消注释
   # push:
   #   branches:
   #     - main
@@ -13,12 +13,13 @@ jobs:
   planning:
     runs-on: ubuntu-latest
     permissions:
-      contents: write      # 提交生成的报告
-      issues: write        # 自动创建 Issue
-      pull-requests: write # 如果需要创建 PR
+      contents: write          # 用于提交分析报告
+      issues: write            # 用于自动创建开发任务 Issue
+      pull-requests: write     # 如果需要创建 PR（预留）
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -33,20 +34,19 @@ jobs:
       - name: Install System Dependencies
         run: sudo apt-get update && sudo apt-get install -y curl git
 
-      # ====== 工具安装 ======
+      # ========== 工具安装 ==========
       - name: Install Tools
         run: |
-          # Skene
+          # Skene (代码考古)
           curl -fsSL https://raw.githubusercontent.com/SkeneTechnologies/skene/main/tui/install.sh | bash
-          # ReadYourUsers
-          npm i -g readyourusers
-          # Prodo
+          # Prodo (AI 规划)
           npm i -g @shahmarasy/prodo
-          # Claude Code CLI (用于 Prodo 后端)
+          # Claude Code CLI (被 Prodo 和自定义分析使用)
           npm i -g @anthropic-ai/claude-code
+          # 确保命令行工具在 PATH 中
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-      # ====== 统一配置 DeepSeek 端点（用于所有 AI 调用）======
+      # ========== 配置 DeepSeek 统一端点 ==========
       - name: Configure DeepSeek Environment
         run: |
           echo "ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic" >> $GITHUB_ENV
@@ -55,82 +55,131 @@ jobs:
           echo "ANTHROPIC_DEFAULT_OPUS_MODEL=deepseek-v4-pro[1m]" >> $GITHUB_ENV
           echo "ANTHROPIC_DEFAULT_SONNET_MODEL=deepseek-v4-pro[1m]" >> $GITHUB_ENV
           echo "ANTHROPIC_DEFAULT_HAIKU_MODEL=deepseek-v4-flash" >> $GITHUB_ENV
-          # 同时为 Prodo 设置兼容的 API Key
+          # Prodo 需要的环境变量（兼容 Anthropic 格式）
           echo "PRODO_AGENT=anthropic" >> $GITHUB_ENV
           echo "ANTHROPIC_API_KEY=${{ secrets.DEEPSEEK_API_KEY }}" >> $GITHUB_ENV
 
-      # ====== 步骤1：代码考古 (Skene) ======
+      # ========== 步骤1：代码考古 (Skene) ==========
       - name: 1. Run Code Archaeology (Skene)
         env:
           LLM_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           LLM_PROVIDER: deepseek
         run: |
-          skene analyze || echo "Skene analysis failed, continuing..."
-          # 分析结果默认在 skene-context/ 目录下
+          # 如果 Skene 分析失败，不中断流水线，仅输出警告
+          skene analyze || echo "Warning: Skene analysis failed, continuing..."
+          # 报告默认输出在 skene-context/ 目录
 
-      # ====== 步骤2：需求感知 (ReadYourUsers) ======
-      - name: 2. Run Demand Sensing (ReadYourUsers)
+      # ========== 步骤2：需求感知 (自定义) ==========
+      - name: 2. Demand Sensing (Custom with gh + Claude)
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LLM_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          readyourusers fetch
-          readyourusers analyze
-          readyourusers aggregate
-          readyourusers generate
-          # 最终报告为 readyourusers-report.md
+          echo "Fetching issues from repository..."
+          # 拉取最近 100 条 issue（可根据仓库活跃度调整 --limit 数值）
+          gh issue list --state all --limit 100 \
+            --json number,title,body,labels,comments,reactions \
+            > issues.json
 
-      # ====== 步骤3：AI 规划 (Prodo) ======
+          # 如果 issues.json 为空，创建一个占位报告，避免后续步骤报错
+          if [ ! -s issues.json ] || [ "$(cat issues.json)" = "[]" ]; then
+            echo "No issues found. Generating empty report."
+            echo "# User Demand Map" > readyourusers-report.md
+            echo "当前仓库暂无 Issue 数据。" >> readyourusers-report.md
+          else
+            echo "Analyzing issues with Claude Code (DeepSeek)..."
+            # 构建分析提示词
+            cat > /tmp/demand_prompt.md << 'PROMPT'
+          你是一名资深产品经理。请分析 issues.json 文件中的 GitHub Issues 数据。
+
+          请按以下结构生成一份 **用户需求地图 (User Demand Map)**，并将最终结果写入 readyourusers-report.md 文件：
+
+          1. **需求聚类**：将 Issues 分组，如“功能请求”、“Bug 修复”、“文档”、“性能优化”、“用户体验”等。
+          2. **热度排序**：对每个聚类，根据 reactions 数量、评论数量和参与者数量综合计算热度，并排出前 5 名。
+          3. **上升趋势**：识别近期频繁出现或 interactions 突然增加的需求。
+          4. **潜在机会**：指出被多次提及但尚未解决的痛点，或跨聚类之间的关联需求。
+
+          请保持报告简洁，每个部分使用 Markdown 标题和列表。
+          PROMPT
+
+            claude -p "$(cat /tmp/demand_prompt.md)" \
+              --allowedTools "Read" \
+              --max-turns 20
+          fi
+
+      # ========== 步骤3：AI 规划 (Prodo) ==========
       - name: 3. Run AI Planning (Prodo)
         run: |
-          # 将前两步的分析结果合并为 brief.md，供 Prodo 使用
-          cat skene-context/growth-plan.md readyourusers-report.md > combined_brief.md || echo "No analysis results" > combined_brief.md
-          # 使用 Prodo 生成 PRD
+          # 合并前两步的分析结果作为 brief
+          echo "Merging analysis results..."
+          # 创建临时 brief 文件
+          echo "# Combined Brief for Prodo" > combined_brief.md
+          if [ -f skene-context/growth-plan.md ]; then
+            echo "## Code Archaeology Insights (Skene)" >> combined_brief.md
+            cat skene-context/growth-plan.md >> combined_brief.md
+          fi
+          if [ -f readyourusers-report.md ]; then
+            echo "## User Demand Map" >> combined_brief.md
+            cat readyourusers-report.md >> combined_brief.md
+          fi
+
+          # 使用 Prodo 生成 PRD（假设项目已初始化 prodo）
+          # 如果项目尚未初始化，可先执行 prodo init
+          if [ ! -f "prodo.config.json" ] && [ ! -f ".prodo/config.json" ]; then
+            echo "Initializing Prodo..."
+            prodo init . --ai claude-cli --lang zh --yes
+          fi
           prodo generate --brief combined_brief.md
 
-      # ====== 步骤4：合并报告并自动创建 Issue ======
+      # ========== 步骤4：合并报告并自动派发 Issue ==========
       - name: 4. Combine Reports and Auto-Dispatch Issues
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # 生成一份综合报告
+          # 生成一份综合报告 analysis_summary.md
           echo "# AI Product Analysis Report $(date +%Y-%m-%d)" > analysis_summary.md
-          echo "## Growth Opportunities (Skene)" >> analysis_summary.md
-          cat skene-context/growth-plan.md >> analysis_summary.md 2>/dev/null || echo "N/A" >> analysis_summary.md
-          echo "## User Demand Map (ReadYourUsers)" >> analysis_summary.md
-          cat readyourusers-report.md >> analysis_summary.md 2>/dev/null || echo "N/A" >> analysis_summary.md
-          echo "## PRD (Prodo)" >> analysis_summary.md
-          cat product-docs/prd.md >> analysis_summary.md 2>/dev/null || echo "N/A" >> analysis_summary.md
 
-          # 解析 Prodo 生成的用户故事并创建 Issue
-          if [ -f "product-docs/stories.md" ]; then
-            echo "Found user stories, creating issues..."
-            # 使用简单脚本逐条创建 Issue（你可以用更健壮的解析器）
-            while IFS= read -r line; do
-              if [[ "$line" =~ ^##\ .* ]] || [[ "$line" =~ ^###\ .* ]]; then
-                title=$(echo "$line" | sed 's/^#\+\s*//')
-                # 读取后续内容作为 body，直到下一个标题
-                body=""
-                while IFS= read -r next_line; do
-                  if [[ "$next_line" =~ ^##\  ]] || [[ "$next_line" =~ ^###\  ]]; then
-                    break
-                  fi
-                  body+="$next_line\n"
-                done < <(tail -n +$((LINENO+1)) product-docs/stories.md) # 简化处理，实际建议用 awk
-                # 创建 Issue，默认标记为 feature-request
-                gh issue create --title "$title" --body "$body" --label "feature-request"
-              fi
-            done < product-docs/stories.md
+          if [ -f skene-context/growth-plan.md ]; then
+            echo "## Growth Opportunities (Skene)" >> analysis_summary.md
+            cat skene-context/growth-plan.md >> analysis_summary.md
           else
-            echo "No user stories found, creating a single analysis issue."
-            gh issue create --title "🤖 AI Product Analysis Report" --body "Full report: [analysis_summary.md](analysis_summary.md)" --label "product-insight"
+            echo "## Growth Opportunities (Skene)\nNo data available." >> analysis_summary.md
           fi
 
-      # ====== 提交报告到仓库 ======
+          if [ -f readyourusers-report.md ]; then
+            echo "## User Demand Map (gh + Claude)" >> analysis_summary.md
+            cat readyourusers-report.md >> analysis_summary.md
+          fi
+
+          if [ -f product-docs/prd.md ]; then
+            echo "## Generated PRD (Prodo)" >> analysis_summary.md
+            cat product-docs/prd.md >> analysis_summary.md
+          fi
+
+          # 若 Prodo 生成了 user stories，则逐条创建 Issue
+          if [ -f "product-docs/stories.md" ]; then
+            echo "Found user stories, creating issues..."
+            # 使用 awk 按标题分割 stories.md 并创建 Issue
+            awk '/^## /{if (title) {print title, body > "/dev/stderr"; close("/dev/stderr"); system("gh issue create --title \"" title "\" --body \"" body "\" --label feature-request")} title=substr($0,4); body=""; next} {body=body $0 "\n"}' product-docs/stories.md
+          else
+            echo "No user stories found, creating a single analysis issue."
+            gh issue create \
+              --title "🤖 AI Product Analysis Report $(date +%Y-%m-%d)" \
+              --body "查看完整报告：[analysis_summary.md](./analysis_summary.md)" \
+              --label "product-insight"
+          fi
+
+      # ========== 步骤5：提交报告到仓库 ==========
       - name: 5. Commit Reports
         run: |
           git config user.name "Product Brain Bot"
           git config user.email "brain-bot@your-domain.com"
-          git add analysis_summary.md product-docs/ skene-context/ readyourusers-report.md combined_brief.md
-          git commit -m "🤖 Automated product analysis and PRD" || echo "No changes to commit"
-          git push
+          # 将生成的所有文件添加
+          git add analysis_summary.md product-docs/ skene-context/ readyourusers-report.md combined_brief.md 2>/dev/null || true
+          git add issues.json 2>/dev/null || true  # 可选，保存原始数据
+          # 如果有变更才提交
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "🤖 Automated product analysis and PRD $(date +%Y-%m-%d)"
+            git push
+          fi
