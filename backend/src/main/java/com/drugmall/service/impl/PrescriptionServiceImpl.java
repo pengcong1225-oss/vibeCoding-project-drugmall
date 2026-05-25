@@ -8,6 +8,7 @@ import com.drugmall.dto.WithdrawApplyDTO;
 import com.drugmall.entity.Prescription;
 import com.drugmall.entity.PrescriptionItem;
 import com.drugmall.entity.Consultation;
+import com.drugmall.entity.ConsultationMessage;
 import com.drugmall.entity.DoctorIncome;
 import com.drugmall.entity.Drug;
 import com.drugmall.entity.Patient;
@@ -16,6 +17,7 @@ import com.drugmall.mapper.DrugMapper;
 import com.drugmall.mapper.PrescriptionMapper;
 import com.drugmall.mapper.PrescriptionItemMapper;
 import com.drugmall.mapper.ConsultationMapper;
+import com.drugmall.mapper.ConsultationMessageMapper;
 import com.drugmall.mapper.DoctorIncomeMapper;
 import com.drugmall.mapper.PatientMapper;
 import com.drugmall.mapper.UserMapper;
@@ -48,6 +50,9 @@ public class PrescriptionServiceImpl implements PrescriptionService {
 
     @Autowired
     private ConsultationMapper consultationMapper;
+
+    @Autowired
+    private ConsultationMessageMapper consultationMessageMapper;
 
     @Autowired
     private DoctorIncomeMapper doctorIncomeMapper;
@@ -213,6 +218,32 @@ public class PrescriptionServiceImpl implements PrescriptionService {
                 consultationMapper.updateById(consultation);
                 log.info("问诊 {} 状态已更新为 completed（处方已开具）", createDTO.getConsultationId());
             }
+
+            // 将处方信息作为消息写入问诊消息表，患者端可实时查看
+            StringBuilder msgContent = new StringBuilder();
+            msgContent.append("【电子处方】\n");
+            msgContent.append("诊断：").append(createDTO.getDiagnosis()).append("\n");
+            msgContent.append("药品清单：\n");
+            for (int i = 0; i < createDTO.getDrugs().size(); i++) {
+                CreatePrescriptionDTO.PrescriptionDrugDTO drug = createDTO.getDrugs().get(i);
+                msgContent.append(i + 1).append(". ")
+                    .append(drug.getName()).append(" ").append(drug.getSpec())
+                    .append(" - ").append(drug.getDosage() != null ? drug.getDosage() : "")
+                    .append(" ").append(drug.getFrequency() != null ? drug.getFrequency() : "")
+                    .append(" ").append(drug.getDuration() != null ? drug.getDuration() : "")
+                    .append(" ×").append(drug.getQuantity()).append("\n");
+            }
+            msgContent.append("合计：¥").append(String.format("%.2f", totalAmount));
+
+            ConsultationMessage msg = new ConsultationMessage();
+            msg.setConsultationId(createDTO.getConsultationId());
+            msg.setSenderType("doctor");
+            msg.setSenderId(doctorId);
+            msg.setType("prescription");
+            msg.setContent(msgContent.toString());
+            msg.setCreateTime(LocalDateTime.now());
+            consultationMessageMapper.insert(msg);
+            log.info("处方消息已写入问诊会话: consultationId={}", createDTO.getConsultationId());
         }
 
         log.info("创建处方: {}, 总金额: {}", prescriptionId, totalAmount);
@@ -509,7 +540,24 @@ public class PrescriptionServiceImpl implements PrescriptionService {
         vo.setPharmacist("");
         vo.setReviewTime("");
         vo.setRejectReason(p.getRejectReason());
-        vo.setDrugs(new ArrayList<>());
+
+        // 加载处方药品明细
+        LambdaQueryWrapper<PrescriptionItem> itemWrapper = new LambdaQueryWrapper<>();
+        itemWrapper.eq(PrescriptionItem::getPrescriptionId, p.getId());
+        List<PrescriptionItem> items = prescriptionItemMapper.selectList(itemWrapper);
+        List<DoctorPrescriptionVO.DrugItemVO> drugs = items.stream().map(item -> {
+            DoctorPrescriptionVO.DrugItemVO drugVO = new DoctorPrescriptionVO.DrugItemVO();
+            drugVO.setId(String.valueOf(item.getId()));
+            drugVO.setName(item.getProductName());
+            drugVO.setSpec(item.getSpecification());
+            drugVO.setPrice(item.getPrice());
+            drugVO.setQuantity(item.getQuantity());
+            drugVO.setDosage(item.getDosage());
+            drugVO.setFrequency(item.getFrequency());
+            drugVO.setDuration(item.getDuration());
+            return drugVO;
+        }).collect(Collectors.toList());
+        vo.setDrugs(drugs);
 
         // 填充关联的问诊会话信息
         if (p.getConsultationId() != null && !p.getConsultationId().isEmpty()) {

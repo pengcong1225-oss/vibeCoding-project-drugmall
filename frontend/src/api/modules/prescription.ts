@@ -1,35 +1,43 @@
 import { http } from '../request'
 
-export interface Prescription {
-  id: string
-  prescriptionNo: string
-  doctorName: string
-  title?: string
-  hospital: string
-  department: string
-  diagnosis: string
-  status: 'pending' | 'active' | 'expired'
-  statusText: string
-  createTime: string
-  drugs: PrescriptionDrug[]
-}
-
 export interface PrescriptionDrug {
+  id?: string
   name: string
   spec: string
+  unit?: string
+  price?: number
   quantity?: number
-  usage?: string
+  dosage?: string
   frequency?: string
+  duration?: string
   days?: number
 }
 
-export interface PrescriptionDetail extends Prescription {
-  patientName: string
-  patientAge: number
-  patientGender: string
-  doctorAdvice?: string
-  reviewStatus?: string
+export interface Prescription {
+  id: string
+  prescriptionNo?: string
+  patientId?: string
+  patientName?: string
+  patientAge?: number
+  patientGender?: string
+  consultationId?: string
+  consultationStatus?: string
+  consultationSymptom?: string
+  consultationType?: string
+  diagnosis: string
+  drugs: PrescriptionDrug[]
+  totalAmount?: number
+  status: 'pending' | 'approved' | 'rejected'
+  statusText: string
+  createTime: string
+  pharmacist?: string
   reviewTime?: string
+  rejectReason?: string
+}
+
+export interface PrescriptionDetail extends Prescription {
+  doctorAdvice?: string
+  precautions?: string[]
 }
 
 export function getPrescriptionList(status?: string) {

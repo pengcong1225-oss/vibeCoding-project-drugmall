@@ -384,4 +384,3 @@ export const usePrescriptionStore = defineStore('prescription', () => {
     loadLatestPrescription
   }
 })
-})

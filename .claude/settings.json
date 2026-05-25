@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl *)",
+      "Bash(git *)",
+      "Bash(mvn *)",
+      "Bash(npm *)",
+      "Bash(taskkill *)",
+      "Bash(netstat *)",
+      "Bash(ssh *)",
+      "Bash(ssh-keygen *)",
+      "Bash(grep *)",
+      "Bash(sed *)",
+      "Bash(awk *)",
+      "Bash(printf *)",
+      "Bash(tail *)",
+      "Bash(ls *)",
+      "Bash(echo *)",
+      "Bash(python3 *)",
+      "Bash(where *)",
+      "Bash(java *)",
+      "WebFetch(domain:*)",
+      "Read(//c/Users/**)",
+      "Read(//c/Program Files/**)"
+    ]
+  }
+}

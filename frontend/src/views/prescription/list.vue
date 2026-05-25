@@ -43,20 +43,19 @@
           <div class="card-header">
             <div class="prescription-no">
               <el-icon><Document /></el-icon>
-              <span>{{ item.prescriptionNo }}</span>
+              <span>{{ item.prescriptionNo || item.id }}</span>
             </div>
             <div :class="['status-badge', item.status]">{{ item.statusText }}</div>
           </div>
 
           <div class="card-body">
-            <div class="info-row">
-              <span class="label">开方医生</span>
-              <span class="value">{{ item.doctorName }}</span>
-              <span class="tag doctor-tag">{{ item.title || '医生' }}</span>
+            <div class="info-row" v-if="item.consultationType">
+              <span class="label">问诊类型</span>
+              <span class="value">{{ item.consultationType }}</span>
             </div>
-            <div class="info-row">
-              <span class="label">医院科室</span>
-              <span class="value">{{ item.hospital }} · {{ item.department }}</span>
+            <div class="info-row" v-if="item.consultationSymptom">
+              <span class="label">问诊症状</span>
+              <span class="value">{{ item.consultationSymptom?.substring(0, 50) }}{{ item.consultationSymptom?.length > 50 ? '...' : '' }}</span>
             </div>
             <div class="info-row diagnosis-row">
               <span class="label">诊断结果</span>
@@ -99,11 +98,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
 import { ArrowLeft, Document, Clock, ArrowRight } from '@element-plus/icons-vue'
 import { getPrescriptionList, type Prescription } from '@/api/modules/prescription'
-import { PrescriptionStatus } from '@/constants'
-import { getInquiryCheckoutRoute } from '@/constants/routes'
+import { ROUTES, getInquiryCheckoutRoute } from '@/constants/routes'
 
 const router = useRouter()
 const loading = ref(false)
@@ -111,9 +108,9 @@ const currentStatus = ref('all')
 
 const statusTabs = [
   { label: '全部', value: 'all' },
-  { label: '待审核', value: PrescriptionStatus.PENDING },
-  { label: '已生效', value: PrescriptionStatus.APPROVED },
-  { label: '已失效', value: PrescriptionStatus.EXPIRED }
+  { label: '待审核', value: 'pending' },
+  { label: '已通过', value: 'approved' },
+  { label: '已拒绝', value: 'rejected' }
 ]
 
 const prescriptionList = ref<Prescription[]>([])
@@ -130,7 +127,7 @@ const goBack = () => {
 }
 
 const viewDetail = (item: Prescription) => {
-  ElMessage.info(`查看处方详情：${item.prescriptionNo}`)
+  router.push(`${ROUTES.PRESCRIPTION_SUCCESS}?id=${item.id}&prescriptionNo=${item.prescriptionNo || item.id}`)
 }
 
 const buyDrugs = (item: Prescription) => {
@@ -148,41 +145,7 @@ onMounted(async () => {
     prescriptionList.value = Array.isArray(res) ? res : []
   } catch (error) {
     console.error('获取处方列表失败:', error)
-    prescriptionList.value = [
-      {
-        id: 'PRE001',
-        prescriptionNo: 'P202404070001',
-        doctorName: '张医生',
-        title: '副主任医师',
-        hospital: '北京协和医院',
-        department: '心内科',
-        diagnosis: '上呼吸道感染',
-        status: 'approved',
-        statusText: '已生效',
-        createTime: '2024-04-07 14:30:00',
-        drugs: [
-          { name: '阿莫西林胶囊', spec: '0.25g*24粒' },
-          { name: '布洛芬缓释胶囊', spec: '0.3g*20粒' },
-          { name: '感冒清热颗粒', spec: '12g*10袋' }
-        ]
-      },
-      {
-        id: 'PRE002',
-        prescriptionNo: 'P202404050002',
-        doctorName: '李医生',
-        title: '主任医师',
-        hospital: '北京协和医院',
-        department: '消化内科',
-        diagnosis: '急性肠胃炎',
-        status: 'expired',
-        statusText: '已失效',
-        createTime: '2024-04-05 10:15:00',
-        drugs: [
-          { name: '蒙脱石散', spec: '3g*10袋' },
-          { name: '诺氟沙星胶囊', spec: '0.1g*24粒' }
-        ]
-      }
-    ]
+    prescriptionList.value = []
   } finally {
     loading.value = false
   }
@@ -327,14 +290,14 @@ onMounted(async () => {
         color: #FAAD14;
       }
 
-      &.active {
+      &.approved {
         background: rgba($success, 0.08);
         color: $success;
       }
 
-      &.expired {
-        background: $bg-gray;
-        color: $text-tertiary;
+      &.rejected {
+        background: rgba($error, 0.08);
+        color: $error;
       }
     }
   }
