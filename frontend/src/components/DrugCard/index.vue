@@ -6,12 +6,16 @@ import { formatPrice } from '@/utils'
 import { getDrugDetailRoute } from '@/constants/routes'
 import type { Drug } from '@/types'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   drug: Drug
   layout?: 'vertical' | 'horizontal'
   showTag?: boolean
   showSales?: boolean
-}>()
+}>(), {
+  layout: 'vertical',
+  showTag: false,
+  showSales: false
+})
 
 const emit = defineEmits<{
   (e: 'addToCart', drug: Drug): void

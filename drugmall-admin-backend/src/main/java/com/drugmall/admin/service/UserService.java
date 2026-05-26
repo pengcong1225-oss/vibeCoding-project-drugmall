@@ -8,4 +8,7 @@ public interface UserService {
     PageResult<User> getUserList(int pageNum, int pageSize, String keyword, Integer status);
     User getUserDetail(Long id);
     boolean updateUserStatus(Long id, Integer status);
+    Long createUser(User user);
+    boolean updateUser(User user);
+    boolean deleteUser(Long id);
 }

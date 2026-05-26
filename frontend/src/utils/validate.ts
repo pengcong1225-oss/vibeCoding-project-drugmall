@@ -15,7 +15,7 @@ export function isValidPhone(phone: string): boolean {
  * @returns 是否有效
  */
 export function isValidEmail(email: string): boolean {
-  return /^[\w-]+(\.[\w-]+)*@[\w-]+(\.[\w-]+)+$/.test(email)
+  return /^[\w-+]+(\.[\w-]+)*@[\w-]+(\.[\w-]+)+$/.test(email)
 }
 
 /**

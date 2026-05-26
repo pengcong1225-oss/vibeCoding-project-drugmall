@@ -9,7 +9,7 @@ describe('Empty', () => {
       global: {
         stubs: {
           'el-icon': true,
-          'el-button': true
+          'el-button': { template: '<button><slot /></button>' }
         }
       }
     })
@@ -38,7 +38,7 @@ describe('Empty', () => {
         global: {
           stubs: {
             'el-icon': true,
-            'el-button': true
+            'el-button': { template: '<button><slot /></button>' }
           }
         }
       })
@@ -56,7 +56,7 @@ describe('Empty', () => {
       global: {
         stubs: {
           'el-icon': true,
-          'el-button': true
+          'el-button': { template: '<button><slot /></button>' }
         }
       }
     })
@@ -73,7 +73,7 @@ describe('Empty', () => {
       global: {
         stubs: {
           'el-icon': true,
-          'el-button': true
+          'el-button': { template: '<button><slot /></button>' }
         }
       }
     })
@@ -90,12 +90,12 @@ describe('Empty', () => {
       global: {
         stubs: {
           'el-icon': true,
-          'el-button': true
+          'el-button': { template: '<button><slot /></button>' }
         }
       }
     })
 
-    expect(wrapper.find('el-button').text()).toBe('自定义按钮')
+    expect(wrapper.find('button').text()).toBe('自定义按钮')
   })
 
   it('emits click event when button is clicked', async () => {
@@ -104,12 +104,12 @@ describe('Empty', () => {
       global: {
         stubs: {
           'el-icon': true,
-          'el-button': true
+          'el-button': { template: '<button><slot /></button>' }
         }
       }
     })
 
-    await wrapper.find('el-button').trigger('click')
+    await wrapper.find('button').trigger('click')
     expect(wrapper.emitted('click')).toBeTruthy()
   })
 
@@ -122,7 +122,7 @@ describe('Empty', () => {
       global: {
         stubs: {
           'el-icon': true,
-          'el-button': true
+          'el-button': { template: '<button><slot /></button>' }
         }
       }
     })
@@ -136,7 +136,7 @@ describe('Empty', () => {
       global: {
         stubs: {
           'el-icon': true,
-          'el-button': true
+          'el-button': { template: '<button><slot /></button>' }
         }
       }
     })

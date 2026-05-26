@@ -5,7 +5,8 @@ import Loading from './index.vue'
 describe('Loading', () => {
   it('renders loading state when visible is true', () => {
     const wrapper = mount(Loading, {
-      props: { visible: true }
+      props: { visible: true },
+      global: { stubs: { teleport: { template: '<div><slot /></div>' } } }
     })
 
     expect(wrapper.find('.loading-wrapper').isVisible()).toBe(true)
@@ -15,7 +16,8 @@ describe('Loading', () => {
 
   it('hides loading state when visible is false', () => {
     const wrapper = mount(Loading, {
-      props: { visible: false }
+      props: { visible: false },
+      global: { stubs: { teleport: { template: '<div><slot /></div>' } } }
     })
 
     expect(wrapper.find('.loading-wrapper').isVisible()).toBe(false)
@@ -26,7 +28,8 @@ describe('Loading', () => {
       props: { 
         visible: true,
         text: '正在加载数据...'
-      }
+      },
+      global: { stubs: { teleport: { template: '<div><slot /></div>' } } }
     })
 
     expect(wrapper.find('.loading-text').text()).toBe('正在加载数据...')
@@ -37,7 +40,8 @@ describe('Loading', () => {
       props: { 
         visible: true,
         text: ''
-      }
+      },
+      global: { stubs: { teleport: { template: '<div><slot /></div>' } } }
     })
 
     expect(wrapper.find('.loading-text').exists()).toBe(false)
@@ -48,7 +52,8 @@ describe('Loading', () => {
       props: { 
         visible: true,
         fullscreen: true
-      }
+      },
+      global: { stubs: { teleport: { template: '<div><slot /></div>' } } }
     })
 
     expect(wrapper.find('.loading-wrapper').classes()).toContain('is-fullscreen')
@@ -59,7 +64,8 @@ describe('Loading', () => {
       props: { 
         visible: true,
         fullscreen: false
-      }
+      },
+      global: { stubs: { teleport: { template: '<div><slot /></div>' } } }
     })
 
     expect(wrapper.find('.loading-wrapper').classes()).not.toContain('is-fullscreen')
@@ -70,7 +76,8 @@ describe('Loading', () => {
       props: { 
         visible: true,
         background: 'rgba(0, 0, 0, 0.5)'
-      }
+      },
+      global: { stubs: { teleport: { template: '<div><slot /></div>' } } }
     })
 
     expect(wrapper.find('.loading-wrapper').attributes('style')).toContain('background: rgba(0, 0, 0, 0.5)')
@@ -78,7 +85,8 @@ describe('Loading', () => {
 
   it('renders spinner with correct structure', () => {
     const wrapper = mount(Loading, {
-      props: { visible: true }
+      props: { visible: true },
+      global: { stubs: { teleport: { template: '<div><slot /></div>' } } }
     })
 
     const spinnerRings = wrapper.findAll('.spinner-ring')
@@ -87,7 +95,8 @@ describe('Loading', () => {
 
   it('renders with default props', () => {
     const wrapper = mount(Loading, {
-      props: { visible: true }
+      props: { visible: true },
+      global: { stubs: { teleport: { template: '<div><slot /></div>' } } }
     })
 
     expect(wrapper.find('.loading-wrapper').exists()).toBe(true)

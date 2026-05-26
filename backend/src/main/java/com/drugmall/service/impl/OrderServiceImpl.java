@@ -71,11 +71,11 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public PageResultVO<OrderVO> getOrderList(String userId, OrderQueryDTO queryDTO) {
         LambdaQueryWrapper<Order> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Order::getUserId, userId);
-        
+        wrapper.eq(Order::getUserId, Long.parseLong(userId));
+
         // 根据状态筛选
         if (queryDTO.getStatus() != null && !queryDTO.getStatus().isEmpty()) {
-            wrapper.eq(Order::getStatus, queryDTO.getStatus());
+            wrapper.eq(Order::getStatus, parseStatusToInt(queryDTO.getStatus()));
         }
         
         // 按创建时间倒序
@@ -392,10 +392,10 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public OrderStatsVO getOrderStatistics(String userId) {
         LambdaQueryWrapper<Order> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Order::getUserId, userId);
-        
+        wrapper.eq(Order::getUserId, Long.parseLong(userId));
+
         List<Order> orders = orderMapper.selectList(wrapper);
-        
+
         int totalCount = orders.size();
         int pendingPayment = 0;
         int pendingShipment = 0;
@@ -444,7 +444,7 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public List<OrderStatusCountVO> getOrderStatusCounts(String userId) {
         LambdaQueryWrapper<Order> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Order::getUserId, userId);
+        wrapper.eq(Order::getUserId, Long.parseLong(userId));
         
         List<Order> orders = orderMapper.selectList(wrapper);
         
@@ -565,6 +565,19 @@ public class OrderServiceImpl implements OrderService {
             case 4: return "已取消";
             case 5: return "退款中";
             default: return "未知";
+        }
+    }
+
+    private Integer parseStatusToInt(String status) {
+        if (status == null) return null;
+        switch (status) {
+            case "pending": return 0;
+            case "paid": return 1;
+            case "shipped": return 2;
+            case "completed": return 3;
+            case "cancelled": return 4;
+            case "refunding": return 5;
+            default: return null;
         }
     }
 

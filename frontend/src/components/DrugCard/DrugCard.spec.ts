@@ -3,6 +3,21 @@ import { mount, RouterLinkStub } from '@vue/test-utils'
 import { createRouter, createWebHistory } from 'vue-router'
 import DrugCard from './index.vue'
 import type { Drug } from '@/types'
+import { useRouter } from 'vue-router'
+
+const mockPush = vi.hoisted(() => vi.fn())
+vi.mock('vue-router', async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    useRouter: () => ({
+      push: mockPush
+    }),
+    useRoute: () => ({
+      path: '/'
+    })
+  }
+})
 
 // Mock drug data
 const mockDrug: Drug = {
@@ -117,13 +132,10 @@ describe('DrugCard', () => {
   })
 
   it('navigates to drug detail when card is clicked', async () => {
-    const push = vi.fn()
+    const router = useRouter()
     const wrapper = mount(DrugCard, {
       props: { drug: mockDrug },
       global: {
-        mocks: {
-          $router: { push }
-        },
         stubs: {
           'el-icon': true
         }
@@ -132,7 +144,7 @@ describe('DrugCard', () => {
 
     await wrapper.find('.drug-card').trigger('click')
     
-    expect(push).toHaveBeenCalledWith(`/drug/${mockDrug.id}`)
+    expect(mockPush).toHaveBeenCalledWith('/drug/' + mockDrug.id)
   })
 
   it('renders in horizontal layout when specified', () => {

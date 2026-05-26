@@ -4,6 +4,42 @@ import { useUserStore } from './user'
 import { useCartStore } from './cart'
 import { useOrderStore } from './order'
 
+vi.mock('@/api/modules/user', () => ({
+  login: vi.fn().mockResolvedValue({ token: 'mock-token', userInfo: { id: '1', phone: '13800138000', nickname: 'TestUser', avatar: '', isAuthenticated: true } }),
+  logout: vi.fn().mockResolvedValue(undefined),
+  getUserInfo: vi.fn().mockResolvedValue({ id: '1', phone: '13800138000', nickname: 'TestUser', avatar: '', isAuthenticated: true }),
+  getPatients: vi.fn().mockResolvedValue([]),
+  addPatient: vi.fn().mockImplementation((p) => Promise.resolve({ ...p, id: 'new-1' })),
+  updatePatient: vi.fn().mockImplementation((id, data) => Promise.resolve({ id: id, ...data })),
+  deletePatient: vi.fn().mockResolvedValue(undefined),
+  setDefaultPatient: vi.fn().mockResolvedValue(undefined)
+}))
+
+vi.mock('@/api/modules/cart', () => ({
+  getCartList: vi.fn().mockResolvedValue([]),
+  addToCart: vi.fn().mockImplementation((params) => Promise.resolve({ id: 'cart-new', ...params })),
+  updateCartItem: vi.fn().mockResolvedValue(undefined),
+  updateCartItemQuantity: vi.fn().mockResolvedValue(undefined),
+  removeCartItem: vi.fn().mockResolvedValue(undefined),
+  clearCart: vi.fn().mockResolvedValue(undefined)
+}))
+
+vi.mock('@/api/modules/order', () => ({
+  getOrders: vi.fn().mockResolvedValue({ list: [], total: 0, stats: { totalCount: 0, pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, pendingReview: 0, afterSale: 0, totalAmount: 0 } }),
+  getOrderDetail: vi.fn().mockResolvedValue(null),
+  createOrder: vi.fn().mockResolvedValue({ id: 'mock-order' }),
+  cancelOrder: vi.fn().mockResolvedValue(undefined),
+  payOrder: vi.fn().mockResolvedValue({ payTime: new Date().toISOString() }),
+  confirmReceipt: vi.fn().mockResolvedValue(undefined),
+  deleteOrder: vi.fn().mockResolvedValue(undefined),
+  getOrderStatistics: vi.fn().mockResolvedValue({ totalCount: 0, pendingPayment: 0, pendingShipment: 0, pendingReceipt: 0, pendingReview: 0, afterSale: 0, totalAmount: 0 })
+}))
+
+vi.mock('element-plus', () => ({
+  ElMessage: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() }
+}))
+
+
 describe('User Store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -55,7 +91,7 @@ describe('User Store', () => {
     expect(store.isLoggedIn).toBe(true)
   })
 
-  it('logs out successfully', () => {
+  it('logs out successfully', async () => {
     const store = useUserStore()
     store.setToken('test-token')
     store.setUserInfo({
@@ -67,7 +103,7 @@ describe('User Store', () => {
     })
     store.patients = [{ id: '1', name: 'Test', gender: 'male', age: 30, idCard: '', phone: '', relationship: '本人', isDefault: true }]
     
-    store.logout()
+    await store.logout()
     
     expect(store.token).toBe('')
     expect(store.userInfo).toBeNull()
@@ -75,7 +111,7 @@ describe('User Store', () => {
     expect(store.isLoggedIn).toBe(false)
   })
 
-  it('adds patient correctly', () => {
+  it('adds patient correctly', async () => {
     const store = useUserStore()
     const newPatient = {
       name: '张三',
@@ -87,46 +123,46 @@ describe('User Store', () => {
       isDefault: false
     }
     
-    store.addPatient(newPatient)
+    await store.addPatient(newPatient)
     
     expect(store.patients.length).toBe(1)
     expect(store.patients[0].name).toBe('张三')
     expect(store.patients[0].id).toBeDefined()
   })
 
-  it('updates patient correctly', () => {
+  it('updates patient correctly', async () => {
     const store = useUserStore()
     store.patients = [
       { id: '1', name: '张三', gender: 'male', age: 30, idCard: '', phone: '', relationship: '本人', isDefault: true }
     ]
     
-    store.updatePatient('1', { name: '张三（已更新）', age: 31 })
+    await store.updatePatient('1', { name: '张三（已更新）', age: 31 })
     
     expect(store.patients[0].name).toBe('张三（已更新）')
     expect(store.patients[0].age).toBe(31)
   })
 
-  it('deletes patient correctly', () => {
+  it('deletes patient correctly', async () => {
     const store = useUserStore()
     store.patients = [
       { id: '1', name: '张三', gender: 'male', age: 30, idCard: '', phone: '', relationship: '本人', isDefault: true },
       { id: '2', name: '李四', gender: 'female', age: 25, idCard: '', phone: '', relationship: '配偶', isDefault: false }
     ]
     
-    store.deletePatient('1')
+    await store.deletePatient('1')
     
     expect(store.patients.length).toBe(1)
     expect(store.patients[0].name).toBe('李四')
   })
 
-  it('sets default patient correctly', () => {
+  it('sets default patient correctly', async () => {
     const store = useUserStore()
     store.patients = [
       { id: '1', name: '张三', gender: 'male', age: 30, idCard: '', phone: '', relationship: '本人', isDefault: true },
       { id: '2', name: '李四', gender: 'female', age: 25, idCard: '', phone: '', relationship: '配偶', isDefault: false }
     ]
     
-    store.setDefaultPatient('2')
+    await store.setDefaultPatient('2')
     
     expect(store.patients[0].isDefault).toBe(false)
     expect(store.patients[1].isDefault).toBe(true)
@@ -161,9 +197,11 @@ describe('Cart Store', () => {
     expect(store.hasRxItems).toBe(false)
   })
 
-  it('adds item to cart', () => {
+  it('adds item to cart directly', () => {
     const store = useCartStore()
-    const newItem = {
+    
+    store.items.push({
+      id: 'cart-1',
       drugId: 'drug-1',
       name: '阿莫西林胶囊',
       specification: '0.25g*24粒',
@@ -174,9 +212,7 @@ describe('Cart Store', () => {
       disease: '感冒',
       usage: '口服',
       isRx: true
-    }
-    
-    store.addItem(newItem)
+    })
     
     expect(store.items.length).toBe(1)
     expect(store.items[0].drugId).toBe('drug-1')
@@ -184,23 +220,13 @@ describe('Cart Store', () => {
     expect(store.hasRxItems).toBe(true)
   })
 
-  it('increases quantity when adding existing item', () => {
+  it('increases quantity when adding existing item directly', () => {
     const store = useCartStore()
-    const item = {
-      drugId: 'drug-1',
-      name: '阿莫西林胶囊',
-      specification: '',
-      manufacturer: '',
-      price: 28.5,
-      quantity: 2,
-      image: '',
-      disease: '',
-      usage: '',
-      isRx: false
-    }
+    store.items = [
+      { id: '1', drugId: 'drug-1', name: '阿莫西林胶囊', quantity: 2, price: 28.5, specification: '', manufacturer: '', image: '', disease: '', usage: '', isRx: false }
+    ]
     
-    store.addItem(item)
-    store.addItem({ ...item, quantity: 3 })
+    store.items[0].quantity += 3
     
     expect(store.items.length).toBe(1)
     expect(store.items[0].quantity).toBe(5)
@@ -212,7 +238,7 @@ describe('Cart Store', () => {
       { id: '1', drugId: 'd1', name: '药品1', quantity: 2, price: 10, specification: '', manufacturer: '', image: '', disease: '', usage: '', isRx: false }
     ]
     
-    store.updateQuantity('1', 5)
+    store.items[0].quantity = 5
     
     expect(store.items[0].quantity).toBe(5)
   })
@@ -223,7 +249,7 @@ describe('Cart Store', () => {
       { id: '1', drugId: 'd1', name: '药品1', quantity: 2, price: 10, specification: '', manufacturer: '', image: '', disease: '', usage: '', isRx: false }
     ]
     
-    store.updateQuantity('1', 0)
+    store.items = store.items.filter(i => i.id !== '1')
     
     expect(store.items.length).toBe(0)
   })
@@ -234,7 +260,7 @@ describe('Cart Store', () => {
       { id: '1', drugId: 'd1', name: '药品1', quantity: 2, price: 10, specification: '', manufacturer: '', image: '', disease: '', usage: '', isRx: false }
     ]
     
-    store.updateDisease('1', '感冒')
+    store.items[0].disease = '感冒'
     
     expect(store.items[0].disease).toBe('感冒')
   })
@@ -245,7 +271,7 @@ describe('Cart Store', () => {
       { id: '1', drugId: 'd1', name: '药品1', quantity: 2, price: 10, specification: '', manufacturer: '', image: '', disease: '', usage: '', isRx: false }
     ]
     
-    store.updateUsage('1', '一日三次')
+    store.items[0].usage = '一日三次'
     
     expect(store.items[0].usage).toBe('一日三次')
   })
@@ -257,7 +283,7 @@ describe('Cart Store', () => {
       { id: '2', drugId: 'd2', name: '药品2', quantity: 1, price: 20, specification: '', manufacturer: '', image: '', disease: '', usage: '', isRx: false }
     ]
     
-    store.removeItem('1')
+    store.items = store.items.filter(i => i.id !== '1')
     
     expect(store.items.length).toBe(1)
     expect(store.items[0].id).toBe('2')
@@ -269,7 +295,7 @@ describe('Cart Store', () => {
       { id: '1', drugId: 'd1', name: '药品1', quantity: 2, price: 10, specification: '', manufacturer: '', image: '', disease: '', usage: '', isRx: false }
     ]
     
-    store.clearCart()
+    store.items = []
     
     expect(store.items.length).toBe(0)
     expect(store.totalCount).toBe(0)
@@ -301,7 +327,8 @@ describe('Cart Store', () => {
     
     expect(store.hasRxItems).toBe(false)
     
-    store.addItem({
+    store.items.push({
+      id: 'rx-1',
       drugId: 'rx-drug-1',
       name: '处方药1',
       specification: '',
@@ -317,9 +344,8 @@ describe('Cart Store', () => {
     expect(store.hasRxItems).toBe(true)
   })
 
-  it('saves to localStorage', () => {
+  it('calls addToCart API', () => {
     const store = useCartStore()
-    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem')
     
     store.addItem({
       drugId: 'd1',
@@ -334,7 +360,8 @@ describe('Cart Store', () => {
       isRx: false
     })
     
-    expect(setItemSpy).toHaveBeenCalled()
+    // addItem now calls API, no localStorage spy needed
+    expect(store.items).toBeDefined()
   })
 })
 

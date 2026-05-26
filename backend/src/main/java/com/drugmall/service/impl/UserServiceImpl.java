@@ -213,7 +213,7 @@ public class UserServiceImpl implements UserService {
             LambdaQueryWrapper<Patient> wrapper = new LambdaQueryWrapper<>();
             wrapper.eq(Patient::getUserId, Long.parseLong(userId))
                    .eq(Patient::getIsDefault, true)
-                   .ne(Patient::getId, patientId);
+                   .ne(Patient::getId, Long.parseLong(patientId));
             List<Patient> existingDefaults = patientMapper.selectList(wrapper);
             for (Patient p : existingDefaults) {
                 p.setIsDefault(false);
@@ -320,7 +320,7 @@ public class UserServiceImpl implements UserService {
             LambdaQueryWrapper<Address> wrapper = new LambdaQueryWrapper<>();
             wrapper.eq(Address::getUserId, Long.parseLong(userId))
                    .eq(Address::getIsDefault, true)
-                   .ne(Address::getId, addressId);
+                   .ne(Address::getId, Long.parseLong(addressId));
             List<Address> existingDefaults = addressMapper.selectList(wrapper);
             for (Address a : existingDefaults) {
                 a.setIsDefault(false);
@@ -444,7 +444,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public void clearBrowseHistory(String userId) {
         LambdaQueryWrapper<BrowseHistory> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(BrowseHistory::getUserId, userId);
+        wrapper.eq(BrowseHistory::getUserId, Long.parseLong(userId));
         browseHistoryMapper.delete(wrapper);
         log.info("清空浏览历史: {}", userId);
     }

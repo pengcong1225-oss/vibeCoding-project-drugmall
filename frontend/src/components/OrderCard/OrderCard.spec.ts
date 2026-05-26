@@ -55,7 +55,7 @@ describe('OrderCard', () => {
         },
         stubs: {
           'el-icon': true,
-          'el-button': true
+          'el-button': { template: '<button class="mock-el-button"><slot /></button>' }
         }
       }
     })
@@ -74,7 +74,7 @@ describe('OrderCard', () => {
     wrapper = createWrapper()
     const statusEl = wrapper.find('.order-status')
     expect(statusEl.text()).toBe('待支付')
-    expect(statusEl.attributes('style')).toContain('color: #ff9500')
+    expect(statusEl.attributes('style')).toContain('color: rgb(255, 149, 0)')
   })
 
   it('renders correct status text for paid order', () => {
@@ -123,28 +123,28 @@ describe('OrderCard', () => {
 
   it('displays pay button for pending order', () => {
     wrapper = createWrapper()
-    const buttons = wrapper.findAll('el-button')
+    const buttons = wrapper.findAll('.mock-el-button')
     const buttonTexts = buttons.map(b => b.text())
     expect(buttonTexts).toContain('立即支付')
   })
 
   it('displays cancel button for pending order', () => {
     wrapper = createWrapper()
-    const buttons = wrapper.findAll('el-button')
+    const buttons = wrapper.findAll('.mock-el-button')
     const buttonTexts = buttons.map(b => b.text())
     expect(buttonTexts).toContain('取消订单')
   })
 
   it('emits pay event when pay button is clicked', async () => {
     wrapper = createWrapper()
-    await wrapper.find('el-button').trigger('click')
+    await wrapper.find('.mock-el-button').trigger('click')
     expect(wrapper.emitted('pay')).toBeTruthy()
   })
 
   it('emits cancel event when cancel button is clicked', async () => {
     wrapper = createWrapper()
-    const buttons = wrapper.findAll('el-button')
-    const cancelButton = buttons.find(b => b.text() === '取消订单')
+    const buttons = wrapper.findAll('.mock-el-button')
+    const cancelButton = wrapper.findAll('.mock-el-button').filter(w => w.text().includes('取消订单'))[0]
     if (cancelButton) {
       await cancelButton.trigger('click')
       expect(wrapper.emitted('cancel')).toBeTruthy()
@@ -154,14 +154,14 @@ describe('OrderCard', () => {
   it('displays confirm button for shipped order', () => {
     const shippedOrder = { ...mockOrder, status: 'shipped' as OrderStatus }
     wrapper = createWrapper({ order: shippedOrder })
-    const buttons = wrapper.findAll('el-button')
+    const buttons = wrapper.findAll('.mock-el-button')
     const buttonTexts = buttons.map(b => b.text())
     expect(buttonTexts).toContain('确认收货')
   })
 
   it('displays view detail button', () => {
     wrapper = createWrapper()
-    const buttons = wrapper.findAll('el-button')
+    const buttons = wrapper.findAll('.mock-el-button')
     const buttonTexts = buttons.map(b => b.text())
     expect(buttonTexts).toContain('查看详情')
   })
